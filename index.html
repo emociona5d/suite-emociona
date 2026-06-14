@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Emociona 5D — Acceso</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #FDF8F4;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .login-card {
+      background: white;
+      border-radius: 20px;
+      padding: 48px 40px;
+      width: 100%;
+      max-width: 380px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+      text-align: center;
+    }
+
+    .logo-title {
+      font-size: 28px;
+      font-weight: 300;
+      color: #2C5F6E;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+    }
+
+    .logo-subtitle {
+      font-size: 11px;
+      color: #9BB5BC;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      margin-top: 6px;
+    }
+
+    .divider {
+      width: 40px;
+      height: 2px;
+      background: #C8E6E0;
+      margin: 28px auto;
+      border-radius: 2px;
+    }
+
+    .welcome-text {
+      font-size: 14px;
+      color: #7A8A8E;
+      margin-bottom: 32px;
+      line-height: 1.6;
+    }
+
+    .google-btn-container {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 16px;
+    }
+
+    .error-msg {
+      display: none;
+      background: #FFF0F0;
+      color: #C0392B;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-top: 16px;
+      line-height: 1.5;
+    }
+
+    .footer-text {
+      margin-top: 36px;
+      font-size: 11px;
+      color: #C8D4D8;
+      letter-spacing: 1px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="login-card">
+  <div class="logo-title">Emociona 5D</div>
+  <div class="logo-subtitle">Gestión interna</div>
+
+  <div class="divider"></div>
+
+  <p class="welcome-text">Accede con tu cuenta de Google para continuar.</p>
+
+  <div class="google-btn-container">
+    <div id="g_id_onload"
+         data-client_id="439474376295-jjs3q4nki5pkpc9fc9qfcdmp4ldlj1vh.apps.googleusercontent.com"
+         data-callback="handleCredentialResponse"
+         data-auto_prompt="false">
+    </div>
+    <div class="g_id_signin"
+         data-type="standard"
+         data-size="large"
+         data-theme="outline"
+         data-text="signin_with"
+         data-locale="es"
+         data-shape="rectangular">
+    </div>
+  </div>
+
+  <div class="error-msg" id="login-error"></div>
+
+  <div class="footer-text">Solo para uso interno del equipo</div>
+</div>
+
+<script>
+  // Roles por email
+  const ROLES = {
+    'emocionaecografia5d@gmail.com': 'owner',
+    'danibarrasarodriguez@gmail.com': 'owner',
+    'isabelzancadazarcero@gmail.com': 'owner'
+    // Email de Eli se añadirá aquí con rol 'staff'
+  };
+
+  // Si ya hay sesión activa, ir directamente al dashboard
+  if (sessionStorage.getItem('emociona_session')) {
+    window.location.href = 'dashboard.html';
+  }
+
+  function handleCredentialResponse(response) {
+    const data = parseJwt(response.credential);
+    const email = data.email.toLowerCase();
+    const role = ROLES[email];
+
+    if (!role) {
+      const err = document.getElementById('login-error');
+      err.style.display = 'block';
+      err.textContent = 'Este correo no tiene acceso a la aplicación. Contacta con Dani.';
+      return;
+    }
+
+    sessionStorage.setItem('emociona_session', JSON.stringify({
+      email: email,
+      name: data.name,
+      picture: data.picture,
+      role: role
+    }));
+
+    window.location.href = 'dashboard.html';
+  }
+
+  function parseJwt(token) {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64).split('').map(c =>
+        '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+      ).join('')
+    );
+    return JSON.parse(jsonPayload);
+  }
+</script>
+
+</body>
+</html>

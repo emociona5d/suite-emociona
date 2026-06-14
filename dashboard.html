@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Emociona 5D — Inicio</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #FDF8F4;
+      min-height: 100vh;
+    }
+
+    header {
+      background: white;
+      padding: 14px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 1px 8px rgba(0,0,0,0.06);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .header-brand {
+      font-size: 15px;
+      font-weight: 300;
+      color: #2C5F6E;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+    }
+
+    .header-user {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .user-name {
+      font-size: 14px;
+      color: #7A8A8E;
+    }
+
+    .user-avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: #C8E6E0;
+      object-fit: cover;
+    }
+
+    .logout-btn {
+      font-size: 12px;
+      color: #9BB5BC;
+      cursor: pointer;
+      background: none;
+      border: 1px solid #D8E8EB;
+      border-radius: 6px;
+      padding: 5px 12px;
+      transition: all 0.2s;
+    }
+
+    .logout-btn:hover {
+      background: #F0F8F9;
+      color: #2C5F6E;
+    }
+
+    .main {
+      max-width: 960px;
+      margin: 40px auto;
+      padding: 0 24px;
+    }
+
+    .welcome {
+      font-size: 24px;
+      color: #2C5F6E;
+      font-weight: 300;
+      margin-bottom: 8px;
+    }
+
+    .welcome-sub {
+      font-size: 14px;
+      color: #9BB5BC;
+      margin-bottom: 40px;
+    }
+
+    .status-card {
+      background: white;
+      border-radius: 16px;
+      padding: 40px;
+      text-align: center;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+    }
+
+    .status-icon {
+      font-size: 36px;
+      margin-bottom: 16px;
+    }
+
+    .status-title {
+      font-size: 18px;
+      color: #2C5F6E;
+      font-weight: 400;
+      margin-bottom: 10px;
+    }
+
+    .status-text {
+      font-size: 14px;
+      color: #9BB5BC;
+      line-height: 1.7;
+      max-width: 400px;
+      margin: 0 auto;
+    }
+
+    .role-badge {
+      display: inline-block;
+      margin-top: 24px;
+      padding: 5px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .role-owner { background: #E8F5F2; color: #2C5F6E; }
+    .role-staff { background: #FFF3E8; color: #B86E2A; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-brand">Emociona 5D</div>
+  <div class="header-user">
+    <img class="user-avatar" id="user-avatar" src="" alt="" onerror="this.style.display='none'">
+    <span class="user-name" id="user-name"></span>
+    <button class="logout-btn" onclick="logout()">Cerrar sesión</button>
+  </div>
+</header>
+
+<div class="main">
+  <div class="welcome" id="welcome-msg">Hola</div>
+  <div class="welcome-sub" id="welcome-date"></div>
+
+  <div class="status-card">
+    <div class="status-icon">✨</div>
+    <div class="status-title">El acceso funciona correctamente</div>
+    <div class="status-text">
+      La suite de gestión está en construcción. Las pantallas de citas, sesiones, clientas y facturación se irán activando en los próximos pasos.
+    </div>
+    <div class="role-badge" id="role-badge"></div>
+  </div>
+</div>
+
+<script>
+  const sessionData = sessionStorage.getItem('emociona_session');
+  if (!sessionData) {
+    window.location.href = 'index.html';
+  } else {
+    const user = JSON.parse(sessionData);
+
+    // Nombre
+    const firstName = user.name ? user.name.split(' ')[0] : 'de nuevo';
+    document.getElementById('welcome-msg').textContent = '¡Hola, ' + firstName + '!';
+
+    // Fecha
+    const hoy = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+    document.getElementById('welcome-date').textContent = hoy.charAt(0).toUpperCase() + hoy.slice(1);
+
+    // Avatar
+    if (user.picture) {
+      document.getElementById('user-avatar').src = user.picture;
+    }
+
+    // Nombre en header
+    document.getElementById('user-name').textContent = user.name || user.email;
+
+    // Badge de rol
+    const badge = document.getElementById('role-badge');
+    if (user.role === 'owner') {
+      badge.textContent = 'Propietaria/o';
+      badge.className = 'role-badge role-owner';
+    } else {
+      badge.textContent = 'Centro';
+      badge.className = 'role-badge role-staff';
+    }
+  }
+
+  function logout() {
+    sessionStorage.removeItem('emociona_session');
+    window.location.href = 'index.html';
+  }
+</script>
+
+</body>
+</html>
