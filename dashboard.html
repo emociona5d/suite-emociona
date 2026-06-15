@@ -25,137 +25,72 @@
       top: 0;
       z-index: 100;
     }
-
-    .brand {
-      font-size: 14px;
-      font-weight: 300;
-      color: #2C5F6E;
-      letter-spacing: 3px;
-      text-transform: uppercase;
-    }
-
-    .header-user {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .user-avatar {
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      background: #C8E6E0;
-      object-fit: cover;
-    }
-
-    .user-name {
-      font-size: 13px;
-      color: #7A8A8E;
-    }
-
-    .logout-btn {
-      font-size: 12px;
-      color: #9BB5BC;
-      background: none;
-      border: 1px solid #D8E8EB;
-      border-radius: 6px;
-      padding: 4px 12px;
-      cursor: pointer;
-      transition: all 0.2s;
-      font-family: inherit;
-    }
+    .brand { font-size: 14px; font-weight: 300; color: #2C5F6E; letter-spacing: 3px; text-transform: uppercase; }
+    .header-user { display: flex; align-items: center; gap: 10px; }
+    .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: #C8E6E0; object-fit: cover; }
+    .user-name { font-size: 13px; color: #7A8A8E; }
+    .logout-btn { font-size: 12px; color: #9BB5BC; background: none; border: 1px solid #D8E8EB; border-radius: 6px; padding: 4px 12px; cursor: pointer; transition: all 0.2s; font-family: inherit; }
     .logout-btn:hover { background: #F0F8F9; color: #2C5F6E; }
 
     /* ── NAV ── */
-    nav {
-      background: white;
-      border-bottom: 1px solid #EEF2F4;
-      padding: 0 28px;
-      display: flex;
-      gap: 0;
-    }
-
-    .nav-tab {
-      padding: 12px 20px;
-      font-size: 13px;
-      color: #9BB5BC;
-      cursor: pointer;
-      border-bottom: 2px solid transparent;
-      transition: all 0.2s;
-      text-decoration: none;
-      display: block;
-    }
-
-    .nav-tab.active {
-      color: #2C5F6E;
-      border-bottom-color: #2C5F6E;
-      font-weight: 500;
-    }
-
-    .nav-tab.disabled {
-      opacity: 0.4;
-      cursor: default;
-    }
+    nav { background: white; border-bottom: 1px solid #EEF2F4; padding: 0 28px; display: flex; }
+    .nav-tab { padding: 12px 20px; font-size: 13px; color: #9BB5BC; border-bottom: 2px solid transparent; transition: all 0.2s; text-decoration: none; display: block; }
+    .nav-tab.active { color: #2C5F6E; border-bottom-color: #2C5F6E; font-weight: 500; }
+    .nav-tab.disabled { opacity: 0.4; pointer-events: none; }
 
     /* ── MAIN ── */
-    .main {
-      max-width: 880px;
-      margin: 32px auto;
-      padding: 0 24px;
-    }
+    .main { max-width: 920px; margin: 28px auto; padding: 0 24px; }
 
-    .page-header {
+    /* ── CABECERA PÁGINA ── */
+    .page-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
       margin-bottom: 24px;
-    }
-
-    .page-title {
-      font-size: 22px;
-      font-weight: 300;
-      color: #2C5F6E;
-    }
-
-    .page-date {
-      font-size: 13px;
-      color: #9BB5BC;
-      margin-top: 4px;
-    }
-
-    /* ── RESUMEN ── */
-    .resumen {
-      display: flex;
-      gap: 16px;
-      margin-bottom: 28px;
-    }
-
-    .stat-card {
-      background: white;
-      border-radius: 12px;
-      padding: 18px 24px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-      flex: 1;
-      text-align: center;
-    }
-
-    .stat-number {
-      font-size: 28px;
-      font-weight: 300;
-      color: #2C5F6E;
-    }
-
-    .stat-label {
-      font-size: 12px;
-      color: #9BB5BC;
-      margin-top: 4px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-    }
-
-    /* ── CITAS ── */
-    .citas-lista {
-      display: flex;
-      flex-direction: column;
+      flex-wrap: wrap;
       gap: 12px;
     }
+    .page-title { font-size: 22px; font-weight: 300; color: #2C5F6E; }
+    .page-date { font-size: 13px; color: #9BB5BC; margin-top: 3px; }
+
+    .fecha-selector {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .fecha-selector label { font-size: 13px; color: #7A8A8E; }
+    .fecha-selector input[type="date"] {
+      font-family: inherit;
+      font-size: 13px;
+      padding: 7px 12px;
+      border: 1.5px solid #E0E8EA;
+      border-radius: 8px;
+      color: #3C4A50;
+      outline: none;
+      background: white;
+    }
+    .fecha-selector input[type="date"]:focus { border-color: #5BAA96; }
+    .btn-hoy {
+      font-size: 12px;
+      padding: 7px 14px;
+      border: 1.5px solid #E0E8EA;
+      border-radius: 8px;
+      background: white;
+      color: #7A8A8E;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+    .btn-hoy:hover { background: #F0F8F9; border-color: #5BAA96; color: #2C5F6E; }
+
+    /* ── STATS ── */
+    .resumen { display: flex; gap: 14px; margin-bottom: 24px; }
+    .stat-card { background: white; border-radius: 12px; padding: 16px 22px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); flex: 1; text-align: center; }
+    .stat-number { font-size: 26px; font-weight: 300; color: #2C5F6E; }
+    .stat-label { font-size: 11px; color: #9BB5BC; margin-top: 4px; text-transform: uppercase; letter-spacing: 1px; }
+
+    /* ── CITAS ── */
+    .citas-lista { display: flex; flex-direction: column; gap: 14px; }
 
     .cita-card {
       background: white;
@@ -164,6 +99,7 @@
       box-shadow: 0 2px 10px rgba(0,0,0,0.05);
       border-left: 4px solid #E0E0E0;
     }
+    .cita-card.es-repe { border-left-style: dashed; }
 
     .cita-top {
       display: flex;
@@ -172,115 +108,77 @@
       margin-bottom: 14px;
       gap: 12px;
     }
+    .cita-nombre { font-size: 16px; color: #2C3E40; font-weight: 500; }
+    .cita-badges { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
-    .cita-nombre {
-      font-size: 16px;
-      color: #2C3E40;
-      font-weight: 500;
+    .badge-repe {
+      font-size: 10px;
+      background: #FFF3E0;
+      color: #E07B20;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
     }
 
-    .cita-meta {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
+    .servicio-badge { font-size: 11px; padding: 3px 10px; border-radius: 12px; font-weight: 500; white-space: nowrap; }
 
-    .servicio-badge {
-      font-size: 11px;
-      padding: 3px 10px;
-      border-radius: 12px;
-      font-weight: 500;
-      letter-spacing: 0.3px;
-      white-space: nowrap;
-    }
-
-    .importe-badge {
-      font-size: 13px;
-      color: #5A7A60;
-      font-weight: 500;
-    }
-
-    .cobrado-badge {
-      font-size: 11px;
-      color: #9BB5BC;
-      background: #F0F4F5;
-      padding: 3px 8px;
-      border-radius: 6px;
-    }
-
-    .cita-tel {
-      font-size: 13px;
-      color: #7A8A8E;
-      margin-bottom: 14px;
-    }
-
-    .cita-tel a {
-      color: #2C5F6E;
-      text-decoration: none;
-    }
+    .cita-tel { font-size: 13px; color: #7A8A8E; margin-bottom: 16px; }
+    .cita-tel a { color: #2C5F6E; text-decoration: none; }
     .cita-tel a:hover { text-decoration: underline; }
 
     /* ── ESTADO TOGGLES ── */
-    .estado-row {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
+    .estado-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
     .estado-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      padding: 6px 12px;
-      border-radius: 8px;
-      border: 1.5px solid #E0E8EA;
-      background: white;
-      font-size: 12px;
-      color: #9BB5BC;
-      cursor: pointer;
-      transition: all 0.18s;
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 6px 12px; border-radius: 8px; border: 1.5px solid #E0E8EA;
+      background: white; font-size: 12px; color: #9BB5BC;
+      cursor: pointer; transition: all 0.18s; font-family: inherit;
+    }
+    .estado-btn.activo { background: #E8F5F2; border-color: #5BAA96; color: #2C7A68; font-weight: 500; }
+    .estado-btn.cargando { opacity: 0.5; cursor: wait; }
+
+    /* ── CAMPOS EDITABLES ── */
+    .campos-edicion {
+      border-top: 1px solid #F0F4F5;
+      padding-top: 14px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .campo-grupo { display: flex; flex-direction: column; gap: 4px; }
+    .campo-grupo.ancho-completo { grid-column: 1 / -1; }
+
+    .campo-label { font-size: 11px; color: #9BB5BC; text-transform: uppercase; letter-spacing: 0.8px; }
+
+    .campo-input, .campo-select {
       font-family: inherit;
-    }
-
-    .estado-btn.activo {
-      background: #E8F5F2;
-      border-color: #5BAA96;
-      color: #2C7A68;
-      font-weight: 500;
-    }
-
-    .estado-btn.cargando {
-      opacity: 0.5;
-      cursor: wait;
-    }
-
-    .estado-btn .icono { font-size: 13px; }
-
-    /* ── LOADING / EMPTY ── */
-    .loading-state, .empty-state {
+      font-size: 13px;
+      padding: 8px 10px;
+      border: 1.5px solid #E0E8EA;
+      border-radius: 8px;
+      color: #3C4A50;
       background: white;
-      border-radius: 16px;
-      padding: 52px;
-      text-align: center;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+      outline: none;
+      transition: border-color 0.2s;
+      width: 100%;
     }
+    .campo-input:focus, .campo-select:focus { border-color: #5BAA96; }
+    .campo-input.guardando, .campo-select.guardando { opacity: 0.5; }
 
-    .loading-state { color: #9BB5BC; font-size: 14px; }
+    .campo-input.guardado { border-color: #5BAA96; background: #F0FAF7; }
 
+    /* ── EMPTY / ERROR ── */
+    .empty-state { background: white; border-radius: 16px; padding: 52px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.04); }
     .empty-icon { font-size: 36px; margin-bottom: 12px; }
     .empty-title { font-size: 17px; color: #2C5F6E; margin-bottom: 8px; }
     .empty-text { font-size: 14px; color: #9BB5BC; }
 
-    .error-state {
-      background: #FFF8F8;
-      border: 1px solid #F5C6C6;
-      border-radius: 12px;
-      padding: 20px 24px;
-      color: #C0392B;
-      font-size: 14px;
-      line-height: 1.6;
-    }
+    .error-state { background: #FFF8F8; border: 1px solid #F5C6C6; border-radius: 12px; padding: 20px 24px; color: #C0392B; font-size: 14px; line-height: 1.6; }
+
+    .loading-msg { text-align: center; padding: 40px; color: #9BB5BC; font-size: 14px; }
   </style>
 </head>
 <body>
@@ -303,15 +201,23 @@
 </nav>
 
 <div class="main">
-  <div class="page-header">
-    <div class="page-title" id="page-title">Citas de hoy</div>
-    <div class="page-date" id="page-date"></div>
+
+  <div class="page-top">
+    <div>
+      <div class="page-title" id="page-title">Citas de hoy</div>
+      <div class="page-date" id="page-date"></div>
+    </div>
+    <div class="fecha-selector">
+      <label>Ver otro día:</label>
+      <input type="date" id="selector-fecha" onchange="cambiarFecha()">
+      <button class="btn-hoy" onclick="volverAHoy()">Hoy</button>
+    </div>
   </div>
 
   <div class="resumen" id="resumen" style="display:none">
     <div class="stat-card">
       <div class="stat-number" id="stat-total">0</div>
-      <div class="stat-label">Citas hoy</div>
+      <div class="stat-label">Citas</div>
     </div>
     <div class="stat-card">
       <div class="stat-number" id="stat-pendientes">0</div>
@@ -324,220 +230,269 @@
   </div>
 
   <div id="contenido">
-    <div class="loading-state">Cargando citas de hoy...</div>
+    <div class="loading-msg">Cargando citas...</div>
   </div>
+
 </div>
 
 <script>
   // ── CONFIG ──
-  const SHEET_ID = '1Zb5yWR1oQF03jU8JNDDr4ynChC66WEObkDwnvYLOkpM';
+  const SHEET_ID   = '1Zb5yWR1oQF03jU8JNDDr4ynChC66WEObkDwnvYLOkpM';
   const SHEET_NAME = 'Respuestas de formulario 2026';
 
-  const COLORES_SERVICIO = {
-    'ecoconfirmación': { bg: '#F0F0F0', color: '#555' },
-    'ecosexo emociona': { bg: '#E8F2E5', color: '#4A7A3A' },
-    'ecosexo':          { bg: '#FDECEA', color: '#C0392B' },
-    'ecobasic plus':    { bg: '#FFF8E1', color: '#B8860B' },
-    'ecobasic':         { bg: '#FFF0E5', color: '#D2691E' },
-    'ecoemociona':      { bg: '#E0F4F2', color: '#1A7A70' }
-  };
+  const SERVICIOS = ['Ecoconfirmación','Ecosexo','Ecosexo Emociona','Ecobasic','Ecobasic Plus','Ecoemociona'];
+  const MEDIOS_PAGO = ['Efectivo','Tarjeta','Bizum','Web'];
 
-  const BORDE_SERVICIO = {
-    'ecoconfirmación':  '#9E9E9E',
-    'ecosexo emociona': '#7DAE6C',
-    'ecosexo':          '#E05A4E',
-    'ecobasic plus':    '#D4A017',
-    'ecobasic':         '#E8834A',
-    'ecoemociona':      '#1E8E8E'
+  const COLORES = {
+    'ecoconfirmación':  { bg: '#F0F0F0', color: '#555', borde: '#9E9E9E' },
+    'ecosexo emociona': { bg: '#E8F2E5', color: '#4A7A3A', borde: '#7DAE6C' },
+    'ecosexo':          { bg: '#FDECEA', color: '#C0392B', borde: '#E05A4E' },
+    'ecobasic plus':    { bg: '#FFF8E1', color: '#B8860B', borde: '#D4A017' },
+    'ecobasic':         { bg: '#FFF0E5', color: '#D2691E', borde: '#E8834A' },
+    'ecoemociona':      { bg: '#E0F4F2', color: '#1A7A70', borde: '#1E8E8E' }
   };
 
   // ── SESIÓN ──
   const sesionData = sessionStorage.getItem('emociona_session');
-  if (!sesionData) {
-    window.location.href = 'index.html';
-  }
+  if (!sesionData) { window.location.href = 'index.html'; }
   const sesion = JSON.parse(sesionData || '{}');
-
   if (!sesion.access_token || Date.now() > sesion.token_expiry) {
     sessionStorage.removeItem('emociona_session');
     window.location.href = 'index.html';
   }
 
-  // Rellenar header
   if (sesion.picture) document.getElementById('user-avatar').src = sesion.picture;
   document.getElementById('user-name').textContent = sesion.name || sesion.email;
 
-  // Fecha
-  const hoy = new Date();
-  const fechaLarga = hoy.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-  document.getElementById('page-date').textContent = fechaLarga.charAt(0).toUpperCase() + fechaLarga.slice(1);
+  // ── FECHA ACTIVA ──
+  let fechaActiva = new Date();
 
-  // Formato fecha para comparar con la hoja: D/MM/YYYY
-  function hoyFormateado() {
-    const d = hoy.getDate();
-    const m = String(hoy.getMonth() + 1).padStart(2, '0');
-    const y = hoy.getFullYear();
-    return `${d}/${m}/${y}`;
+  function formatoInput(date) {
+    return date.toISOString().split('T')[0]; // YYYY-MM-DD
   }
 
-  // ── FETCH SHEETS ──
+  function formatoHoja(date) {
+    // D/MM/YYYY
+    return `${date.getDate()}/${String(date.getMonth()+1).padStart(2,'0')}/${date.getFullYear()}`;
+  }
+
+  function formatoLargo(date) {
+    const f = date.toLocaleDateString('es-ES', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+    return f.charAt(0).toUpperCase() + f.slice(1);
+  }
+
+  function esHoy(date) {
+    const hoy = new Date();
+    return date.toDateString() === hoy.toDateString();
+  }
+
+  // Inicializar selector de fecha
+  document.getElementById('selector-fecha').value = formatoInput(fechaActiva);
+  actualizarCabecera();
+
+  function cambiarFecha() {
+    const val = document.getElementById('selector-fecha').value;
+    if (!val) return;
+    const parts = val.split('-');
+    fechaActiva = new Date(parts[0], parts[1]-1, parts[2]);
+    actualizarCabecera();
+    cargarCitas();
+  }
+
+  function volverAHoy() {
+    fechaActiva = new Date();
+    document.getElementById('selector-fecha').value = formatoInput(fechaActiva);
+    actualizarCabecera();
+    cargarCitas();
+  }
+
+  function actualizarCabecera() {
+    document.getElementById('page-title').textContent = esHoy(fechaActiva) ? 'Citas de hoy' : 'Citas del ' + fechaActiva.getDate() + ' de ' + fechaActiva.toLocaleDateString('es-ES',{month:'long'});
+    document.getElementById('page-date').textContent = formatoLargo(fechaActiva);
+  }
+
+  // ── FETCH ──
   async function cargarCitas() {
+    document.getElementById('contenido').innerHTML = '<div class="loading-msg">Cargando citas...</div>';
+    document.getElementById('resumen').style.display = 'none';
+
     try {
       const range = encodeURIComponent(`'${SHEET_NAME}'!A:Y`);
       const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}`;
-      const resp = await fetch(url, {
-        headers: { Authorization: 'Bearer ' + sesion.access_token }
-      });
-
-      if (!resp.ok) {
-        throw new Error('No se pudo acceder a la hoja. Código: ' + resp.status);
-      }
+      const resp = await fetch(url, { headers: { Authorization: 'Bearer ' + sesion.access_token } });
+      if (!resp.ok) throw new Error('Error ' + resp.status);
 
       const data = await resp.json();
-      const filas = data.values || [];
+      const filas = (data.values || []).slice(1); // sin cabecera
+      const fechaStr = formatoHoja(fechaActiva);
 
-      if (filas.length <= 1) {
-        mostrarVacio();
-        return;
-      }
+      const citas = filas
+        .map((fila, idx) => ({ fila, sheetRow: idx + 2 }))
+        .filter(({ fila }) => {
+          const fechaCita = (fila[3] || '').trim();
+          const fechaRepe = (fila[5] || '').trim();
+          return fechaCita === fechaStr || fechaRepe === fechaStr;
+        })
+        .map(({ fila, sheetRow }) => ({
+          fila, sheetRow,
+          esRepe: (fila[5] || '').trim() === fechaStr && (fila[3] || '').trim() !== fechaStr
+        }));
 
-      const fechaHoy = hoyFormateado();
-      // Filas con índice original (para saber el nº de fila en Sheets = índice + 1)
-      const citasHoy = filas
-        .map((fila, idx) => ({ fila, sheetRow: idx + 1 }))
-        .slice(1) // Saltar cabecera
-        .filter(({ fila }) => (fila[3] || '').trim() === fechaHoy);
-
-      renderCitas(citasHoy);
-
-    } catch (e) {
-      document.getElementById('contenido').innerHTML = `
-        <div class="error-state">
-          <strong>Error al cargar las citas:</strong><br>${e.message}<br><br>
-          Prueba a cerrar sesión y volver a entrar.
-        </div>`;
+      renderCitas(citas);
+    } catch(e) {
+      document.getElementById('contenido').innerHTML = `<div class="error-state"><strong>Error al cargar:</strong> ${e.message}<br>Prueba a cerrar sesión y volver a entrar.</div>`;
     }
   }
 
   function renderCitas(citas) {
-    const contenido = document.getElementById('contenido');
-
     if (citas.length === 0) {
-      mostrarVacio();
+      document.getElementById('contenido').innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">🌸</div>
+          <div class="empty-title">No hay citas este día</div>
+          <div class="empty-text">Disfruta del descanso.</div>
+        </div>`;
       return;
     }
 
-    // Estadísticas
-    const completadas = citas.filter(({ fila }) => (fila[6] || '').trim().toLowerCase().startsWith('s')).length;
+    const completadas = citas.filter(({fila}) => esActivo(fila[6])).length;
     document.getElementById('stat-total').textContent = citas.length;
     document.getElementById('stat-pendientes').textContent = citas.length - completadas;
     document.getElementById('stat-completadas').textContent = completadas;
     document.getElementById('resumen').style.display = 'flex';
 
-    // Tarjetas
     const lista = document.createElement('div');
     lista.className = 'citas-lista';
 
-    citas.forEach(({ fila, sheetRow }) => {
-      const nombre    = (fila[0] || '') + ' ' + (fila[1] || '');
-      const servicio  = (fila[10] || '').trim();
-      const importe   = fila[11] || '';
-      const cobrado   = fila[12] || '';
-      const telefono  = fila[16] || '';
-      const ecoOK     = fila[6] || '';
-      const editada   = fila[7] || '';
-      const whatsapp  = fila[8] || '';
-      const carta     = fila[9] || '';
+    citas.forEach(({ fila, sheetRow, esRepe }) => {
+      const nombre   = ((fila[0]||'') + ' ' + (fila[1]||'')).trim();
+      const servicio = (fila[10]||'').trim();
+      const importe  = (fila[11]||'').toString().trim();
+      const cobrado  = (fila[12]||'').trim();
+      const bebe     = (fila[13]||'').trim();
+      const telefono = (fila[16]||'').trim();
+      const obs      = (fila[23]||'').trim();
+      const ecoOK    = fila[6]||'';
+      const editada  = fila[7]||'';
+      const whatsapp = fila[8]||'';
+      const carta    = fila[9]||'';
 
-      const svcKey = servicio.toLowerCase();
-      const svcColor = COLORES_SERVICIO[svcKey] || { bg: '#F0F4F5', color: '#666' };
-      const bordeColor = BORDE_SERVICIO[svcKey] || '#CCC';
+      const svcKey   = servicio.toLowerCase();
+      const svcColor = COLORES[svcKey] || { bg:'#F0F4F5', color:'#666', borde:'#CCC' };
 
       const card = document.createElement('div');
-      card.className = 'cita-card';
-      card.style.borderLeftColor = bordeColor;
-      card.dataset.row = sheetRow;
+      card.className = 'cita-card' + (esRepe ? ' es-repe' : '');
+      card.style.borderLeftColor = svcColor.borde;
 
       card.innerHTML = `
         <div class="cita-top">
-          <div class="cita-nombre">${nombre.trim()}</div>
-          <div class="cita-meta">
+          <div class="cita-nombre">${nombre}</div>
+          <div class="cita-badges">
+            ${esRepe ? '<span class="badge-repe">Repetición</span>' : ''}
             ${servicio ? `<span class="servicio-badge" style="background:${svcColor.bg};color:${svcColor.color}">${servicio}</span>` : ''}
-            ${importe ? `<span class="importe-badge">${importe}</span>` : ''}
-            ${cobrado ? `<span class="cobrado-badge">${cobrado}</span>` : ''}
           </div>
         </div>
         ${telefono ? `<div class="cita-tel">📞 <a href="tel:${telefono}">${telefono}</a></div>` : ''}
+
         <div class="estado-row">
-          ${estadoBtn('ecoOK', 'G', sheetRow, ecoOK, '📷', 'Eco OK')}
-          ${estadoBtn('editada', 'H', sheetRow, editada, '✏️', 'Editada')}
-          ${estadoBtn('whatsapp', 'I', sheetRow, whatsapp, '💬', 'WhatsApp')}
-          ${estadoBtn('carta', 'J', sheetRow, carta, '✉️', 'Carta')}
+          ${estadoBtn('G', sheetRow, ecoOK, '📷', 'Eco OK')}
+          ${estadoBtn('H', sheetRow, editada, '✏️', 'Editada')}
+          ${estadoBtn('I', sheetRow, whatsapp, '💬', 'WhatsApp')}
+          ${estadoBtn('J', sheetRow, carta, '✉️', 'Carta')}
+        </div>
+
+        <div class="campos-edicion">
+          <div class="campo-grupo">
+            <div class="campo-label">Sesión</div>
+            <select class="campo-select" data-col="K" data-row="${sheetRow}" onchange="guardarCampo(this)">
+              <option value="">— Sin asignar —</option>
+              ${SERVICIOS.map(s => `<option value="${s}" ${s===servicio?'selected':''}>${s}</option>`).join('')}
+            </select>
+          </div>
+          <div class="campo-grupo">
+            <div class="campo-label">Cobrado con</div>
+            <select class="campo-select" data-col="M" data-row="${sheetRow}" onchange="guardarCampo(this)">
+              <option value="">— Sin cobrar —</option>
+              ${MEDIOS_PAGO.map(m => `<option value="${m}" ${m===cobrado?'selected':''}>${m}</option>`).join('')}
+            </select>
+          </div>
+          <div class="campo-grupo">
+            <div class="campo-label">Importe (€)</div>
+            <input class="campo-input" type="text" placeholder="0,00" value="${importe}" data-col="L" data-row="${sheetRow}" onblur="guardarCampo(this)">
+          </div>
+          <div class="campo-grupo">
+            <div class="campo-label">Bebé / Sexo</div>
+            <input class="campo-input" type="text" placeholder="Nombre / niño / niña / no decir" value="${bebe}" data-col="N" data-row="${sheetRow}" onblur="guardarCampo(this)">
+          </div>
+          <div class="campo-grupo ancho-completo">
+            <div class="campo-label">Observaciones</div>
+            <input class="campo-input" type="text" placeholder="Notas libres..." value="${obs}" data-col="X" data-row="${sheetRow}" onblur="guardarCampo(this)">
+          </div>
         </div>`;
 
       lista.appendChild(card);
     });
 
-    contenido.innerHTML = '';
-    contenido.appendChild(lista);
+    document.getElementById('contenido').innerHTML = '';
+    document.getElementById('contenido').appendChild(lista);
   }
 
-  function estadoBtn(campo, col, row, valor, icono, label) {
+  // ── TOGGLES ──
+  function estadoBtn(col, row, valor, icono, label) {
     const activo = esActivo(valor);
-    return `<button
-      class="estado-btn ${activo ? 'activo' : ''}"
-      data-col="${col}"
-      data-row="${row}"
-      data-campo="${campo}"
-      onclick="toggleEstado(this)">
-      <span class="icono">${icono}</span> ${label}
+    return `<button class="estado-btn ${activo?'activo':''}" data-col="${col}" data-row="${row}" onclick="toggleEstado(this)">
+      <span>${icono}</span> ${label}
     </button>`;
   }
 
-  function esActivo(valor) {
-    const v = (valor || '').trim().toLowerCase();
-    return v === 'sí' || v === 'si' || v === 's' || v === 'v';
+  function esActivo(v) {
+    const val = (v||'').trim().toLowerCase();
+    return val==='sí'||val==='si'||val==='s'||val==='v';
   }
 
   async function toggleEstado(btn) {
     if (btn.classList.contains('cargando')) return;
     btn.classList.add('cargando');
-
-    const col = btn.dataset.col;
-    const row = btn.dataset.row;
     const nuevoValor = btn.classList.contains('activo') ? '' : 'Sí';
-
     try {
-      await actualizarCelda(col, row, nuevoValor);
+      await actualizarCelda(btn.dataset.col, btn.dataset.row, nuevoValor);
       btn.classList.toggle('activo');
-    } catch (e) {
+    } catch(e) {
       alert('Error al guardar. Comprueba tu conexión.');
     } finally {
       btn.classList.remove('cargando');
     }
   }
 
+  // ── CAMPOS EDITABLES ──
+  async function guardarCampo(el) {
+    const valor = el.value.trim();
+    const valorActual = el.dataset.valorGuardado || '';
+    if (valor === valorActual) return; // Sin cambios
+
+    el.classList.add('guardando');
+    try {
+      await actualizarCelda(el.dataset.col, el.dataset.row, valor);
+      el.dataset.valorGuardado = valor;
+      el.classList.remove('guardando');
+      el.classList.add('guardado');
+      setTimeout(() => el.classList.remove('guardado'), 1500);
+    } catch(e) {
+      el.classList.remove('guardando');
+      alert('Error al guardar. Comprueba tu conexión.');
+    }
+  }
+
+  // ── API ──
   async function actualizarCelda(col, row, valor) {
     const range = encodeURIComponent(`'${SHEET_NAME}'!${col}${row}`);
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}?valueInputOption=USER_ENTERED`;
     const resp = await fetch(url, {
       method: 'PUT',
-      headers: {
-        Authorization: 'Bearer ' + sesion.access_token,
-        'Content-Type': 'application/json'
-      },
+      headers: { Authorization: 'Bearer ' + sesion.access_token, 'Content-Type': 'application/json' },
       body: JSON.stringify({ values: [[valor]] })
     });
     if (!resp.ok) throw new Error('Error ' + resp.status);
-  }
-
-  function mostrarVacio() {
-    document.getElementById('contenido').innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon">🌸</div>
-        <div class="empty-title">No hay citas para hoy</div>
-        <div class="empty-text">Disfruta del día de descanso.</div>
-      </div>`;
   }
 
   function logout() {
@@ -545,7 +500,6 @@
     window.location.href = 'index.html';
   }
 
-  // Arrancar
   cargarCitas();
 </script>
 
