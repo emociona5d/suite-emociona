@@ -228,7 +228,6 @@
 
   <div class="stats-bar" id="stats-bar" style="display:none">
     <div class="stat-pill"><strong id="stat-count">0</strong> sesiones</div>
-    <div class="stat-pill">Facturado: <strong id="stat-euros">0 €</strong></div>
   </div>
 
   <div id="contenido">
@@ -377,13 +376,7 @@
   }
 
   function actualizarStats(filas) {
-    let total = 0;
-    filas.forEach(({ fila }) => {
-      const imp = parseFloat((fila[11] || '').toString().replace(',', '.').replace('€', '').trim());
-      if (!isNaN(imp)) total += imp;
-    });
     document.getElementById('stat-count').textContent = filas.length;
-    document.getElementById('stat-euros').textContent = total.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
     document.getElementById('stats-bar').style.display = 'flex';
   }
 
@@ -406,6 +399,7 @@
     const tabla = document.createElement('div');
     tabla.className = 'tabla-wrapper';
 
+    const esOwner = sesion.role === 'owner';
     const html = `
       <table>
         <thead>
@@ -417,8 +411,7 @@
             <th style="text-align:center">Editada</th>
             <th style="text-align:center">WhatsApp</th>
             <th style="text-align:center">Carta</th>
-            <th>Importe</th>
-            <th>Cobrado</th>
+            ${esOwner ? '<th>Importe</th><th>Cobrado</th>' : ''}
           </tr>
         </thead>
         <tbody id="tabla-body"></tbody>
@@ -452,8 +445,7 @@
         <td class="td-toggle">${toggleBtn('H', sheetRow, editada, '✏️')}</td>
         <td class="td-toggle">${toggleBtn('I', sheetRow, whatsapp, '💬')}</td>
         <td class="td-toggle">${toggleBtn('J', sheetRow, carta, '✉️')}</td>
-        <td class="td-importe">${importe ? importe : ''}</td>
-        <td class="td-cobrado">${cobrado}</td>`;
+        ${esOwner ? `<td class="td-importe">${importe ? importe : ''}</td><td class="td-cobrado">${cobrado}</td>` : ''}`;
       tbody.appendChild(tr);
     });
   }
