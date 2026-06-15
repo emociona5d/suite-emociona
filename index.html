@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Emociona 5D — Acceso</title>
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="https://accounts.google.com/gsi/client" async></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -58,10 +58,38 @@
       line-height: 1.6;
     }
 
-    .google-btn-container {
-      display: flex;
+    .login-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 24px;
+      border: 1.5px solid #DADCE0;
+      border-radius: 8px;
+      background: white;
+      color: #3C4043;
+      font-size: 14px;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.2s;
+      width: 100%;
       justify-content: center;
-      margin-bottom: 16px;
+    }
+
+    .login-btn:hover {
+      background: #F8F9FA;
+      border-color: #C8D4D8;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .login-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .login-btn svg {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
     }
 
     .error-msg {
@@ -73,6 +101,13 @@
       font-size: 13px;
       margin-top: 16px;
       line-height: 1.5;
+    }
+
+    .loading-msg {
+      display: none;
+      color: #9BB5BC;
+      font-size: 13px;
+      margin-top: 16px;
     }
 
     .footer-text {
@@ -88,77 +123,113 @@
 <div class="login-card">
   <div class="logo-title">Emociona 5D</div>
   <div class="logo-subtitle">Gestión interna</div>
-
   <div class="divider"></div>
-
   <p class="welcome-text">Accede con tu cuenta de Google para continuar.</p>
 
-  <div class="google-btn-container">
-    <div id="g_id_onload"
-         data-client_id="439474376295-jjs3q4nki5pkpc9fc9qfcdmp4ldlj1vh.apps.googleusercontent.com"
-         data-callback="handleCredentialResponse"
-         data-auto_prompt="false">
-    </div>
-    <div class="g_id_signin"
-         data-type="standard"
-         data-size="large"
-         data-theme="outline"
-         data-text="signin_with"
-         data-locale="es"
-         data-shape="rectangular">
-    </div>
-  </div>
+  <button class="login-btn" id="login-btn" onclick="iniciarAcceso()">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+    </svg>
+    Iniciar sesión con Google
+  </button>
 
+  <div class="loading-msg" id="loading-msg">Conectando con Google...</div>
   <div class="error-msg" id="login-error"></div>
-
   <div class="footer-text">Solo para uso interno del equipo</div>
 </div>
 
 <script>
-  // Roles por email
   const ROLES = {
     'emocionaecografia5d@gmail.com': 'owner',
     'danibarrasarodriguez@gmail.com': 'owner',
     'isabelzancadazarcero@gmail.com': 'owner'
-    // Email de Eli se añadirá aquí con rol 'staff'
+    // Añadir email de Eli aquí con rol: 'staff'
   };
 
-  // Si ya hay sesión activa, ir directamente al dashboard
-  if (sessionStorage.getItem('emociona_session')) {
-    window.location.href = 'dashboard.html';
+  const CLIENT_ID = '439474376295-jjs3q4nki5pkpc9fc9qfcdmp4ldlj1vh.apps.googleusercontent.com';
+
+  // Si ya hay sesión válida, ir al dashboard
+  const sesion = sessionStorage.getItem('emociona_session');
+  if (sesion) {
+    const s = JSON.parse(sesion);
+    if (s.token_expiry && Date.now() < s.token_expiry) {
+      window.location.href = 'dashboard.html';
+    } else {
+      sessionStorage.removeItem('emociona_session');
+    }
   }
 
-  function handleCredentialResponse(response) {
-    const data = parseJwt(response.credential);
-    const email = data.email.toLowerCase();
-    const role = ROLES[email];
+  let tokenClient;
 
-    if (!role) {
-      const err = document.getElementById('login-error');
-      err.style.display = 'block';
-      err.textContent = 'Este correo no tiene acceso a la aplicación. Contacta con Dani.';
+  window.addEventListener('load', function () {
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: CLIENT_ID,
+      scope: 'openid email profile https://www.googleapis.com/auth/spreadsheets',
+      callback: handleTokenResponse
+    });
+  });
+
+  function iniciarAcceso() {
+    document.getElementById('login-btn').disabled = true;
+    document.getElementById('loading-msg').style.display = 'block';
+    document.getElementById('login-error').style.display = 'none';
+    tokenClient.requestAccessToken();
+  }
+
+  async function handleTokenResponse(response) {
+    if (response.error) {
+      mostrarError('No se pudo conectar con Google. Inténtalo de nuevo.');
+      resetBtn();
       return;
     }
 
-    sessionStorage.setItem('emociona_session', JSON.stringify({
-      email: email,
-      name: data.name,
-      picture: data.picture,
-      role: role
-    }));
+    try {
+      const accessToken = response.access_token;
 
-    window.location.href = 'dashboard.html';
+      // Obtener datos del usuario
+      const userResp = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: 'Bearer ' + accessToken }
+      });
+      const userData = await userResp.json();
+      const email = userData.email.toLowerCase();
+      const role = ROLES[email];
+
+      if (!role) {
+        mostrarError('Este correo no tiene acceso a la aplicación. Contacta con Dani.');
+        resetBtn();
+        return;
+      }
+
+      sessionStorage.setItem('emociona_session', JSON.stringify({
+        email,
+        name: userData.name,
+        picture: userData.picture,
+        role,
+        access_token: accessToken,
+        token_expiry: Date.now() + (response.expires_in * 1000)
+      }));
+
+      window.location.href = 'dashboard.html';
+
+    } catch (e) {
+      mostrarError('Error al verificar tu cuenta. Inténtalo de nuevo.');
+      resetBtn();
+    }
   }
 
-  function parseJwt(token) {
-    const base64Url = token.split('.')[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const jsonPayload = decodeURIComponent(
-      atob(base64).split('').map(c =>
-        '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
-      ).join('')
-    );
-    return JSON.parse(jsonPayload);
+  function mostrarError(msg) {
+    const err = document.getElementById('login-error');
+    err.style.display = 'block';
+    err.textContent = msg;
+    document.getElementById('loading-msg').style.display = 'none';
+  }
+
+  function resetBtn() {
+    document.getElementById('login-btn').disabled = false;
+    document.getElementById('loading-msg').style.display = 'none';
   }
 </script>
 

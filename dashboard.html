@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Emociona 5D — Inicio</title>
+  <title>Emociona 5D — Hoy</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -13,20 +13,21 @@
       min-height: 100vh;
     }
 
+    /* ── HEADER ── */
     header {
       background: white;
-      padding: 14px 32px;
+      padding: 14px 28px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      box-shadow: 0 1px 8px rgba(0,0,0,0.06);
+      box-shadow: 0 1px 6px rgba(0,0,0,0.06);
       position: sticky;
       top: 0;
       z-index: 100;
     }
 
-    .header-brand {
-      font-size: 15px;
+    .brand {
+      font-size: 14px;
       font-weight: 300;
       color: #2C5F6E;
       letter-spacing: 3px;
@@ -36,103 +37,256 @@
     .header-user {
       display: flex;
       align-items: center;
-      gap: 12px;
-    }
-
-    .user-name {
-      font-size: 14px;
-      color: #7A8A8E;
+      gap: 10px;
     }
 
     .user-avatar {
-      width: 34px;
-      height: 34px;
+      width: 32px;
+      height: 32px;
       border-radius: 50%;
       background: #C8E6E0;
       object-fit: cover;
     }
 
+    .user-name {
+      font-size: 13px;
+      color: #7A8A8E;
+    }
+
     .logout-btn {
       font-size: 12px;
       color: #9BB5BC;
-      cursor: pointer;
       background: none;
       border: 1px solid #D8E8EB;
       border-radius: 6px;
-      padding: 5px 12px;
+      padding: 4px 12px;
+      cursor: pointer;
       transition: all 0.2s;
+      font-family: inherit;
+    }
+    .logout-btn:hover { background: #F0F8F9; color: #2C5F6E; }
+
+    /* ── NAV ── */
+    nav {
+      background: white;
+      border-bottom: 1px solid #EEF2F4;
+      padding: 0 28px;
+      display: flex;
+      gap: 0;
     }
 
-    .logout-btn:hover {
-      background: #F0F8F9;
+    .nav-tab {
+      padding: 12px 20px;
+      font-size: 13px;
+      color: #9BB5BC;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+      text-decoration: none;
+      display: block;
+    }
+
+    .nav-tab.active {
       color: #2C5F6E;
+      border-bottom-color: #2C5F6E;
+      font-weight: 500;
     }
 
+    .nav-tab.disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+
+    /* ── MAIN ── */
     .main {
-      max-width: 960px;
-      margin: 40px auto;
+      max-width: 880px;
+      margin: 32px auto;
       padding: 0 24px;
     }
 
-    .welcome {
-      font-size: 24px;
-      color: #2C5F6E;
+    .page-header {
+      margin-bottom: 24px;
+    }
+
+    .page-title {
+      font-size: 22px;
       font-weight: 300;
-      margin-bottom: 8px;
+      color: #2C5F6E;
     }
 
-    .welcome-sub {
-      font-size: 14px;
+    .page-date {
+      font-size: 13px;
       color: #9BB5BC;
-      margin-bottom: 40px;
+      margin-top: 4px;
     }
 
-    .status-card {
+    /* ── RESUMEN ── */
+    .resumen {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .stat-card {
+      background: white;
+      border-radius: 12px;
+      padding: 18px 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      flex: 1;
+      text-align: center;
+    }
+
+    .stat-number {
+      font-size: 28px;
+      font-weight: 300;
+      color: #2C5F6E;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: #9BB5BC;
+      margin-top: 4px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    /* ── CITAS ── */
+    .citas-lista {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .cita-card {
+      background: white;
+      border-radius: 14px;
+      padding: 20px 24px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+      border-left: 4px solid #E0E0E0;
+    }
+
+    .cita-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      gap: 12px;
+    }
+
+    .cita-nombre {
+      font-size: 16px;
+      color: #2C3E40;
+      font-weight: 500;
+    }
+
+    .cita-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .servicio-badge {
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-weight: 500;
+      letter-spacing: 0.3px;
+      white-space: nowrap;
+    }
+
+    .importe-badge {
+      font-size: 13px;
+      color: #5A7A60;
+      font-weight: 500;
+    }
+
+    .cobrado-badge {
+      font-size: 11px;
+      color: #9BB5BC;
+      background: #F0F4F5;
+      padding: 3px 8px;
+      border-radius: 6px;
+    }
+
+    .cita-tel {
+      font-size: 13px;
+      color: #7A8A8E;
+      margin-bottom: 14px;
+    }
+
+    .cita-tel a {
+      color: #2C5F6E;
+      text-decoration: none;
+    }
+    .cita-tel a:hover { text-decoration: underline; }
+
+    /* ── ESTADO TOGGLES ── */
+    .estado-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .estado-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 6px 12px;
+      border-radius: 8px;
+      border: 1.5px solid #E0E8EA;
+      background: white;
+      font-size: 12px;
+      color: #9BB5BC;
+      cursor: pointer;
+      transition: all 0.18s;
+      font-family: inherit;
+    }
+
+    .estado-btn.activo {
+      background: #E8F5F2;
+      border-color: #5BAA96;
+      color: #2C7A68;
+      font-weight: 500;
+    }
+
+    .estado-btn.cargando {
+      opacity: 0.5;
+      cursor: wait;
+    }
+
+    .estado-btn .icono { font-size: 13px; }
+
+    /* ── LOADING / EMPTY ── */
+    .loading-state, .empty-state {
       background: white;
       border-radius: 16px;
-      padding: 40px;
+      padding: 52px;
       text-align: center;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.04);
     }
 
-    .status-icon {
-      font-size: 36px;
-      margin-bottom: 16px;
-    }
+    .loading-state { color: #9BB5BC; font-size: 14px; }
 
-    .status-title {
-      font-size: 18px;
-      color: #2C5F6E;
-      font-weight: 400;
-      margin-bottom: 10px;
-    }
+    .empty-icon { font-size: 36px; margin-bottom: 12px; }
+    .empty-title { font-size: 17px; color: #2C5F6E; margin-bottom: 8px; }
+    .empty-text { font-size: 14px; color: #9BB5BC; }
 
-    .status-text {
+    .error-state {
+      background: #FFF8F8;
+      border: 1px solid #F5C6C6;
+      border-radius: 12px;
+      padding: 20px 24px;
+      color: #C0392B;
       font-size: 14px;
-      color: #9BB5BC;
-      line-height: 1.7;
-      max-width: 400px;
-      margin: 0 auto;
+      line-height: 1.6;
     }
-
-    .role-badge {
-      display: inline-block;
-      margin-top: 24px;
-      padding: 5px 14px;
-      border-radius: 20px;
-      font-size: 12px;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-    }
-
-    .role-owner { background: #E8F5F2; color: #2C5F6E; }
-    .role-staff { background: #FFF3E8; color: #B86E2A; }
   </style>
 </head>
 <body>
 
 <header>
-  <div class="header-brand">Emociona 5D</div>
+  <div class="brand">Emociona 5D</div>
   <div class="header-user">
     <img class="user-avatar" id="user-avatar" src="" alt="" onerror="this.style.display='none'">
     <span class="user-name" id="user-name"></span>
@@ -140,58 +294,259 @@
   </div>
 </header>
 
-<div class="main">
-  <div class="welcome" id="welcome-msg">Hola</div>
-  <div class="welcome-sub" id="welcome-date"></div>
+<nav>
+  <a class="nav-tab active">Hoy</a>
+  <a class="nav-tab disabled">Sesiones</a>
+  <a class="nav-tab disabled">Clientas</a>
+  <a class="nav-tab disabled">Facturas</a>
+  <a class="nav-tab disabled">Ingresos</a>
+</nav>
 
-  <div class="status-card">
-    <div class="status-icon">✨</div>
-    <div class="status-title">El acceso funciona correctamente</div>
-    <div class="status-text">
-      La suite de gestión está en construcción. Las pantallas de citas, sesiones, clientas y facturación se irán activando en los próximos pasos.
+<div class="main">
+  <div class="page-header">
+    <div class="page-title" id="page-title">Citas de hoy</div>
+    <div class="page-date" id="page-date"></div>
+  </div>
+
+  <div class="resumen" id="resumen" style="display:none">
+    <div class="stat-card">
+      <div class="stat-number" id="stat-total">0</div>
+      <div class="stat-label">Citas hoy</div>
     </div>
-    <div class="role-badge" id="role-badge"></div>
+    <div class="stat-card">
+      <div class="stat-number" id="stat-pendientes">0</div>
+      <div class="stat-label">Pendientes</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number" id="stat-completadas">0</div>
+      <div class="stat-label">Completadas</div>
+    </div>
+  </div>
+
+  <div id="contenido">
+    <div class="loading-state">Cargando citas de hoy...</div>
   </div>
 </div>
 
 <script>
-  const sessionData = sessionStorage.getItem('emociona_session');
-  if (!sessionData) {
+  // ── CONFIG ──
+  const SHEET_ID = '1Zb5yWR1oQF03jU8JNDDr4ynChC66WEObkDwnvYLOkpM';
+  const SHEET_NAME = 'Respuestas de formulario 2026';
+
+  const COLORES_SERVICIO = {
+    'ecoconfirmación': { bg: '#F0F0F0', color: '#555' },
+    'ecosexo emociona': { bg: '#E8F2E5', color: '#4A7A3A' },
+    'ecosexo':          { bg: '#FDECEA', color: '#C0392B' },
+    'ecobasic plus':    { bg: '#FFF8E1', color: '#B8860B' },
+    'ecobasic':         { bg: '#FFF0E5', color: '#D2691E' },
+    'ecoemociona':      { bg: '#E0F4F2', color: '#1A7A70' }
+  };
+
+  const BORDE_SERVICIO = {
+    'ecoconfirmación':  '#9E9E9E',
+    'ecosexo emociona': '#7DAE6C',
+    'ecosexo':          '#E05A4E',
+    'ecobasic plus':    '#D4A017',
+    'ecobasic':         '#E8834A',
+    'ecoemociona':      '#1E8E8E'
+  };
+
+  // ── SESIÓN ──
+  const sesionData = sessionStorage.getItem('emociona_session');
+  if (!sesionData) {
     window.location.href = 'index.html';
-  } else {
-    const user = JSON.parse(sessionData);
+  }
+  const sesion = JSON.parse(sesionData || '{}');
 
-    // Nombre
-    const firstName = user.name ? user.name.split(' ')[0] : 'de nuevo';
-    document.getElementById('welcome-msg').textContent = '¡Hola, ' + firstName + '!';
+  if (!sesion.access_token || Date.now() > sesion.token_expiry) {
+    sessionStorage.removeItem('emociona_session');
+    window.location.href = 'index.html';
+  }
 
-    // Fecha
-    const hoy = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
-    document.getElementById('welcome-date').textContent = hoy.charAt(0).toUpperCase() + hoy.slice(1);
+  // Rellenar header
+  if (sesion.picture) document.getElementById('user-avatar').src = sesion.picture;
+  document.getElementById('user-name').textContent = sesion.name || sesion.email;
 
-    // Avatar
-    if (user.picture) {
-      document.getElementById('user-avatar').src = user.picture;
+  // Fecha
+  const hoy = new Date();
+  const fechaLarga = hoy.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  document.getElementById('page-date').textContent = fechaLarga.charAt(0).toUpperCase() + fechaLarga.slice(1);
+
+  // Formato fecha para comparar con la hoja: D/MM/YYYY
+  function hoyFormateado() {
+    const d = hoy.getDate();
+    const m = String(hoy.getMonth() + 1).padStart(2, '0');
+    const y = hoy.getFullYear();
+    return `${d}/${m}/${y}`;
+  }
+
+  // ── FETCH SHEETS ──
+  async function cargarCitas() {
+    try {
+      const range = encodeURIComponent(`'${SHEET_NAME}'!A:Y`);
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}`;
+      const resp = await fetch(url, {
+        headers: { Authorization: 'Bearer ' + sesion.access_token }
+      });
+
+      if (!resp.ok) {
+        throw new Error('No se pudo acceder a la hoja. Código: ' + resp.status);
+      }
+
+      const data = await resp.json();
+      const filas = data.values || [];
+
+      if (filas.length <= 1) {
+        mostrarVacio();
+        return;
+      }
+
+      const fechaHoy = hoyFormateado();
+      // Filas con índice original (para saber el nº de fila en Sheets = índice + 1)
+      const citasHoy = filas
+        .map((fila, idx) => ({ fila, sheetRow: idx + 1 }))
+        .slice(1) // Saltar cabecera
+        .filter(({ fila }) => (fila[3] || '').trim() === fechaHoy);
+
+      renderCitas(citasHoy);
+
+    } catch (e) {
+      document.getElementById('contenido').innerHTML = `
+        <div class="error-state">
+          <strong>Error al cargar las citas:</strong><br>${e.message}<br><br>
+          Prueba a cerrar sesión y volver a entrar.
+        </div>`;
+    }
+  }
+
+  function renderCitas(citas) {
+    const contenido = document.getElementById('contenido');
+
+    if (citas.length === 0) {
+      mostrarVacio();
+      return;
     }
 
-    // Nombre en header
-    document.getElementById('user-name').textContent = user.name || user.email;
+    // Estadísticas
+    const completadas = citas.filter(({ fila }) => (fila[6] || '').trim().toLowerCase().startsWith('s')).length;
+    document.getElementById('stat-total').textContent = citas.length;
+    document.getElementById('stat-pendientes').textContent = citas.length - completadas;
+    document.getElementById('stat-completadas').textContent = completadas;
+    document.getElementById('resumen').style.display = 'flex';
 
-    // Badge de rol
-    const badge = document.getElementById('role-badge');
-    if (user.role === 'owner') {
-      badge.textContent = 'Propietaria/o';
-      badge.className = 'role-badge role-owner';
-    } else {
-      badge.textContent = 'Centro';
-      badge.className = 'role-badge role-staff';
+    // Tarjetas
+    const lista = document.createElement('div');
+    lista.className = 'citas-lista';
+
+    citas.forEach(({ fila, sheetRow }) => {
+      const nombre    = (fila[0] || '') + ' ' + (fila[1] || '');
+      const servicio  = (fila[10] || '').trim();
+      const importe   = fila[11] || '';
+      const cobrado   = fila[12] || '';
+      const telefono  = fila[16] || '';
+      const ecoOK     = fila[6] || '';
+      const editada   = fila[7] || '';
+      const whatsapp  = fila[8] || '';
+      const carta     = fila[9] || '';
+
+      const svcKey = servicio.toLowerCase();
+      const svcColor = COLORES_SERVICIO[svcKey] || { bg: '#F0F4F5', color: '#666' };
+      const bordeColor = BORDE_SERVICIO[svcKey] || '#CCC';
+
+      const card = document.createElement('div');
+      card.className = 'cita-card';
+      card.style.borderLeftColor = bordeColor;
+      card.dataset.row = sheetRow;
+
+      card.innerHTML = `
+        <div class="cita-top">
+          <div class="cita-nombre">${nombre.trim()}</div>
+          <div class="cita-meta">
+            ${servicio ? `<span class="servicio-badge" style="background:${svcColor.bg};color:${svcColor.color}">${servicio}</span>` : ''}
+            ${importe ? `<span class="importe-badge">${importe}</span>` : ''}
+            ${cobrado ? `<span class="cobrado-badge">${cobrado}</span>` : ''}
+          </div>
+        </div>
+        ${telefono ? `<div class="cita-tel">📞 <a href="tel:${telefono}">${telefono}</a></div>` : ''}
+        <div class="estado-row">
+          ${estadoBtn('ecoOK', 'G', sheetRow, ecoOK, '📷', 'Eco OK')}
+          ${estadoBtn('editada', 'H', sheetRow, editada, '✏️', 'Editada')}
+          ${estadoBtn('whatsapp', 'I', sheetRow, whatsapp, '💬', 'WhatsApp')}
+          ${estadoBtn('carta', 'J', sheetRow, carta, '✉️', 'Carta')}
+        </div>`;
+
+      lista.appendChild(card);
+    });
+
+    contenido.innerHTML = '';
+    contenido.appendChild(lista);
+  }
+
+  function estadoBtn(campo, col, row, valor, icono, label) {
+    const activo = esActivo(valor);
+    return `<button
+      class="estado-btn ${activo ? 'activo' : ''}"
+      data-col="${col}"
+      data-row="${row}"
+      data-campo="${campo}"
+      onclick="toggleEstado(this)">
+      <span class="icono">${icono}</span> ${label}
+    </button>`;
+  }
+
+  function esActivo(valor) {
+    const v = (valor || '').trim().toLowerCase();
+    return v === 'sí' || v === 'si' || v === 's' || v === 'v';
+  }
+
+  async function toggleEstado(btn) {
+    if (btn.classList.contains('cargando')) return;
+    btn.classList.add('cargando');
+
+    const col = btn.dataset.col;
+    const row = btn.dataset.row;
+    const nuevoValor = btn.classList.contains('activo') ? '' : 'Sí';
+
+    try {
+      await actualizarCelda(col, row, nuevoValor);
+      btn.classList.toggle('activo');
+    } catch (e) {
+      alert('Error al guardar. Comprueba tu conexión.');
+    } finally {
+      btn.classList.remove('cargando');
     }
+  }
+
+  async function actualizarCelda(col, row, valor) {
+    const range = encodeURIComponent(`'${SHEET_NAME}'!${col}${row}`);
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}?valueInputOption=USER_ENTERED`;
+    const resp = await fetch(url, {
+      method: 'PUT',
+      headers: {
+        Authorization: 'Bearer ' + sesion.access_token,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ values: [[valor]] })
+    });
+    if (!resp.ok) throw new Error('Error ' + resp.status);
+  }
+
+  function mostrarVacio() {
+    document.getElementById('contenido').innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">🌸</div>
+        <div class="empty-title">No hay citas para hoy</div>
+        <div class="empty-text">Disfruta del día de descanso.</div>
+      </div>`;
   }
 
   function logout() {
     sessionStorage.removeItem('emociona_session');
     window.location.href = 'index.html';
   }
+
+  // Arrancar
+  cargarCitas();
 </script>
 
 </body>
