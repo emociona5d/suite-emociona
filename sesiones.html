@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Emociona 5D — Sesiones</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #FDF8F4;
+      min-height: 100vh;
+    }
+
+    /* ── HEADER ── */
+    header {
+      background: white;
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .brand { font-size: 14px; font-weight: 300; color: #2C5F6E; letter-spacing: 3px; text-transform: uppercase; }
+    .header-user { display: flex; align-items: center; gap: 10px; }
+    .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: #C8E6E0; object-fit: cover; }
+    .user-name { font-size: 13px; color: #7A8A8E; }
+    .logout-btn { font-size: 12px; color: #9BB5BC; background: none; border: 1px solid #D8E8EB; border-radius: 6px; padding: 4px 12px; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+    .logout-btn:hover { background: #F0F8F9; color: #2C5F6E; }
+
+    /* ── NAV ── */
+    nav { background: white; border-bottom: 1px solid #EEF2F4; padding: 0 28px; display: flex; }
+    .nav-tab { padding: 12px 20px; font-size: 13px; color: #9BB5BC; border-bottom: 2px solid transparent; transition: all 0.2s; text-decoration: none; display: block; }
+    .nav-tab.active { color: #2C5F6E; border-bottom-color: #2C5F6E; font-weight: 500; }
+    .nav-tab.disabled { opacity: 0.4; pointer-events: none; }
+
+    /* ── MAIN ── */
+    .main { max-width: 1100px; margin: 28px auto; padding: 0 24px; }
+
+    /* ── FILTROS ── */
+    .filtros {
+      background: white;
+      border-radius: 12px;
+      padding: 16px 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .filtros input[type="search"],
+    .filtros select {
+      font-family: inherit;
+      font-size: 13px;
+      padding: 8px 12px;
+      border: 1.5px solid #E0E8EA;
+      border-radius: 8px;
+      color: #3C4A50;
+      background: white;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .filtros input[type="search"] { width: 220px; }
+    .filtros input[type="search"]:focus,
+    .filtros select:focus { border-color: #5BAA96; }
+
+    .filtro-check {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: #7A8A8E;
+      cursor: pointer;
+    }
+    .filtro-check input { cursor: pointer; accent-color: #5BAA96; }
+
+    .filtros-right { margin-left: auto; }
+    .btn-limpiar { font-size: 12px; color: #9BB5BC; background: none; border: none; cursor: pointer; font-family: inherit; text-decoration: underline; }
+
+    /* ── STATS BAR ── */
+    .stats-bar {
+      display: flex;
+      gap: 24px;
+      margin-bottom: 14px;
+      padding: 0 4px;
+      align-items: center;
+    }
+    .stat-pill { font-size: 13px; color: #7A8A8E; }
+    .stat-pill strong { color: #2C5F6E; }
+
+    /* ── TABLA ── */
+    .tabla-wrapper {
+      background: white;
+      border-radius: 14px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+      overflow: hidden;
+      overflow-x: auto;
+    }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 780px; }
+
+    thead tr { background: #F5F9FA; }
+    th {
+      padding: 12px 14px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 600;
+      color: #9BB5BC;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      white-space: nowrap;
+      border-bottom: 1px solid #EEF2F4;
+    }
+
+    tbody tr { border-bottom: 1px solid #F5F8F9; transition: background 0.15s; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: #FAFCFD; }
+
+    td { padding: 11px 14px; color: #3C4A50; vertical-align: middle; }
+
+    .td-fecha { white-space: nowrap; color: #7A8A8E; font-size: 12px; }
+    .td-nombre { font-weight: 500; color: #2C3E40; }
+    .td-apellidos { color: #6A7A80; font-weight: 400; }
+
+    .servicio-badge {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 10px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .td-importe { font-weight: 500; color: #4A6A54; white-space: nowrap; }
+    .td-cobrado { font-size: 11px; color: #9BB5BC; }
+
+    /* ── TOGGLE COMPACTO ── */
+    .toggle-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      border: 1.5px solid #E0E8EA;
+      background: white;
+      cursor: pointer;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+      margin: auto;
+    }
+    .toggle-btn.activo {
+      background: #E8F5F2;
+      border-color: #5BAA96;
+    }
+    .toggle-btn.cargando { opacity: 0.4; cursor: wait; }
+    td.td-toggle { text-align: center; }
+
+    /* ── LOADING / EMPTY ── */
+    .loading-state, .empty-state {
+      padding: 52px;
+      text-align: center;
+      color: #9BB5BC;
+      font-size: 14px;
+    }
+    .empty-icon { font-size: 32px; margin-bottom: 12px; }
+    .empty-title { font-size: 16px; color: #2C5F6E; margin-bottom: 6px; }
+
+    .error-state {
+      background: #FFF8F8;
+      border-radius: 12px;
+      padding: 20px 24px;
+      color: #C0392B;
+      font-size: 14px;
+      line-height: 1.6;
+      margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="brand">Emociona 5D</div>
+  <div class="header-user">
+    <img class="user-avatar" id="user-avatar" src="" alt="" onerror="this.style.display='none'">
+    <span class="user-name" id="user-name"></span>
+    <button class="logout-btn" onclick="logout()">Cerrar sesión</button>
+  </div>
+</header>
+
+<nav>
+  <a class="nav-tab" href="dashboard.html">Hoy</a>
+  <a class="nav-tab active" href="sesiones.html">Sesiones</a>
+  <a class="nav-tab disabled">Clientas</a>
+  <a class="nav-tab disabled">Facturas</a>
+  <a class="nav-tab disabled">Ingresos</a>
+</nav>
+
+<div class="main">
+
+  <div class="filtros">
+    <input type="search" id="busqueda" placeholder="🔍 Buscar clienta..." oninput="aplicarFiltros()">
+    <select id="filtro-mes" onchange="aplicarFiltros()">
+      <option value="">Todos los meses</option>
+    </select>
+    <select id="filtro-servicio" onchange="aplicarFiltros()">
+      <option value="">Todos los servicios</option>
+      <option value="ecoconfirmación">Ecoconfirmación</option>
+      <option value="ecosexo emociona">Ecosexo Emociona</option>
+      <option value="ecosexo">Ecosexo</option>
+      <option value="ecobasic plus">Ecobasic Plus</option>
+      <option value="ecobasic">Ecobasic</option>
+      <option value="ecoemociona">Ecoemociona</option>
+    </select>
+    <label class="filtro-check">
+      <input type="checkbox" id="solo-pendientes" onchange="aplicarFiltros()">
+      Solo pendientes (sin Eco OK)
+    </label>
+    <div class="filtros-right">
+      <button class="btn-limpiar" onclick="limpiarFiltros()">Limpiar filtros</button>
+    </div>
+  </div>
+
+  <div class="stats-bar" id="stats-bar" style="display:none">
+    <div class="stat-pill"><strong id="stat-count">0</strong> sesiones</div>
+    <div class="stat-pill">Facturado: <strong id="stat-euros">0 €</strong></div>
+  </div>
+
+  <div id="contenido">
+    <div class="tabla-wrapper">
+      <div class="loading-state">Cargando sesiones...</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // ── CONFIG ──
+  const SHEET_ID   = '1Zb5yWR1oQF03jU8JNDDr4ynChC66WEObkDwnvYLOkpM';
+  const SHEET_NAME = 'Respuestas de formulario 2026';
+
+  const COLORES = {
+    'ecoconfirmación':  { bg: '#F0F0F0', color: '#555' },
+    'ecosexo emociona': { bg: '#E8F2E5', color: '#4A7A3A' },
+    'ecosexo':          { bg: '#FDECEA', color: '#C0392B' },
+    'ecobasic plus':    { bg: '#FFF8E1', color: '#B8860B' },
+    'ecobasic':         { bg: '#FFF0E5', color: '#D2691E' },
+    'ecoemociona':      { bg: '#E0F4F2', color: '#1A7A70' }
+  };
+
+  // ── SESIÓN ──
+  const sesionData = sessionStorage.getItem('emociona_session');
+  if (!sesionData) { window.location.href = 'index.html'; }
+  const sesion = JSON.parse(sesionData || '{}');
+  if (!sesion.access_token || Date.now() > sesion.token_expiry) {
+    sessionStorage.removeItem('emociona_session');
+    window.location.href = 'index.html';
+  }
+
+  if (sesion.picture) document.getElementById('user-avatar').src = sesion.picture;
+  document.getElementById('user-name').textContent = sesion.name || sesion.email;
+
+  // ── DATOS GLOBALES ──
+  let todasLasFilas = []; // [{fila, sheetRow}]
+
+  // ── CARGAR DATOS ──
+  async function cargarSesiones() {
+    try {
+      const range = encodeURIComponent(`'${SHEET_NAME}'!A:Y`);
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}`;
+      const resp = await fetch(url, {
+        headers: { Authorization: 'Bearer ' + sesion.access_token }
+      });
+      if (!resp.ok) throw new Error('Error ' + resp.status);
+
+      const data = await resp.json();
+      const filas = data.values || [];
+
+      todasLasFilas = filas
+        .map((fila, idx) => ({ fila, sheetRow: idx + 1 }))
+        .slice(1) // saltar cabecera
+        .filter(({ fila }) => fila[3]); // solo filas con fecha
+
+      // Ordenar por fecha descendente
+      todasLasFilas.sort((a, b) => parseFecha(b.fila[3]) - parseFecha(a.fila[3]));
+
+      poblarFiltroMes();
+      aplicarFiltros();
+
+    } catch (e) {
+      document.getElementById('contenido').innerHTML = `
+        <div class="error-state">
+          <strong>Error al cargar las sesiones:</strong> ${e.message}<br>
+          Prueba a cerrar sesión y volver a entrar.
+        </div>`;
+    }
+  }
+
+  function parseFecha(str) {
+    // D/MM/YYYY → Date
+    if (!str) return 0;
+    const parts = str.trim().split('/');
+    if (parts.length !== 3) return 0;
+    return new Date(parts[2], parts[1] - 1, parts[0]).getTime();
+  }
+
+  function poblarFiltroMes() {
+    const meses = new Set();
+    todasLasFilas.forEach(({ fila }) => {
+      const fecha = (fila[3] || '').trim();
+      const parts = fecha.split('/');
+      if (parts.length === 3) {
+        meses.add(parts[1] + '/' + parts[2]); // MM/YYYY
+      }
+    });
+
+    const select = document.getElementById('filtro-mes');
+    // Ordenar meses descendente
+    const ordenados = [...meses].sort((a, b) => {
+      const [ma, ya] = a.split('/');
+      const [mb, yb] = b.split('/');
+      return (yb - ya) || (mb - ma);
+    });
+
+    const nombres = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+                     'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+    ordenados.forEach(mes => {
+      const [mm, yyyy] = mes.split('/');
+      const opt = document.createElement('option');
+      opt.value = mes;
+      opt.textContent = nombres[parseInt(mm) - 1] + ' ' + yyyy;
+      select.appendChild(opt);
+    });
+
+    // Seleccionar mes actual por defecto
+    const hoy = new Date();
+    const mesActual = String(hoy.getMonth() + 1).padStart(2, '0') + '/' + hoy.getFullYear();
+    if ([...meses].includes(mesActual)) select.value = mesActual;
+  }
+
+  // ── FILTROS ──
+  function aplicarFiltros() {
+    const busqueda  = document.getElementById('busqueda').value.toLowerCase().trim();
+    const mes       = document.getElementById('filtro-mes').value;
+    const servicio  = document.getElementById('filtro-servicio').value.toLowerCase();
+    const pendiente = document.getElementById('solo-pendientes').checked;
+
+    const filtradas = todasLasFilas.filter(({ fila }) => {
+      const nombre   = ((fila[0] || '') + ' ' + (fila[1] || '')).toLowerCase();
+      const fecha    = (fila[3] || '').trim();
+      const svc      = (fila[10] || '').toLowerCase();
+      const ecoOK    = (fila[6] || '').trim();
+
+      if (busqueda && !nombre.includes(busqueda)) return false;
+      if (mes && !fecha.includes('/' + mes)) return false;
+      if (servicio && !svc.includes(servicio)) return false;
+      if (pendiente && esActivo(ecoOK)) return false;
+      return true;
+    });
+
+    actualizarStats(filtradas);
+    renderTabla(filtradas);
+  }
+
+  function limpiarFiltros() {
+    document.getElementById('busqueda').value = '';
+    document.getElementById('filtro-mes').value = '';
+    document.getElementById('filtro-servicio').value = '';
+    document.getElementById('solo-pendientes').checked = false;
+    aplicarFiltros();
+  }
+
+  function actualizarStats(filas) {
+    let total = 0;
+    filas.forEach(({ fila }) => {
+      const imp = parseFloat((fila[11] || '').toString().replace(',', '.').replace('€', '').trim());
+      if (!isNaN(imp)) total += imp;
+    });
+    document.getElementById('stat-count').textContent = filas.length;
+    document.getElementById('stat-euros').textContent = total.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+    document.getElementById('stats-bar').style.display = 'flex';
+  }
+
+  // ── RENDER ──
+  function renderTabla(filas) {
+    const contenido = document.getElementById('contenido');
+
+    if (filas.length === 0) {
+      contenido.innerHTML = `
+        <div class="tabla-wrapper">
+          <div class="empty-state">
+            <div class="empty-icon">🔍</div>
+            <div class="empty-title">Sin resultados</div>
+            <div style="font-size:13px;color:#9BB5BC">Prueba a cambiar los filtros.</div>
+          </div>
+        </div>`;
+      return;
+    }
+
+    const tabla = document.createElement('div');
+    tabla.className = 'tabla-wrapper';
+
+    const html = `
+      <table>
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Clienta</th>
+            <th>Sesión</th>
+            <th style="text-align:center">Eco OK</th>
+            <th style="text-align:center">Editada</th>
+            <th style="text-align:center">WhatsApp</th>
+            <th style="text-align:center">Carta</th>
+            <th>Importe</th>
+            <th>Cobrado</th>
+          </tr>
+        </thead>
+        <tbody id="tabla-body"></tbody>
+      </table>`;
+    tabla.innerHTML = html;
+    contenido.innerHTML = '';
+    contenido.appendChild(tabla);
+
+    const tbody = document.getElementById('tabla-body');
+    filas.forEach(({ fila, sheetRow }) => {
+      const fecha    = fila[3] || '';
+      const nombre   = (fila[0] || '').trim();
+      const apellidos = (fila[1] || '').trim();
+      const servicio = (fila[10] || '').trim();
+      const importe  = (fila[11] || '').toString().trim();
+      const cobrado  = (fila[12] || '').trim();
+      const ecoOK    = fila[6] || '';
+      const editada  = fila[7] || '';
+      const whatsapp = fila[8] || '';
+      const carta    = fila[9] || '';
+
+      const svcKey = servicio.toLowerCase();
+      const svcColor = COLORES[svcKey] || { bg: '#F0F4F5', color: '#666' };
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="td-fecha">${fecha}</td>
+        <td class="td-nombre">${nombre} <span class="td-apellidos">${apellidos}</span></td>
+        <td>${servicio ? `<span class="servicio-badge" style="background:${svcColor.bg};color:${svcColor.color}">${servicio}</span>` : ''}</td>
+        <td class="td-toggle">${toggleBtn('G', sheetRow, ecoOK, '📷')}</td>
+        <td class="td-toggle">${toggleBtn('H', sheetRow, editada, '✏️')}</td>
+        <td class="td-toggle">${toggleBtn('I', sheetRow, whatsapp, '💬')}</td>
+        <td class="td-toggle">${toggleBtn('J', sheetRow, carta, '✉️')}</td>
+        <td class="td-importe">${importe ? importe : ''}</td>
+        <td class="td-cobrado">${cobrado}</td>`;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function toggleBtn(col, row, valor, icono) {
+    const activo = esActivo(valor);
+    return `<button
+      class="toggle-btn ${activo ? 'activo' : ''}"
+      data-col="${col}"
+      data-row="${row}"
+      title="${activo ? 'Desmarcar' : 'Marcar'}"
+      onclick="toggleEstado(this)">
+      ${activo ? '✓' : '·'}
+    </button>`;
+  }
+
+  function esActivo(valor) {
+    const v = (valor || '').trim().toLowerCase();
+    return v === 'sí' || v === 'si' || v === 's' || v === 'v';
+  }
+
+  async function toggleEstado(btn) {
+    if (btn.classList.contains('cargando')) return;
+    btn.classList.add('cargando');
+    const col = btn.dataset.col;
+    const row = btn.dataset.row;
+    const nuevoValor = btn.classList.contains('activo') ? '' : 'Sí';
+    try {
+      await actualizarCelda(col, row, nuevoValor);
+      btn.classList.toggle('activo');
+      btn.textContent = btn.classList.contains('activo') ? '✓' : '·';
+    } catch (e) {
+      alert('Error al guardar. Comprueba tu conexión.');
+    } finally {
+      btn.classList.remove('cargando');
+    }
+  }
+
+  async function actualizarCelda(col, row, valor) {
+    const range = encodeURIComponent(`'${SHEET_NAME}'!${col}${row}`);
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}?valueInputOption=USER_ENTERED`;
+    const resp = await fetch(url, {
+      method: 'PUT',
+      headers: {
+        Authorization: 'Bearer ' + sesion.access_token,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ values: [[valor]] })
+    });
+    if (!resp.ok) throw new Error('Error ' + resp.status);
+  }
+
+  function logout() {
+    sessionStorage.removeItem('emociona_session');
+    window.location.href = 'index.html';
+  }
+
+  // Arrancar
+  cargarSesiones();
+</script>
+
+</body>
+</html>
