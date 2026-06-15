@@ -477,6 +477,22 @@
       el.classList.remove('guardando');
       el.classList.add('guardado');
       setTimeout(() => el.classList.remove('guardado'), 1500);
+
+      // Si es la Sesión (col K), actualizar el badge y el color del borde
+      if (el.dataset.col === 'K') {
+        const card = el.closest('.cita-card');
+        if (card) {
+          const svcKey = valor.toLowerCase();
+          const svcColor = COLORES[svcKey] || { bg:'#F0F4F5', color:'#666', borde:'#CCC' };
+          card.style.borderLeftColor = svcColor.borde;
+          const badge = card.querySelector('.servicio-badge');
+          if (badge) {
+            badge.textContent = valor || '';
+            badge.style.background = svcColor.bg;
+            badge.style.color = svcColor.color;
+          }
+        }
+      }
     } catch(e) {
       el.classList.remove('guardando');
       alert('Error al guardar. Comprueba tu conexión.');
