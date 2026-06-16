@@ -740,7 +740,7 @@
 
     // ── CAJA CLIENTE (salmón) ──
     const clientY = 60;
-    const clientH = grupo.email ? 28 : 22;
+    const clientH = 22;
     doc.setFillColor(...SALMON);
     doc.rect(ML, clientY, 82, clientH, 'F');
     doc.setFont('helvetica', 'bold');
@@ -750,9 +750,7 @@
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8.5);
     doc.setTextColor(...GRAY_LT);
-    let clientLineY = clientY + 16;
-    if (grupo.dni) { doc.text(`DNI ${grupo.dni}`, ML + 3, clientLineY); clientLineY += 6; }
-    if (grupo.email) doc.text(grupo.email, ML + 3, clientLineY);
+    if (grupo.dni) doc.text(`DNI ${grupo.dni}`, ML + 3, clientY + 16);
 
     // ── DOCUMENTO (derecha, mismo nivel que cliente) ──
     doc.setFont('helvetica', 'bold');
@@ -814,7 +812,7 @@
     });
 
     doc.autoTable({
-      head: [['DESCRIPCIÓN', 'CANTIDAD', 'P. UNIDAD', 'SUBTOTAL', 'DTO.', 'TOTAL']],
+      head: [['DESCRIPCIÓN', 'CANT.', 'P. UNIDAD', 'SUBTOTAL', 'DTO.', 'TOTAL']],
       body: lineas,
       startY: sepY + 4,
       margin: { left: ML, right: MR },
@@ -841,11 +839,14 @@
     });
 
     // ── IVA + TOTAL ──
-    const iva = +(baseTotal * 0.21).toFixed(2);
-    const total = +(baseTotal + iva).toFixed(2);
-    const baseStr  = baseTotal.toFixed(2);
-    const ivaStr   = iva.toFixed(2);
-    const totalStr = total.toFixed(2);
+    // Calculamos el total desde el cobrado real (columna L) para evitar
+    // errores de redondeo al acumular bases individuales.
+    const totalCobrado = grupo.sesiones.reduce((sum, { fila }) => {
+      return sum + (parseFloat((fila[11]||'0').toString().replace(',','.').replace('€','').trim()) || 0);
+    }, 0);
+    const totalStr = totalCobrado.toFixed(2);
+    const baseStr  = (totalCobrado / 1.21).toFixed(2);
+    const ivaStr   = (totalCobrado - parseFloat(baseStr)).toFixed(2);
 
     const y2 = doc.lastAutoTable.finalY + 6;
     doc.setFillColor(...DARK_BAR);
