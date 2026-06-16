@@ -196,7 +196,7 @@
   <a class="nav-tab active" href="dashboard.html">Hoy</a>
   <a class="nav-tab" href="sesiones.html">Sesiones</a>
   <a class="nav-tab" href="clientas.html">Clientas</a>
-  <a class="nav-tab disabled">Facturas</a>
+  <a class="nav-tab" href="facturas.html">Facturas</a>
   <a class="nav-tab disabled">Ingresos</a>
 </nav>
 
@@ -317,7 +317,7 @@
     document.getElementById('resumen').style.display = 'none';
 
     try {
-      const range = encodeURIComponent(`'${SHEET_NAME}'!A:Y`);
+      const range = encodeURIComponent(`'${SHEET_NAME}'!A:AB`);
       const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}`;
       const resp = await fetch(url, { headers: { Authorization: 'Bearer ' + sesion.access_token } });
       if (!resp.ok) throw new Error('Error ' + resp.status);
@@ -371,7 +371,9 @@
       const cobrado  = (fila[12]||'').trim();
       const bebe     = (fila[13]||'').trim();
       const telefono = (fila[16]||'').trim();
-      const obs      = (fila[23]||'').trim();
+      const obs        = (fila[23]||'').trim();
+      const descuento  = (fila[25]||'').trim(); // Z
+      const suplemento = (fila[26]||'').trim(); // AA
       const ecoOK    = fila[6]||'';
       const editada  = fila[7]||'';
       const whatsapp = fila[8]||'';
@@ -427,6 +429,23 @@
           <div class="campo-grupo ancho-completo">
             <div class="campo-label">Observaciones</div>
             <input class="campo-input" type="text" placeholder="Notas libres..." value="${obs}" data-col="X" data-row="${sheetRow}" onblur="guardarCampo(this)">
+          </div>
+          <div class="campo-grupo">
+            <div class="campo-label">Descuento pack</div>
+            <select class="campo-select" data-col="Z" data-row="${sheetRow}" onchange="guardarCampo(this)">
+              <option value="" ${!descuento?'selected':''}>Sin descuento</option>
+              <option value="10" ${descuento==='10'?'selected':''}>10% — 2 sesiones</option>
+              <option value="15" ${descuento==='15'?'selected':''}>15% — 3 sesiones</option>
+              <option value="20" ${descuento==='20'?'selected':''}>20% — 4 o más</option>
+            </select>
+          </div>
+          <div class="campo-grupo">
+            <div class="campo-label">Suplemento</div>
+            <select class="campo-select" data-col="AA" data-row="${sheetRow}" onchange="guardarCampo(this)">
+              <option value="" ${!suplemento?'selected':''}>Ninguno</option>
+              <option value="Gemelos" ${suplemento==='Gemelos'?'selected':''}>Gemelos</option>
+              <option value="Fin de semana" ${suplemento==='Fin de semana'?'selected':''}>Fin de semana</option>
+            </select>
           </div>
         </div>`;
 
