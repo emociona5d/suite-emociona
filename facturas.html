@@ -669,7 +669,8 @@
       const content = await zip.generateAsync({ type: 'blob' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(content);
-      link.download = `Facturas_Emociona_${fechaFactura.replace(/\//g, '-')}.zip`;
+      const hoyStr = new Date().toISOString().split('T')[0];
+      link.download = `Facturas_Emociona_${hoyStr}.zip`;
       link.click();
 
       document.getElementById('progreso-bar').style.width = '100%';
