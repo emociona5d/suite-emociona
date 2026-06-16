@@ -294,7 +294,7 @@
       <h2>Clientas</h2>
       <div class="search-box">
         <span class="search-icon">🔍</span>
-        <input type="search" id="busqueda" placeholder="Buscar por nombre..." oninput="filtrarLista()">
+        <input type="search" id="busqueda" placeholder="Nombre, teléfono o DNI..." oninput="filtrarLista()">
       </div>
     </div>
     <div class="lista-count" id="lista-count"></div>
@@ -433,7 +433,9 @@
     const filtradas = clientasOrdenadas.filter(clave => {
       const f = clientasMap[clave].datosFila;
       const nombre = ((f[0]||'') + ' ' + (f[1]||'')).toLowerCase();
-      return nombre.includes(q);
+      const tel    = (f[16]||'').toLowerCase();
+      const dni    = (f[2]||'').toLowerCase();
+      return nombre.includes(q) || tel.includes(q) || dni.includes(q);
     });
     renderLista(filtradas);
   }
