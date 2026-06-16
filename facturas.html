@@ -156,6 +156,54 @@
     .empty-text { font-size: 14px; color: #9BB5BC; }
     .error-state { background: #FFF8F8; border: 1px solid #F5C6C6; border-radius: 12px; padding: 20px 24px; color: #C0392B; font-size: 14px; line-height: 1.6; }
     .loading-msg { text-align: center; padding: 40px; color: #9BB5BC; font-size: 14px; }
+
+    /* ── BOTONES BARRA INFERIOR ── */
+    .btn-grupo { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .btn-ticket {
+      padding: 11px 20px; background: white; color: #A72280;
+      border: 2px solid #A72280; border-radius: 10px; font-size: 13px; font-family: inherit;
+      cursor: pointer; transition: all 0.2s; font-weight: 500;
+    }
+    .btn-ticket:hover { background: #F9EDF7; }
+    .btn-ticket:disabled { opacity: 0.4; cursor: wait; }
+    .btn-justificante {
+      padding: 11px 20px; background: white; color: #00A3D8;
+      border: 2px solid #00A3D8; border-radius: 10px; font-size: 13px; font-family: inherit;
+      cursor: pointer; transition: all 0.2s; font-weight: 500;
+    }
+    .btn-justificante:hover { background: #E8F7FB; }
+    .btn-justificante:disabled { opacity: 0.4; cursor: wait; }
+
+    /* ── MODAL HORA ── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.45); z-index: 300;
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.visible { display: flex; }
+    .modal-box {
+      background: white; border-radius: 16px; padding: 32px 36px;
+      min-width: 340px; box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+    }
+    .modal-titulo { font-size: 16px; font-weight: 600; color: #A72280; margin-bottom: 6px; }
+    .modal-sub { font-size: 13px; color: #9BB5BC; margin-bottom: 20px; }
+    .modal-campo { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; }
+    .modal-campo label { font-size: 12px; color: #7A8A8E; text-transform: uppercase; letter-spacing: 0.7px; }
+    .modal-campo input {
+      font-family: inherit; font-size: 14px; padding: 9px 12px;
+      border: 1.5px solid #E0E8EA; border-radius: 8px; color: #3C4A50; outline: none;
+    }
+    .modal-campo input:focus { border-color: #A72280; }
+    .modal-btns { display: flex; gap: 10px; justify-content: flex-end; }
+    .modal-btn-cancel {
+      padding: 9px 20px; background: white; color: #9BB5BC;
+      border: 1.5px solid #E0E8EA; border-radius: 8px; font-family: inherit; font-size: 13px; cursor: pointer;
+    }
+    .modal-btn-ok {
+      padding: 9px 20px; background: #A72280; color: white;
+      border: none; border-radius: 8px; font-family: inherit; font-size: 13px; cursor: pointer; font-weight: 500;
+    }
+    .modal-btn-ok:hover { background: #8A1A6B; }
   </style>
 </head>
 <body>
@@ -239,10 +287,30 @@
 <!-- BARRA INFERIOR -->
 <div class="barra-inferior">
   <div class="barra-info">
-    <strong id="barra-count">0</strong> facturas seleccionadas
-    <span style="font-size:12px;color:#9BB5BC;margin-left:8px">· fecha de factura = fecha de cobro de cada sesión</span>
+    <strong id="barra-count">0</strong> sesiones seleccionadas
+    <span style="font-size:12px;color:#9BB5BC;margin-left:8px">· fecha = fecha de cobro de cada sesión</span>
   </div>
-  <button class="btn-generar" id="btn-generar" onclick="generarFacturas()">📄 Generar facturas en PDF</button>
+  <div class="btn-grupo">
+    <button class="btn-justificante" id="btn-justificante" onclick="pedirHoraYJustificar()" disabled>📋 Justificante</button>
+    <button class="btn-ticket"       id="btn-ticket"       onclick="generarTickets()"          disabled>🧾 Ticket de venta</button>
+    <button class="btn-generar"      id="btn-generar"      onclick="generarFacturas()"          disabled>📄 Factura</button>
+  </div>
+</div>
+
+<!-- MODAL HORA (para justificante) -->
+<div class="modal-overlay" id="modal-hora">
+  <div class="modal-box">
+    <div class="modal-titulo">Justificante de asistencia</div>
+    <div class="modal-sub">Introduce la hora de la cita para el justificante</div>
+    <div class="modal-campo">
+      <label>Hora (ej. 12:00-13:30 h)</label>
+      <input type="text" id="input-hora" placeholder="12:00-13:30 h" />
+    </div>
+    <div class="modal-btns">
+      <button class="modal-btn-cancel" onclick="cerrarModalHora()">Cancelar</button>
+      <button class="modal-btn-ok"     onclick="confirmarHora()">Generar</button>
+    </div>
+  </div>
 </div>
 
 <!-- OVERLAY PROGRESO -->
@@ -552,9 +620,12 @@
   }
 
   function actualizarBarraInferior() {
-    const seleccionadas = document.querySelectorAll('.sesion-check:checked');
-    document.getElementById('barra-count').textContent = seleccionadas.length;
-    document.getElementById('btn-generar').disabled = seleccionadas.length === 0;
+    const n = document.querySelectorAll('.sesion-check:checked').length;
+    document.getElementById('barra-count').textContent = n;
+    const off = n === 0;
+    document.getElementById('btn-generar').disabled     = off;
+    document.getElementById('btn-ticket').disabled      = off;
+    document.getElementById('btn-justificante').disabled = off;
   }
 
   // ── OBTENER SIGUIENTE NÚMERO ──
@@ -923,6 +994,458 @@
   function logout() {
     sessionStorage.removeItem('emociona_session');
     window.location.href = 'index.html';
+  }
+
+  // ─────────────────────────────────────────────────
+  // ── TICKET DE VENTA ──────────────────────────────
+  // ─────────────────────────────────────────────────
+
+  const TICKET_NAME = 'Ticket';
+
+  async function obtenerSiguienteNumeroTicket() {
+    const range = encodeURIComponent(`'${TICKET_NAME}'!B:B`);
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${FACTURACION_ID}/values/${range}`;
+    const resp = await fetch(url, { headers: { Authorization: 'Bearer ' + sesion.access_token } });
+    const data = await resp.json();
+    const valores = (data.values || []).flat().filter(v => v && /^A-\d+$/.test(v.trim()));
+    if (valores.length === 0) return 1;
+    const numeros = valores.map(v => parseInt(v.trim().replace('A-', '')));
+    return Math.max(...numeros) + 1;
+  }
+
+  async function generarTickets() {
+    const sesionesSeleccionadas = recogerSesionesSueltas();
+    if (sesionesSeleccionadas.length === 0) return;
+
+    const overlay = document.getElementById('progreso-overlay');
+    overlay.classList.add('visible');
+    document.getElementById('progreso-sub').textContent = 'Obteniendo numeración de tickets...';
+    document.getElementById('progreso-bar').style.width = '0%';
+    ['btn-generar','btn-ticket','btn-justificante'].forEach(id => document.getElementById(id).disabled = true);
+
+    try {
+      let logoDataUrl = await cargarLogo();
+      let numero = await obtenerSiguienteNumeroTicket();
+      const zip = new JSZip();
+      const registros = [];
+      const total = sesionesSeleccionadas.length;
+
+      for (let i = 0; i < total; i++) {
+        const { fila, nombre, dni } = sesionesSeleccionadas[i];
+        const nf = formatNumero(numero++);
+        document.getElementById('progreso-sub').textContent = `Generando ticket ${nf} — ${nombre}`;
+        document.getElementById('progreso-bar').style.width = `${Math.round((i/total)*100)}%`;
+        document.getElementById('progreso-num').textContent = `${i+1} de ${total}`;
+
+        const doc = construirTicket({ fila, nombre, dni }, nf, logoDataUrl);
+        zip.file(`Ticket_${nf}_${nombre}.pdf`, doc.output('arraybuffer'));
+
+        const fecha  = (fila[3]||'').trim();
+        const svc    = (fila[10]||'').trim();
+        const cobrado = parseFloat((fila[11]||'0').toString().replace(',','.').replace('€','').trim()) || 0;
+        const pago   = (fila[12]||'').trim();
+        registros.push([fecha, nf, nombre, svc, cobrado.toFixed(2) + ' €', pago]);
+        await new Promise(r => setTimeout(r, 50));
+      }
+
+      document.getElementById('progreso-sub').textContent = 'Guardando en hoja Ticket...';
+      document.getElementById('progreso-bar').style.width = '90%';
+      await escribirEnHoja(TICKET_NAME, registros);
+
+      document.getElementById('progreso-sub').textContent = 'Preparando ZIP...';
+      document.getElementById('progreso-bar').style.width = '97%';
+      const content = await zip.generateAsync({ type: 'blob' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(content);
+      link.download = `Tickets_Emociona_${new Date().toISOString().split('T')[0]}.zip`;
+      link.click();
+
+      document.getElementById('progreso-bar').style.width = '100%';
+      document.getElementById('progreso-sub').textContent = '¡Listo!';
+      await new Promise(r => setTimeout(r, 1200));
+      overlay.classList.remove('visible');
+      actualizarBarraInferior();
+    } catch(e) {
+      overlay.classList.remove('visible');
+      actualizarBarraInferior();
+      alert('Error al generar tickets: ' + e.message);
+      console.error(e);
+    }
+  }
+
+  function construirTicket({ fila, nombre, dni }, numeroTicket, logoDataUrl) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const W  = 210;
+    const ML = 14;
+    const MR = 14;
+
+    const MORADO    = [167, 34, 140];
+    const SALMON    = [220, 170, 185];
+    const BLUE_LT   = [210, 232, 245];
+    const BLUE_MED  = [170, 210, 235];
+    const DARK_HEAD = [50, 80, 110];
+    const GRAY      = [70, 70, 80];
+    const GRAY_LT   = [130, 130, 140];
+    const GRAY_BOX  = [240, 242, 244];
+    const DARK_BAR  = [40, 40, 50];
+
+    // ── TÍTULO "TICKET DE VENTA" ──
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(26);
+    doc.setTextColor(...MORADO);
+    doc.text('TICKET DE VENTA', ML, 28);
+
+    // ── LOGO (arriba derecha) ──
+    if (logoDataUrl) {
+      const fmt = logoDataUrl.startsWith('data:image/png') ? 'PNG'
+                : logoDataUrl.startsWith('data:image/gif') ? 'GIF' : 'JPEG';
+      doc.addImage(logoDataUrl, fmt, W - MR - 52, 8, 52, 32);
+    }
+
+    // ── CAJA EMISOR (gris claro) ──
+    const emisorY = 36;
+    doc.setFillColor(...GRAY_BOX);
+    doc.rect(ML, emisorY, 88, 30, 'F');
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(...GRAY);
+    const ex = ML + 3;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Isabel', ex, emisorY + 7);
+    const nwAncho = doc.getTextWidth('Isabel ');
+    doc.setFont('helvetica', 'normal');
+    doc.text('Zancada Zarcero', ex + nwAncho, emisorY + 7);
+    doc.text('NIF 71216423M',   ex, emisorY + 13);
+    doc.text('Tlfn. 644593823', ex, emisorY + 19);
+    doc.text("C/ Vicente Aleixandre, 1 'Emprendemérita'", ex, emisorY + 25);
+    doc.text('06800 Mérida (Badajoz)', ex, emisorY + 31 - 1);
+
+    // ── BANDA CLIENTE + DOCUMENTO ──
+    const bandaY = emisorY + 34;
+    doc.setFillColor(...SALMON);
+    doc.rect(ML, bandaY, W - ML - MR, 8, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(255, 255, 255);
+    doc.text(nombre, ML + 3, bandaY + 5.5);
+
+    // Cabeceras DOCUMENTO / Nº / FECHA (sobre fondo blanco)
+    const hdrY = bandaY + 8;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(...GRAY_LT);
+    doc.text('DOCUMENTO', ML + 90, hdrY + 5);
+    doc.text('Nº',        ML + 133, hdrY + 5);
+    doc.text('FECHA',     ML + 155, hdrY + 5);
+
+    // Valores
+    const valY = hdrY + 12;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(...GRAY);
+    doc.text('Ticket',     ML + 90,  valY);
+    doc.text(numeroTicket, ML + 133, valY);
+    doc.text((fila[3]||'').trim(), ML + 155, valY);
+
+    // ── SEPARADOR OSCURO ──
+    const sepY = valY + 8;
+    doc.setFillColor(...DARK_BAR);
+    doc.rect(ML, sepY, W - ML - MR, 2, 'F');
+
+    // ── CONCEPTO (fondo azul claro) ──
+    const concY = sepY + 4;
+    const cobrado = parseFloat((fila[11]||'0').toString().replace(',','.').replace('€','').trim()) || 0;
+    const baseConcepto = cobrado / 1.21;
+    const descPct = parseInt((fila[25]||'0').replace('%','').trim()) || 0;
+    const svc = (fila[10]||'').trim();
+
+    doc.setFillColor(...BLUE_LT);
+    doc.rect(ML, concY, W - ML - MR, 38, 'F');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...GRAY);
+    doc.text('CONCEPTO', W / 2, concY + 7, { align: 'center' });
+
+    // Servicio + precio
+    const nombreSvcDisplay = svc.charAt(0).toUpperCase() + svc.slice(1);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text(nombreSvcDisplay, ML + 20, concY + 18);
+    doc.text(baseConcepto.toFixed(2) + ' €', W - MR - 5, concY + 18, { align: 'right' });
+
+    // Descuento
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(...GRAY_LT);
+    doc.text('Dto.', ML + 40, concY + 30);
+    doc.text(descPct + '%', W / 2, concY + 30, { align: 'center' });
+
+    // ── TABLA IVA ──
+    const ivaY = concY + 44;
+    const baseStr = baseConcepto.toFixed(2);
+    const ivaStr  = (cobrado - parseFloat(baseStr)).toFixed(2);
+    const totalStr = cobrado.toFixed(2);
+
+    doc.autoTable({
+      head: [['TIPO', 'BASE IMPONIBLE', 'IVA']],
+      body: [['21%', baseStr + ' €', ivaStr + ' €']],
+      startY: ivaY,
+      margin: { left: W / 2 - 10, right: MR },
+      theme: 'plain',
+      headStyles: {
+        fillColor: DARK_HEAD, textColor: [255,255,255],
+        fontSize: 9, fontStyle: 'bold', halign: 'center',
+        cellPadding: { top: 4, bottom: 4, left: 3, right: 3 }
+      },
+      bodyStyles: {
+        fillColor: BLUE_LT, fontSize: 9.5, textColor: GRAY,
+        halign: 'center', cellPadding: { top: 5, bottom: 5, left: 3, right: 3 }
+      },
+      alternateRowStyles: { fillColor: BLUE_MED }
+    });
+
+    // Fila TOTAL
+    doc.autoTable({
+      body: [['TOTAL', totalStr + ' €']],
+      startY: doc.lastAutoTable.finalY,
+      margin: { left: W / 2 - 10, right: MR },
+      theme: 'plain',
+      bodyStyles: {
+        fillColor: [228, 235, 242], fontSize: 11,
+        fontStyle: 'bold', textColor: GRAY,
+        cellPadding: { top: 5, bottom: 5, left: 3, right: 3 }
+      },
+      columnStyles: {
+        0: { halign: 'left' },
+        1: { halign: 'right', textColor: MORADO }
+      }
+    });
+
+    // ── FORMA DE PAGO ──
+    const pagoY = doc.lastAutoTable.finalY + 8;
+    doc.setFillColor(...BLUE_LT);
+    doc.rect(ML + 40, pagoY, W - ML - 40 - MR, 10, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...GRAY);
+    doc.text('FORMA DE PAGO', ML + 44, pagoY + 6.5);
+    doc.setFont('helvetica', 'normal');
+    doc.text((fila[12]||'').trim(), ML + 100, pagoY + 6.5);
+
+    return doc;
+  }
+
+  // ─────────────────────────────────────────────────
+  // ── JUSTIFICANTE DE ASISTENCIA ───────────────────
+  // ─────────────────────────────────────────────────
+
+  const JUSTIF_NAME = 'Justificante';
+  let _sesionesParaJustificar = [];
+
+  function pedirHoraYJustificar() {
+    _sesionesParaJustificar = recogerSesionesSueltas();
+    if (_sesionesParaJustificar.length === 0) return;
+    document.getElementById('input-hora').value = '';
+    document.getElementById('modal-hora').classList.add('visible');
+    setTimeout(() => document.getElementById('input-hora').focus(), 100);
+  }
+
+  function cerrarModalHora() {
+    document.getElementById('modal-hora').classList.remove('visible');
+    _sesionesParaJustificar = [];
+  }
+
+  function confirmarHora() {
+    const hora = document.getElementById('input-hora').value.trim();
+    document.getElementById('modal-hora').classList.remove('visible');
+    generarJustificantes(_sesionesParaJustificar, hora);
+  }
+
+  async function generarJustificantes(sesiones, hora) {
+    const overlay = document.getElementById('progreso-overlay');
+    overlay.classList.add('visible');
+    document.getElementById('progreso-sub').textContent = 'Generando justificantes...';
+    document.getElementById('progreso-bar').style.width = '0%';
+    ['btn-generar','btn-ticket','btn-justificante'].forEach(id => document.getElementById(id).disabled = true);
+
+    try {
+      let logoDataUrl = await cargarLogo();
+      const zip = new JSZip();
+      const registros = [];
+      const total = sesiones.length;
+
+      for (let i = 0; i < total; i++) {
+        const { fila, nombre, dni } = sesiones[i];
+        const fecha = (fila[3]||'').trim();
+        document.getElementById('progreso-sub').textContent = `Generando justificante — ${nombre}`;
+        document.getElementById('progreso-bar').style.width = `${Math.round((i/total)*100)}%`;
+        document.getElementById('progreso-num').textContent = `${i+1} de ${total}`;
+
+        const doc = construirJustificante({ nombre, dni, fecha, hora }, logoDataUrl);
+        zip.file(`Justificante_${nombre.replace(/ /g,'_')}_${fecha.replace(/\//g,'-')}.pdf`, doc.output('arraybuffer'));
+
+        registros.push([fecha, nombre, dni, hora]);
+        await new Promise(r => setTimeout(r, 50));
+      }
+
+      document.getElementById('progreso-sub').textContent = 'Guardando en hoja Justificante...';
+      document.getElementById('progreso-bar').style.width = '90%';
+      await escribirEnHoja(JUSTIF_NAME, registros);
+
+      document.getElementById('progreso-sub').textContent = 'Preparando ZIP...';
+      document.getElementById('progreso-bar').style.width = '97%';
+      const content = await zip.generateAsync({ type: 'blob' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(content);
+      link.download = `Justificantes_Emociona_${new Date().toISOString().split('T')[0]}.zip`;
+      link.click();
+
+      document.getElementById('progreso-bar').style.width = '100%';
+      document.getElementById('progreso-sub').textContent = '¡Listo!';
+      await new Promise(r => setTimeout(r, 1200));
+      overlay.classList.remove('visible');
+      actualizarBarraInferior();
+    } catch(e) {
+      overlay.classList.remove('visible');
+      actualizarBarraInferior();
+      alert('Error al generar justificantes: ' + e.message);
+      console.error(e);
+    }
+  }
+
+  function construirJustificante({ nombre, dni, fecha, hora }, logoDataUrl) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const W  = 210;
+    const H  = 297;
+
+    const MORADO  = [167, 34, 140];
+    const GRAY    = [70, 70, 80];
+    const GRAY_LT = [130, 130, 140];
+
+    // ── LOGO CENTRADO ──
+    if (logoDataUrl) {
+      const fmt = logoDataUrl.startsWith('data:image/png') ? 'PNG'
+                : logoDataUrl.startsWith('data:image/gif') ? 'GIF' : 'JPEG';
+      const lw = 70;
+      doc.addImage(logoDataUrl, fmt, (W - lw) / 2, 30, lw, 44);
+    }
+
+    // ── BANDA MORADA: TÍTULO ──
+    const bandaY = 88;
+    doc.setFillColor(...MORADO);
+    doc.rect(20, bandaY, W - 40, 11, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(255, 255, 255);
+    doc.text('JUSTIFICANTE DE ASISTENCIA A ECOGRAFÍA DE EMBARAZO', W / 2, bandaY + 7.2, { align: 'center' });
+
+    // ── CAMPOS ──
+    const campoX  = 28;
+    const valorX  = 72;
+    let   cy      = 120;
+    const paso    = 20;
+
+    const campos = [
+      { label: 'NOMBRE:', valor: nombre },
+      { label: 'DNI:',    valor: dni || '' },
+      { label: 'FECHA',   valor: fecha },
+      { label: 'HORA:',   valor: hora || '' },
+    ];
+
+    campos.forEach(({ label, valor }) => {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(...GRAY);
+      doc.text(label, campoX, cy);
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.setTextColor(40, 40, 50);
+      doc.text(valor, valorX, cy);
+      cy += paso;
+    });
+
+    // ── BANDA MORADA DECORATIVA ──
+    const deco1Y = cy + 10;
+    doc.setFillColor(...MORADO);
+    doc.rect(20, deco1Y, W - 40, 7, 'F');
+
+    // ── BANDA MORADA FOOTER ──
+    const footBandaY = H - 44;
+    doc.setFillColor(...MORADO);
+    doc.rect(0, footBandaY, W, 18, 'F');
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(255, 255, 255);
+    doc.text('www.emocionaecografia5d.com', 14, footBandaY + 7);
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(11);
+    doc.text('Siente una experiencia única, familiar y ', W/2 + 2, footBandaY + 8, { align: 'left' });
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    const tw = doc.getTextWidth('Siente una experiencia única, familiar y ');
+    doc.text('5D', W/2 + 2 + tw, footBandaY + 8.5);
+
+    // ── PIE: CONTACTO ──
+    const pieY = footBandaY + 22;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(...GRAY_LT);
+    doc.text('info@emocionaecografia5d.com  ·  644 59 38 23', W / 2, pieY, { align: 'center' });
+    doc.text("C/ Vicente Aleixandre, 1  ·  Emprendemerita (centro de negocios) Oficina 12  ·  06800 Mérida", W / 2, pieY + 5, { align: 'center' });
+
+    return doc;
+  }
+
+  // ─────────────────────────────────────────────────
+  // ── HELPERS COMUNES ──────────────────────────────
+  // ─────────────────────────────────────────────────
+
+  // Recoge sesiones individuales seleccionadas con datos de cliente
+  function recogerSesionesSueltas() {
+    const lista = [];
+    gruposFiltrados.forEach((grupo, gi) => {
+      grupo.sesiones.forEach((s, si) => {
+        const chk = document.querySelector(`.sesion-check[data-gi="${gi}"][data-si="${si}"]`);
+        if (chk && chk.checked) {
+          lista.push({ fila: s.fila, sheetRow: s.sheetRow, nombre: grupo.nombre, dni: grupo.dni });
+        }
+      });
+    });
+    return lista;
+  }
+
+  // Carga el logo como dataURL (prueba extensiones)
+  async function cargarLogo() {
+    for (const ext of ['logo.jpg', 'logo.jpeg', 'logo.gif', 'logo.png']) {
+      try {
+        const resp = await fetch('./' + ext);
+        if (resp.ok) {
+          const blob = await resp.blob();
+          return await new Promise(resolve => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.readAsDataURL(blob);
+          });
+        }
+      } catch(e) {}
+    }
+    return null;
+  }
+
+  // Escribe filas al final de una hoja de FACTURACION_ID
+  async function escribirEnHoja(nombreHoja, registros) {
+    const range = encodeURIComponent(`'${nombreHoja}'!A:Z`);
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${FACTURACION_ID}/values/${range}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + sesion.access_token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ values: registros })
+    });
+    if (!resp.ok) throw new Error(`Error al escribir en ${nombreHoja}: ` + resp.status);
   }
 
   cargar();
