@@ -240,10 +240,7 @@
 <div class="barra-inferior">
   <div class="barra-info">
     <strong id="barra-count">0</strong> facturas seleccionadas
-  </div>
-  <div class="barra-fecha">
-    <label>Fecha factura:</label>
-    <input type="date" id="fecha-factura">
+    <span style="font-size:12px;color:#9BB5BC;margin-left:8px">· fecha de factura = fecha de cobro de cada sesión</span>
   </div>
   <button class="btn-generar" id="btn-generar" onclick="generarFacturas()">📄 Generar facturas en PDF</button>
 </div>
@@ -301,11 +298,8 @@
   if (sesion.picture) document.getElementById('user-avatar').src = sesion.picture;
   document.getElementById('user-name').textContent = sesion.name || sesion.email;
 
-  // Fecha factura = hoy por defecto
-  const hoy = new Date();
-  document.getElementById('fecha-factura').value = hoy.toISOString().split('T')[0];
-
   // Filtros por defecto: mes actual
+  const hoy = new Date();
   const mesActual = hoy.toISOString().split('T')[0].substring(0, 7);
   document.getElementById('filtro-desde').value = mesActual + '-01';
   document.getElementById('filtro-hasta').value = hoy.toISOString().split('T')[0];
@@ -475,19 +469,52 @@
         schk.dataset.si = si;
         schk.addEventListener('change', () => actualizarGrupoCheck(gi));
 
-        row.appendChild(schk);
-        row.innerHTML += `
-          <span class="sesion-fecha">${fila[3]||''}</span>
-          <span class="sesion-servicio">
-            ${servicio ? `<span class="servicio-badge" style="background:${svcColor.bg};color:${svcColor.color}">${servicio}</span>` : '—'}
-          </span>
-          ${descuento ? `<span class="sesion-descuento">-${descuento}% pack</span>` : ''}
-          ${supl ? `<span class="sesion-suplemento">+ ${supl}</span>` : ''}
-          ${metodoPago ? `<span style="font-size:11px;color:#9BB5BC">${metodoPago}</span>` : ''}
-          <span class="sesion-importe">${importe ? importe + ' €' : '—'}</span>`;
+        // Construir el resto de la fila sin tocar innerHTML para evitar duplicar el checkbox
+        const spanFecha = document.createElement('span');
+        spanFecha.className = 'sesion-fecha';
+        spanFecha.textContent = fila[3] || '';
 
-        // Re-add checkbox (innerHTML replaced it)
-        row.insertBefore(schk, row.firstChild);
+        const spanSvc = document.createElement('span');
+        spanSvc.className = 'sesion-servicio';
+        if (servicio) {
+          const badge = document.createElement('span');
+          badge.className = 'servicio-badge';
+          badge.style.background = svcColor.bg;
+          badge.style.color = svcColor.color;
+          badge.textContent = servicio;
+          spanSvc.appendChild(badge);
+        } else {
+          spanSvc.textContent = '—';
+        }
+
+        row.appendChild(schk);
+        row.appendChild(spanFecha);
+        row.appendChild(spanSvc);
+
+        if (descuento) {
+          const s = document.createElement('span');
+          s.className = 'sesion-descuento';
+          s.textContent = `-${descuento}% pack`;
+          row.appendChild(s);
+        }
+        if (supl) {
+          const s = document.createElement('span');
+          s.className = 'sesion-suplemento';
+          s.textContent = `+ ${supl}`;
+          row.appendChild(s);
+        }
+        if (metodoPago) {
+          const s = document.createElement('span');
+          s.style.cssText = 'font-size:11px;color:#9BB5BC';
+          s.textContent = metodoPago;
+          row.appendChild(s);
+        }
+
+        const spanImp = document.createElement('span');
+        spanImp.className = 'sesion-importe';
+        spanImp.textContent = importe ? importe + ' €' : '—';
+        row.appendChild(spanImp);
+
         card.appendChild(row);
       });
 
@@ -562,11 +589,6 @@
 
     if (seleccionados.length === 0) return;
 
-    const fechaFacturaVal = document.getElementById('fecha-factura').value;
-    if (!fechaFacturaVal) { alert('Selecciona la fecha de la factura.'); return; }
-    const [yy, mm, dd] = fechaFacturaVal.split('-');
-    const fechaFactura = `${dd}/${mm}/${yy}`;
-
     // Mostrar overlay
     const overlay = document.getElementById('progreso-overlay');
     overlay.classList.add('visible');
@@ -584,6 +606,12 @@
       for (let i = 0; i < seleccionados.length; i++) {
         const grupo = seleccionados[i];
         const nf = formatNumero(numero++);
+
+        // Fecha de factura = fecha de la sesión más reciente del grupo
+        const fechaFactura = grupo.sesiones.reduce((max, { fila }) => {
+          const ts = parseFecha((fila[3]||'').trim());
+          return ts > parseFecha(max) ? (fila[3]||'').trim() : max;
+        }, grupo.sesiones[0].fila[3] || '');
 
         document.getElementById('progreso-sub').textContent = `Generando ${nf} — ${grupo.nombre}`;
         document.getElementById('progreso-bar').style.width = `${Math.round((i/total)*100)}%`;
