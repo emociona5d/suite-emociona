@@ -157,53 +157,6 @@
     .error-state { background: #FFF8F8; border: 1px solid #F5C6C6; border-radius: 12px; padding: 20px 24px; color: #C0392B; font-size: 14px; line-height: 1.6; }
     .loading-msg { text-align: center; padding: 40px; color: #9BB5BC; font-size: 14px; }
 
-    /* ── BOTONES BARRA INFERIOR ── */
-    .btn-grupo { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-    .btn-ticket {
-      padding: 11px 20px; background: white; color: #A72280;
-      border: 2px solid #A72280; border-radius: 10px; font-size: 13px; font-family: inherit;
-      cursor: pointer; transition: all 0.2s; font-weight: 500;
-    }
-    .btn-ticket:hover { background: #F9EDF7; }
-    .btn-ticket:disabled { opacity: 0.4; cursor: wait; }
-    .btn-justificante {
-      padding: 11px 20px; background: white; color: #00A3D8;
-      border: 2px solid #00A3D8; border-radius: 10px; font-size: 13px; font-family: inherit;
-      cursor: pointer; transition: all 0.2s; font-weight: 500;
-    }
-    .btn-justificante:hover { background: #E8F7FB; }
-    .btn-justificante:disabled { opacity: 0.4; cursor: wait; }
-
-    /* ── MODAL HORA ── */
-    .modal-overlay {
-      display: none; position: fixed; inset: 0;
-      background: rgba(0,0,0,0.45); z-index: 300;
-      align-items: center; justify-content: center;
-    }
-    .modal-overlay.visible { display: flex; }
-    .modal-box {
-      background: white; border-radius: 16px; padding: 32px 36px;
-      min-width: 340px; box-shadow: 0 8px 32px rgba(0,0,0,0.18);
-    }
-    .modal-titulo { font-size: 16px; font-weight: 600; color: #A72280; margin-bottom: 6px; }
-    .modal-sub { font-size: 13px; color: #9BB5BC; margin-bottom: 20px; }
-    .modal-campo { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; }
-    .modal-campo label { font-size: 12px; color: #7A8A8E; text-transform: uppercase; letter-spacing: 0.7px; }
-    .modal-campo input {
-      font-family: inherit; font-size: 14px; padding: 9px 12px;
-      border: 1.5px solid #E0E8EA; border-radius: 8px; color: #3C4A50; outline: none;
-    }
-    .modal-campo input:focus { border-color: #A72280; }
-    .modal-btns { display: flex; gap: 10px; justify-content: flex-end; }
-    .modal-btn-cancel {
-      padding: 9px 20px; background: white; color: #9BB5BC;
-      border: 1.5px solid #E0E8EA; border-radius: 8px; font-family: inherit; font-size: 13px; cursor: pointer;
-    }
-    .modal-btn-ok {
-      padding: 9px 20px; background: #A72280; color: white;
-      border: none; border-radius: 8px; font-family: inherit; font-size: 13px; cursor: pointer; font-weight: 500;
-    }
-    .modal-btn-ok:hover { background: #8A1A6B; }
   </style>
 </head>
 <body>
@@ -287,30 +240,10 @@
 <!-- BARRA INFERIOR -->
 <div class="barra-inferior">
   <div class="barra-info">
-    <strong id="barra-count">0</strong> sesiones seleccionadas
-    <span style="font-size:12px;color:#9BB5BC;margin-left:8px">· fecha = fecha de cobro de cada sesión</span>
+    <strong id="barra-count">0</strong> facturas seleccionadas
+    <span style="font-size:12px;color:#9BB5BC;margin-left:8px">· fecha de factura = fecha de cobro de cada sesión</span>
   </div>
-  <div class="btn-grupo">
-    <button class="btn-justificante" id="btn-justificante" onclick="pedirHoraYJustificar()" disabled>📋 Justificante</button>
-    <button class="btn-ticket"       id="btn-ticket"       onclick="generarTickets()"          disabled>🧾 Ticket de venta</button>
-    <button class="btn-generar"      id="btn-generar"      onclick="generarFacturas()"          disabled>📄 Factura</button>
-  </div>
-</div>
-
-<!-- MODAL HORA (para justificante) -->
-<div class="modal-overlay" id="modal-hora">
-  <div class="modal-box">
-    <div class="modal-titulo">Justificante de asistencia</div>
-    <div class="modal-sub">Introduce la hora de la cita para el justificante</div>
-    <div class="modal-campo">
-      <label>Hora (ej. 12:00-13:30 h)</label>
-      <input type="text" id="input-hora" placeholder="12:00-13:30 h" />
-    </div>
-    <div class="modal-btns">
-      <button class="modal-btn-cancel" onclick="cerrarModalHora()">Cancelar</button>
-      <button class="modal-btn-ok"     onclick="confirmarHora()">Generar</button>
-    </div>
-  </div>
+  <button class="btn-generar" id="btn-generar" onclick="generarFacturas()" disabled>📄 Generar facturas en PDF</button>
 </div>
 
 <!-- OVERLAY PROGRESO -->
@@ -622,10 +555,7 @@
   function actualizarBarraInferior() {
     const n = document.querySelectorAll('.sesion-check:checked').length;
     document.getElementById('barra-count').textContent = n;
-    const off = n === 0;
-    document.getElementById('btn-generar').disabled     = off;
-    document.getElementById('btn-ticket').disabled      = off;
-    document.getElementById('btn-justificante').disabled = off;
+    document.getElementById('btn-generar').disabled = n === 0;
   }
 
   // ── OBTENER SIGUIENTE NÚMERO ──
@@ -996,11 +926,7 @@
     window.location.href = 'index.html';
   }
 
-  // ─────────────────────────────────────────────────
-  // ── TICKET DE VENTA ──────────────────────────────
-  // ─────────────────────────────────────────────────
-
-  const TICKET_NAME = 'Ticket';
+  const TICKET_NAME = 'UNUSED'; // ticket/justificante movidos a sesiones.html
 
   async function obtenerSiguienteNumeroTicket() {
     const range = encodeURIComponent(`'${TICKET_NAME}'!B:B`);
