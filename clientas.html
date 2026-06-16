@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Emociona 5D — Clientas</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #FDF8F4;
+      min-height: 100vh;
+    }
+
+    /* ── HEADER ── */
+    header {
+      background: white;
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .brand { font-size: 14px; font-weight: 300; color: #2C5F6E; letter-spacing: 3px; text-transform: uppercase; }
+    .header-user { display: flex; align-items: center; gap: 10px; }
+    .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: #C8E6E0; object-fit: cover; }
+    .user-name { font-size: 13px; color: #7A8A8E; }
+    .logout-btn { font-size: 12px; color: #9BB5BC; background: none; border: 1px solid #D8E8EB; border-radius: 6px; padding: 4px 12px; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+    .logout-btn:hover { background: #F0F8F9; color: #2C5F6E; }
+
+    /* ── NAV ── */
+    nav { background: white; border-bottom: 1px solid #EEF2F4; padding: 0 28px; display: flex; }
+    .nav-tab { padding: 12px 20px; font-size: 13px; color: #9BB5BC; border-bottom: 2px solid transparent; transition: all 0.2s; text-decoration: none; display: block; }
+    .nav-tab.active { color: #2C5F6E; border-bottom-color: #2C5F6E; font-weight: 500; }
+    .nav-tab.disabled { opacity: 0.4; pointer-events: none; }
+
+    /* ── LAYOUT ── */
+    .layout {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 0;
+      height: calc(100vh - 101px);
+    }
+
+    /* ── PANEL IZQUIERDO ── */
+    .panel-lista {
+      background: white;
+      border-right: 1px solid #EEF2F4;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .lista-header {
+      padding: 20px 20px 12px;
+      border-bottom: 1px solid #F0F4F5;
+    }
+    .lista-header h2 { font-size: 15px; font-weight: 500; color: #2C5F6E; margin-bottom: 12px; }
+
+    .search-box {
+      position: relative;
+    }
+    .search-box input {
+      width: 100%;
+      padding: 9px 12px 9px 34px;
+      border: 1.5px solid #E0E8EA;
+      border-radius: 8px;
+      font-size: 13px;
+      font-family: inherit;
+      color: #3C4A50;
+      outline: none;
+      transition: border-color 0.2s;
+      background: #FAFCFD;
+    }
+    .search-box input:focus { border-color: #5BAA96; background: white; }
+    .search-icon {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #B0C4C8;
+      font-size: 14px;
+      pointer-events: none;
+    }
+
+    .lista-count { font-size: 11px; color: #9BB5BC; padding: 8px 20px 0; }
+
+    .lista-scroll { overflow-y: auto; flex: 1; }
+
+    .cliente-item {
+      padding: 14px 20px;
+      border-bottom: 1px solid #F5F8F9;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .cliente-item:hover { background: #F5FAFA; }
+    .cliente-item.activo { background: #EDF8F6; border-left: 3px solid #5BAA96; padding-left: 17px; }
+
+    .cliente-nombre { font-size: 14px; font-weight: 500; color: #2C3E40; }
+    .cliente-meta { font-size: 12px; color: #9BB5BC; margin-top: 3px; display: flex; gap: 10px; }
+
+    .badge-sesiones {
+      background: #E8F5F2;
+      color: #2C7A68;
+      font-size: 10px;
+      padding: 1px 7px;
+      border-radius: 8px;
+      font-weight: 600;
+    }
+
+    /* ── PANEL DERECHO ── */
+    .panel-ficha {
+      overflow-y: auto;
+      padding: 28px 32px;
+    }
+
+    .ficha-vacia {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: #B0C4C8;
+      text-align: center;
+    }
+    .ficha-vacia .icono { font-size: 40px; margin-bottom: 14px; }
+    .ficha-vacia p { font-size: 14px; }
+
+    /* ── FICHA ── */
+    .ficha-nombre {
+      font-size: 24px;
+      font-weight: 300;
+      color: #2C5F6E;
+      margin-bottom: 4px;
+    }
+    .ficha-sub { font-size: 13px; color: #9BB5BC; margin-bottom: 24px; }
+
+    .seccion {
+      background: white;
+      border-radius: 14px;
+      padding: 22px 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      margin-bottom: 18px;
+    }
+    .seccion-titulo {
+      font-size: 11px;
+      font-weight: 600;
+      color: #9BB5BC;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 16px;
+    }
+
+    /* ── GRID DATOS ── */
+    .datos-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    .datos-grid .ancho-completo { grid-column: 1 / -1; }
+
+    .dato-grupo { display: flex; flex-direction: column; gap: 4px; }
+    .dato-label { font-size: 11px; color: #9BB5BC; text-transform: uppercase; letter-spacing: 0.8px; }
+
+    .dato-input {
+      font-family: inherit;
+      font-size: 13px;
+      padding: 8px 10px;
+      border: 1.5px solid #E0E8EA;
+      border-radius: 8px;
+      color: #3C4A50;
+      background: white;
+      outline: none;
+      transition: border-color 0.2s;
+      width: 100%;
+    }
+    .dato-input:focus { border-color: #5BAA96; }
+    .dato-input[readonly] {
+      background: #FAFCFD;
+      color: #7A8A8E;
+      cursor: default;
+    }
+    .dato-input.guardado { border-color: #5BAA96; background: #F0FAF7; }
+
+    /* ── AUTORIZACIONES ── */
+    .autorizaciones { display: flex; gap: 14px; flex-wrap: wrap; }
+    .autorizacion-card {
+      flex: 1;
+      min-width: 180px;
+      border: 1.5px solid #E0E8EA;
+      border-radius: 10px;
+      padding: 14px 16px;
+    }
+    .autorizacion-card.positiva { border-color: #5BAA96; background: #F0FAF7; }
+    .autorizacion-card.negativa { border-color: #E0E0E0; background: #FAFAFA; }
+    .aut-label { font-size: 11px; color: #9BB5BC; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
+    .aut-valor { font-size: 14px; font-weight: 500; color: #2C3E40; }
+    .aut-valor.si { color: #2C7A68; }
+    .aut-valor.no { color: #9BB5BC; }
+
+    /* Selector publicar */
+    .publicar-select {
+      font-family: inherit;
+      font-size: 13px;
+      padding: 7px 10px;
+      border: 1.5px solid #E0E8EA;
+      border-radius: 8px;
+      color: #3C4A50;
+      background: white;
+      outline: none;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 8px;
+      transition: border-color 0.2s;
+    }
+    .publicar-select:focus { border-color: #5BAA96; }
+
+    /* ── HISTORIAL ── */
+    .historial-lista { display: flex; flex-direction: column; gap: 8px; }
+
+    .historial-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      background: #FAFCFD;
+      border-radius: 8px;
+      border: 1px solid #F0F4F5;
+    }
+    .historial-fecha { font-size: 12px; color: #9BB5BC; white-space: nowrap; width: 80px; }
+    .historial-servicio { flex: 1; }
+    .historial-importe { font-size: 13px; font-weight: 500; color: #4A6A54; white-space: nowrap; }
+    .historial-cobrado { font-size: 11px; color: #9BB5BC; white-space: nowrap; }
+
+    .servicio-badge { font-size: 11px; padding: 3px 8px; border-radius: 10px; font-weight: 500; }
+
+    .btn-guardar-datos {
+      margin-top: 16px;
+      padding: 10px 22px;
+      background: #2C5F6E;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-guardar-datos:hover { background: #234E5C; }
+    .btn-guardar-datos:disabled { opacity: 0.5; cursor: wait; }
+
+    .guardar-ok {
+      display: inline-block;
+      margin-left: 10px;
+      font-size: 12px;
+      color: #5BAA96;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .guardar-ok.visible { opacity: 1; }
+
+    .loading-msg { text-align: center; padding: 40px; color: #9BB5BC; font-size: 14px; }
+    .error-msg { background: #FFF8F8; border: 1px solid #F5C6C6; border-radius: 10px; padding: 16px; color: #C0392B; font-size: 13px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="brand">Emociona 5D</div>
+  <div class="header-user">
+    <img class="user-avatar" id="user-avatar" src="" alt="" onerror="this.style.display='none'">
+    <span class="user-name" id="user-name"></span>
+    <button class="logout-btn" onclick="logout()">Cerrar sesión</button>
+  </div>
+</header>
+
+<nav>
+  <a class="nav-tab" href="dashboard.html">Hoy</a>
+  <a class="nav-tab" href="sesiones.html">Sesiones</a>
+  <a class="nav-tab active" href="clientas.html">Clientas</a>
+  <a class="nav-tab disabled">Facturas</a>
+  <a class="nav-tab disabled">Ingresos</a>
+</nav>
+
+<div class="layout">
+
+  <!-- LISTA -->
+  <div class="panel-lista">
+    <div class="lista-header">
+      <h2>Clientas</h2>
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="search" id="busqueda" placeholder="Buscar por nombre..." oninput="filtrarLista()">
+      </div>
+    </div>
+    <div class="lista-count" id="lista-count"></div>
+    <div class="lista-scroll" id="lista-scroll">
+      <div class="loading-msg">Cargando clientas...</div>
+    </div>
+  </div>
+
+  <!-- FICHA -->
+  <div class="panel-ficha" id="panel-ficha">
+    <div class="ficha-vacia">
+      <div class="icono">🌸</div>
+      <p>Selecciona una clienta<br>para ver su ficha</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const SHEET_ID   = '1Zb5yWR1oQF03jU8JNDDr4ynChC66WEObkDwnvYLOkpM';
+  const SHEET_NAME = 'Respuestas de formulario 2026';
+
+  const COLORES = {
+    'ecoconfirmación':  { bg: '#F0F0F0', color: '#555' },
+    'ecosexo emociona': { bg: '#E8F2E5', color: '#4A7A3A' },
+    'ecosexo':          { bg: '#FDECEA', color: '#C0392B' },
+    'ecobasic plus':    { bg: '#FFF8E1', color: '#B8860B' },
+    'ecobasic':         { bg: '#FFF0E5', color: '#D2691E' },
+    'ecoemociona':      { bg: '#E0F4F2', color: '#1A7A70' }
+  };
+
+  // ── SESIÓN ──
+  const sesionData = sessionStorage.getItem('emociona_session');
+  if (!sesionData) { window.location.href = 'index.html'; }
+  const sesion = JSON.parse(sesionData || '{}');
+  if (!sesion.access_token || Date.now() > sesion.token_expiry) {
+    sessionStorage.removeItem('emociona_session');
+    window.location.href = 'index.html';
+  }
+  if (sesion.picture) document.getElementById('user-avatar').src = sesion.picture;
+  document.getElementById('user-name').textContent = sesion.name || sesion.email;
+
+  const esOwner = sesion.role === 'owner';
+
+  let clientasMap = {}; // clave: telefono o nombre → { datos, sesiones[] }
+  let clientasOrdenadas = []; // array de claves ordenado
+  let clientaActivaKey = null;
+
+  // ── CARGAR ──
+  async function cargar() {
+    try {
+      const range = encodeURIComponent(`'${SHEET_NAME}'!A:Y`);
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}`;
+      const resp = await fetch(url, { headers: { Authorization: 'Bearer ' + sesion.access_token } });
+      if (!resp.ok) throw new Error('Error ' + resp.status);
+
+      const data = await resp.json();
+      const filas = (data.values || []).slice(1).filter(f => f[0]);
+
+      // Agrupar por teléfono (Q = idx 16); si no hay, por nombre+apellido
+      clientasMap = {};
+      filas.forEach((fila, idx) => {
+        const tel    = (fila[16] || '').trim();
+        const nombre = ((fila[0]||'') + ' ' + (fila[1]||'')).trim();
+        const clave  = tel || nombre;
+        if (!clave) return;
+
+        if (!clientasMap[clave]) {
+          clientasMap[clave] = { sesiones: [], datosFila: null, datosSheetRow: null };
+        }
+        clientasMap[clave].sesiones.push({ fila, sheetRow: idx + 2 });
+      });
+
+      // Para cada clienta, usar la sesión más reciente como datos de referencia
+      Object.keys(clientasMap).forEach(clave => {
+        const c = clientasMap[clave];
+        c.sesiones.sort((a, b) => parseFecha(b.fila[3]) - parseFecha(a.fila[3]));
+        c.datosFila    = c.sesiones[0].fila;
+        c.datosSheetRow = c.sesiones[0].sheetRow;
+      });
+
+      // Ordenar alfabéticamente por nombre
+      clientasOrdenadas = Object.keys(clientasMap).sort((a, b) => {
+        const na = ((clientasMap[a].datosFila[0]||'') + ' ' + (clientasMap[a].datosFila[1]||'')).toLowerCase();
+        const nb = ((clientasMap[b].datosFila[0]||'') + ' ' + (clientasMap[b].datosFila[1]||'')).toLowerCase();
+        return na.localeCompare(nb, 'es');
+      });
+
+      renderLista(clientasOrdenadas);
+    } catch(e) {
+      document.getElementById('lista-scroll').innerHTML = `<div class="error-msg">Error al cargar: ${e.message}</div>`;
+    }
+  }
+
+  function parseFecha(str) {
+    if (!str) return 0;
+    const p = str.trim().split('/');
+    if (p.length !== 3) return 0;
+    return new Date(p[2], p[1]-1, p[0]).getTime();
+  }
+
+  // ── LISTA ──
+  function renderLista(claves) {
+    const scroll = document.getElementById('lista-scroll');
+    document.getElementById('lista-count').textContent = claves.length + ' clientas';
+
+    if (claves.length === 0) {
+      scroll.innerHTML = '<div class="loading-msg">Sin resultados</div>';
+      return;
+    }
+
+    scroll.innerHTML = '';
+    claves.forEach(clave => {
+      const c = clientasMap[clave];
+      const f = c.datosFila;
+      const nombre   = ((f[0]||'') + ' ' + (f[1]||'')).trim();
+      const tel      = (f[16]||'').trim();
+      const nSesiones = c.sesiones.length;
+
+      const div = document.createElement('div');
+      div.className = 'cliente-item' + (clave === clientaActivaKey ? ' activo' : '');
+      div.innerHTML = `
+        <div class="cliente-nombre">${nombre}</div>
+        <div class="cliente-meta">
+          ${tel ? `<span>📞 ${tel}</span>` : ''}
+          <span class="badge-sesiones">${nSesiones} sesión${nSesiones !== 1 ? 'es' : ''}</span>
+        </div>`;
+      div.onclick = () => abrirFicha(clave, div);
+      scroll.appendChild(div);
+    });
+  }
+
+  function filtrarLista() {
+    const q = document.getElementById('busqueda').value.toLowerCase().trim();
+    if (!q) { renderLista(clientasOrdenadas); return; }
+    const filtradas = clientasOrdenadas.filter(clave => {
+      const f = clientasMap[clave].datosFila;
+      const nombre = ((f[0]||'') + ' ' + (f[1]||'')).toLowerCase();
+      return nombre.includes(q);
+    });
+    renderLista(filtradas);
+  }
+
+  // ── FICHA ──
+  function abrirFicha(clave, itemEl) {
+    // Marcar activo en lista
+    document.querySelectorAll('.cliente-item').forEach(el => el.classList.remove('activo'));
+    if (itemEl) itemEl.classList.add('activo');
+    clientaActivaKey = clave;
+
+    const c = clientasMap[clave];
+    const f = c.datosFila;
+    const row = c.datosSheetRow;
+
+    const nombre   = ((f[0]||'') + ' ' + (f[1]||'')).trim();
+    const apellidos = (f[1]||'').trim();
+    const dni      = (f[2]||'').trim();
+    const tel      = (f[16]||'').trim();
+    const email    = (f[17]||'').trim();
+    const dir      = (f[20]||'').trim();
+    const muni     = (f[21]||'').trim();
+    const cp       = (f[22]||'').trim();
+    const autRedes = (f[14]||'').trim();
+    const publicar = (f[15]||'').trim();
+
+    const autSi = autRedes.toLowerCase() === 'sí' || autRedes.toLowerCase() === 'si' || autRedes === '1' || autRedes.toLowerCase() === 'true';
+
+    const panel = document.getElementById('panel-ficha');
+    panel.innerHTML = `
+      <div class="ficha-nombre">${nombre}</div>
+      <div class="ficha-sub">${c.sesiones.length} sesión${c.sesiones.length !== 1 ? 'es' : ''} · Datos de la sesión más reciente</div>
+
+      <!-- DATOS PERSONALES -->
+      <div class="seccion">
+        <div class="seccion-titulo">Datos personales</div>
+        <div class="datos-grid">
+          <div class="dato-grupo">
+            <div class="dato-label">Nombre</div>
+            <input class="dato-input" id="edit-nombre" type="text" value="${f[0]||''}" data-col="A" data-row="${row}">
+          </div>
+          <div class="dato-grupo">
+            <div class="dato-label">Apellidos</div>
+            <input class="dato-input" id="edit-apellidos" type="text" value="${f[1]||''}" data-col="B" data-row="${row}">
+          </div>
+          <div class="dato-grupo">
+            <div class="dato-label">Teléfono</div>
+            <input class="dato-input" type="tel" value="${tel}" data-col="Q" data-row="${row}">
+          </div>
+          <div class="dato-grupo">
+            <div class="dato-label">Email</div>
+            <input class="dato-input" type="email" value="${email}" data-col="R" data-row="${row}">
+          </div>
+          <div class="dato-grupo">
+            <div class="dato-label">DNI</div>
+            <input class="dato-input" type="text" value="${dni}" data-col="C" data-row="${row}">
+          </div>
+          <div class="dato-grupo">
+            <div class="dato-label">Municipio</div>
+            <input class="dato-input" type="text" value="${muni}" data-col="V" data-row="${row}">
+          </div>
+          <div class="dato-grupo ancho-completo">
+            <div class="dato-label">Dirección postal</div>
+            <input class="dato-input" type="text" value="${dir}" data-col="U" data-row="${row}">
+          </div>
+          <div class="dato-grupo">
+            <div class="dato-label">Código postal</div>
+            <input class="dato-input" type="text" value="${cp}" data-col="W" data-row="${row}">
+          </div>
+        </div>
+        <div style="margin-top:16px">
+          <button class="btn-guardar-datos" id="btn-guardar" onclick="guardarDatos(${row})">Guardar cambios</button>
+          <span class="guardar-ok" id="guardar-ok">✓ Guardado</span>
+        </div>
+      </div>
+
+      <!-- AUTORIZACIONES -->
+      <div class="seccion">
+        <div class="seccion-titulo">Autorizaciones</div>
+        <div class="autorizaciones">
+          <div class="autorizacion-card ${autSi ? 'positiva' : 'negativa'}">
+            <div class="aut-label">Autorización redes (col O)</div>
+            <div class="aut-valor ${autSi ? 'si' : 'no'}">${autRedes || 'Sin respuesta'}</div>
+          </div>
+          <div class="autorizacion-card ${publicar ? 'positiva' : ''}">
+            <div class="aut-label">Publicar en redes (col P)</div>
+            <select class="publicar-select" data-col="P" data-row="${row}" onchange="guardarCelda(this)">
+              <option value="" ${!publicar?'selected':''}>— Sin decidir —</option>
+              <option value="Sí" ${publicar==='Sí'?'selected':''}>Sí — publicar</option>
+              <option value="No" ${publicar==='No'?'selected':''}>No publicar</option>
+              <option value="Pendiente" ${publicar==='Pendiente'?'selected':''}>Pendiente de revisar</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- HISTORIAL -->
+      <div class="seccion">
+        <div class="seccion-titulo">Historial de sesiones</div>
+        <div class="historial-lista" id="historial-lista"></div>
+      </div>`;
+
+    // Renderizar historial
+    const historialEl = document.getElementById('historial-lista');
+    c.sesiones.forEach(({ fila: sf }) => {
+      const fecha    = sf[3] || '';
+      const servicio = (sf[10]||'').trim();
+      const importe  = (sf[11]||'').toString().trim();
+      const cobrado  = (sf[12]||'').trim();
+      const svcKey   = servicio.toLowerCase();
+      const svcColor = COLORES[svcKey] || { bg:'#F0F4F5', color:'#666' };
+
+      const item = document.createElement('div');
+      item.className = 'historial-item';
+      item.innerHTML = `
+        <div class="historial-fecha">${fecha}</div>
+        <div class="historial-servicio">
+          ${servicio ? `<span class="servicio-badge" style="background:${svcColor.bg};color:${svcColor.color}">${servicio}</span>` : '<span style="color:#C0CDD0;font-size:12px">Sin asignar</span>'}
+        </div>
+        ${esOwner && importe ? `<div class="historial-importe">${importe}</div>` : ''}
+        ${esOwner && cobrado ? `<div class="historial-cobrado">${cobrado}</div>` : ''}`;
+      historialEl.appendChild(item);
+    });
+  }
+
+  // ── GUARDAR DATOS PERSONALES ──
+  async function guardarDatos(sheetRow) {
+    const btn = document.getElementById('btn-guardar');
+    const ok  = document.getElementById('guardar-ok');
+    btn.disabled = true;
+    btn.textContent = 'Guardando...';
+
+    try {
+      const inputs = document.querySelectorAll('.dato-input[data-col]');
+      for (const input of inputs) {
+        await actualizarCelda(input.dataset.col, input.dataset.row, input.value.trim());
+      }
+      btn.textContent = 'Guardar cambios';
+      btn.disabled = false;
+      ok.classList.add('visible');
+      setTimeout(() => ok.classList.remove('visible'), 2500);
+
+      // Actualizar datos en memoria para reflejar cambios
+      const c = clientasMap[clientaActivaKey];
+      if (c) {
+        const inputs2 = document.querySelectorAll('.dato-input[data-col]');
+        inputs2.forEach(inp => {
+          const colIdx = { A:0, B:1, C:2, Q:16, R:17, U:20, V:21, W:22 }[inp.dataset.col];
+          if (colIdx !== undefined) c.datosFila[colIdx] = inp.value.trim();
+        });
+        // Actualizar nombre en lista
+        const nombreActual = ((c.datosFila[0]||'') + ' ' + (c.datosFila[1]||'')).trim();
+        const itemActivo = document.querySelector('.cliente-item.activo .cliente-nombre');
+        if (itemActivo) itemActivo.textContent = nombreActual;
+      }
+    } catch(e) {
+      btn.textContent = 'Guardar cambios';
+      btn.disabled = false;
+      alert('Error al guardar. Comprueba tu conexión.');
+    }
+  }
+
+  // ── GUARDAR CELDA SUELTA (Publicar) ──
+  async function guardarCelda(el) {
+    try {
+      await actualizarCelda(el.dataset.col, el.dataset.row, el.value);
+    } catch(e) {
+      alert('Error al guardar. Comprueba tu conexión.');
+    }
+  }
+
+  // ── API ──
+  async function actualizarCelda(col, row, valor) {
+    const range = encodeURIComponent(`'${SHEET_NAME}'!${col}${row}`);
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}?valueInputOption=USER_ENTERED`;
+    const resp = await fetch(url, {
+      method: 'PUT',
+      headers: { Authorization: 'Bearer ' + sesion.access_token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ values: [[valor]] })
+    });
+    if (!resp.ok) throw new Error('Error ' + resp.status);
+  }
+
+  function logout() {
+    sessionStorage.removeItem('emociona_session');
+    window.location.href = 'index.html';
+  }
+
+  cargar();
+</script>
+
+</body>
+</html>
