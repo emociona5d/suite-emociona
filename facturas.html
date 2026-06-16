@@ -597,6 +597,24 @@
     document.getElementById('btn-generar').disabled = true;
 
     try {
+      // Cargar logo una sola vez (intenta jpg, luego gif, luego png)
+      let logoDataUrl = null;
+      for (const ext of ['logo.jpg', 'logo.jpeg', 'logo.gif', 'logo.png']) {
+        try {
+          const logoResp = await fetch('./' + ext);
+          if (logoResp.ok) {
+            const blob = await logoResp.blob();
+            logoDataUrl = await new Promise(resolve => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result);
+              reader.readAsDataURL(blob);
+            });
+            break;
+          }
+        } catch(e) {}
+      }
+      if (!logoDataUrl) console.warn('Logo no encontrado');
+
       let numero = await obtenerSiguienteNumero();
       const zip = new JSZip();
       const registrosHistorico = [];
@@ -617,7 +635,7 @@
         document.getElementById('progreso-bar').style.width = `${Math.round((i/total)*100)}%`;
         document.getElementById('progreso-num').textContent = `${i+1} de ${total}`;
 
-        const { doc, totalStr, baseStr, ivaStr } = construirPDF(grupo, nf, fechaFactura);
+        const { doc, totalStr, baseStr, ivaStr } = construirPDF(grupo, nf, fechaFactura, logoDataUrl);
         const pdfBytes = doc.output('arraybuffer');
         const nombreArchivo = `${nf} - ${grupo.nombre}.pdf`;
         zip.file(nombreArchivo, pdfBytes);
@@ -673,67 +691,86 @@
   }
 
   // ── CONSTRUIR PDF ──
-  function construirPDF(grupo, numeroFactura, fechaFactura) {
+  function construirPDF(grupo, numeroFactura, fechaFactura, logoDataUrl) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    const W = 210;
-    const ML = 14; // margin left
-    const MR = 14; // margin right
+    const W  = 210;
+    const ML = 14;
+    const MR = 14;
 
-    // Colores
-    const TEAL      = [44, 95, 110];
-    const TEAL_LT   = [200, 228, 234];
-    const SALMON    = [245, 205, 205];
-    const BLUE_ROW  = [180, 210, 225];
-    const PINK_TIT  = [198, 78, 120];
-    const DARK_BAR  = [40, 40, 40];
-    const GRAY      = [70, 70, 70];
-    const HEADER_ROW = [100, 130, 148];
+    // Colores corporativos Emociona 5D
+    const MORADO     = [167, 34, 140];   // Pantone 248C — color principal
+    const CIAN_LT    = [210, 238, 248];  // Cian claro para fondo emisor
+    const CIAN       = [0, 173, 216];    // Pantone 638C
+    const SALMON     = [245, 205, 210];  // Fondo cliente
+    const BLUE_ROW   = [195, 228, 240];  // Filas tabla
+    const BLUE_ROW2  = [175, 212, 228];  // Filas alternas
+    const HEADER_ROW = [0, 143, 179];    // Cabecera tabla (cian oscuro)
+    const DARK_BAR   = [50, 50, 60];
+    const GRAY       = [70, 70, 80];
+    const GRAY_LT    = [120, 120, 130];
 
-    // ── TÍTULO ──
+    // ── LOGO (arriba izquierda) ──
+    if (logoDataUrl) {
+      const fmt = logoDataUrl.startsWith('data:image/png') ? 'PNG'
+                : logoDataUrl.startsWith('data:image/gif') ? 'GIF' : 'JPEG';
+      doc.addImage(logoDataUrl, fmt, ML, 6, 42, 42);
+    }
+
+    // ── TÍTULO "Factura" ──
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(26);
-    doc.setTextColor(...PINK_TIT);
-    doc.text('Factura', W / 2 + 25, 22, { align: 'center' });
+    doc.setFontSize(32);
+    doc.setTextColor(...MORADO);
+    // Centrado en el área a la derecha del logo
+    const titleX = ML + 44 + (W - ML - 44 - MR) / 2;
+    doc.text('Factura', titleX, 20, { align: 'center' });
 
-    // ── EMISOR ──
-    doc.setFillColor(...TEAL_LT);
-    doc.rect(96, 10, W - 96 - MR, 38, 'F');
+    // ── CAJA EMISOR (teal claro, bajo el título) ──
+    doc.setFillColor(...CIAN_LT);
+    doc.rect(ML + 44, 26, W - ML - 44 - MR, 28, 'F');
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
+    doc.setFontSize(8.5);
     doc.setTextColor(...GRAY);
-    const ex = 99;
-    doc.text('Isabel Zancada Zarcero', ex, 20);
-    doc.text('NIF 71216423M', ex, 26);
-    doc.text('Tlfn. 644593823', ex, 32);
-    doc.text("C/ Vicente Aleixandre, 1 'Emprendemérita'", ex, 38);
-    doc.text('06800 Mérida (Badajoz)', ex, 44);
+    const ex = ML + 47;
+    doc.text('Isabel Zancada Zarcero', ex, 34);
+    doc.text('NIF 71216423M', ex, 40);
+    doc.text('Tlfn. 644593823', ex, 46);
+    doc.text("C/ Vicente Aleixandre, 1 'Emprendemérita'  ·  06800 Mérida (Badajoz)", ex, 52);
 
-    // ── CLIENTE ──
+    // ── CAJA CLIENTE (salmón) ──
+    const clientY = 60;
+    const clientH = grupo.email ? 28 : 22;
     doc.setFillColor(...SALMON);
-    doc.rect(ML, 56, 78, 22, 'F');
+    doc.rect(ML, clientY, 82, clientH, 'F');
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
     doc.setTextColor(...GRAY);
-    doc.text(grupo.nombre, ML + 3, 65);
+    doc.text(grupo.nombre, ML + 3, clientY + 9);
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    if (grupo.dni) doc.text(`DNI ${grupo.dni}`, ML + 3, 72);
+    doc.setFontSize(8.5);
+    doc.setTextColor(...GRAY_LT);
+    let clientLineY = clientY + 16;
+    if (grupo.dni) { doc.text(`DNI ${grupo.dni}`, ML + 3, clientLineY); clientLineY += 6; }
+    if (grupo.email) doc.text(grupo.email, ML + 3, clientLineY);
 
-    // ── DOCUMENTO ──
+    // ── DOCUMENTO (derecha, mismo nivel que cliente) ──
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.text('DOCUMENTO', 98, 63);
-    doc.text('Nº', 148, 63);
-    doc.text('FECHA', 174, 63);
+    doc.setFontSize(8);
+    doc.setTextColor(...GRAY_LT);
+    doc.text('DOCUMENTO', 102, clientY + 8);
+    doc.text('Nº', 152, clientY + 8);
+    doc.text('FECHA', 175, clientY + 8);
     doc.setFont('helvetica', 'normal');
-    doc.text('Factura', 98, 70);
-    doc.text(numeroFactura, 148, 70);
-    doc.text(fechaFactura, 172, 70);
+    doc.setFontSize(9);
+    doc.setTextColor(...GRAY);
+    doc.text('Factura', 102, clientY + 15);
+    doc.text(numeroFactura, 152, clientY + 15);
+    doc.text(fechaFactura, 173, clientY + 15);
 
     // ── SEPARADOR ──
+    const sepY = clientY + clientH + 6;
     doc.setFillColor(...DARK_BAR);
-    doc.rect(ML, 84, W - ML - MR, 2.5, 'F');
+    doc.rect(ML, sepY, W - ML - MR, 2, 'F');
 
     // ── LÍNEAS ──
     const lineas = [];
@@ -778,24 +815,26 @@
     doc.autoTable({
       head: [['DESCRIPCIÓN', 'CANTIDAD', 'P. UNIDAD', 'SUBTOTAL', 'DTO.', 'TOTAL']],
       body: lineas,
-      startY: 90,
+      startY: sepY + 4,
       margin: { left: ML, right: MR },
       theme: 'plain',
       headStyles: {
-        fillColor: HEADER_ROW, textColor: [240,240,240],
-        fontSize: 8, fontStyle: 'bold', halign: 'center', cellPadding: 3
+        fillColor: HEADER_ROW, textColor: [255, 255, 255],
+        fontSize: 8.5, fontStyle: 'bold', halign: 'center',
+        cellPadding: { top: 4, bottom: 4, left: 3, right: 3 }
       },
       bodyStyles: {
-        fillColor: BLUE_ROW, fontSize: 9, textColor: GRAY,
-        minCellHeight: 9, cellPadding: { top: 3, bottom: 3, left: 2, right: 2 }
+        fillColor: BLUE_ROW, fontSize: 9.5, textColor: GRAY,
+        minCellHeight: 14,
+        cellPadding: { top: 5, bottom: 5, left: 3, right: 3 }
       },
-      alternateRowStyles: { fillColor: [195, 220, 235] },
+      alternateRowStyles: { fillColor: BLUE_ROW2 },
       columnStyles: {
-        0: { halign: 'left',   cellWidth: 62 },
+        0: { halign: 'left',   cellWidth: 64 },
         1: { halign: 'center', cellWidth: 20 },
         2: { halign: 'right',  cellWidth: 26 },
         3: { halign: 'right',  cellWidth: 26 },
-        4: { halign: 'center', cellWidth: 16 },
+        4: { halign: 'center', cellWidth: 14, textColor: MORADO, fontStyle: 'bold' },
         5: { halign: 'right',  cellWidth: 26 }
       }
     });
@@ -807,23 +846,25 @@
     const ivaStr   = iva.toFixed(2);
     const totalStr = total.toFixed(2);
 
-    const y2 = doc.lastAutoTable.finalY + 4;
+    const y2 = doc.lastAutoTable.finalY + 6;
     doc.setFillColor(...DARK_BAR);
-    doc.rect(ML, y2, W - ML - MR, 2, 'F');
+    doc.rect(ML, y2, W - ML - MR, 1.5, 'F');
 
+    // Tabla IVA
     doc.autoTable({
       head: [['TIPO', 'BASE IMPONIBLE', 'IVA']],
       body: [['21%', baseStr + ' €', ivaStr + ' €']],
       startY: y2 + 4,
-      margin: { left: W / 2 - 5, right: MR },
+      margin: { left: W / 2, right: MR },
       theme: 'plain',
       headStyles: {
-        fillColor: TEAL, textColor: [255,255,255],
-        fontSize: 9, fontStyle: 'bold', halign: 'center', cellPadding: 3
+        fillColor: CIAN, textColor: [255, 255, 255],
+        fontSize: 9, fontStyle: 'bold', halign: 'center',
+        cellPadding: { top: 4, bottom: 4, left: 3, right: 3 }
       },
       bodyStyles: {
         fillColor: BLUE_ROW, fontSize: 9, textColor: GRAY,
-        halign: 'center', cellPadding: 3
+        halign: 'center', cellPadding: { top: 4, bottom: 4, left: 3, right: 3 }
       },
       columnStyles: {
         0: { halign: 'center' },
@@ -832,20 +873,21 @@
       }
     });
 
+    // Fila TOTAL
     const y3 = doc.lastAutoTable.finalY;
     doc.autoTable({
-      body: [['', 'TOTAL', totalStr + ' €']],
+      body: [['TOTAL', totalStr + ' €']],
       startY: y3,
-      margin: { left: W / 2 - 5, right: MR },
+      margin: { left: W / 2, right: MR },
       theme: 'plain',
       bodyStyles: {
-        fillColor: [220, 230, 235], fontSize: 10,
-        fontStyle: 'bold', textColor: GRAY, cellPadding: 3
+        fillColor: [230, 235, 240], fontSize: 11,
+        fontStyle: 'bold', textColor: GRAY,
+        cellPadding: { top: 5, bottom: 5, left: 3, right: 3 }
       },
       columnStyles: {
-        0: { halign: 'center' },
-        1: { halign: 'center', fontStyle: 'bold' },
-        2: { halign: 'right',  fontStyle: 'bold' }
+        0: { halign: 'left',  fontStyle: 'bold' },
+        1: { halign: 'right', fontStyle: 'bold', textColor: MORADO }
       }
     });
 
