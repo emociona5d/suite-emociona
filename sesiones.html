@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Emociona 5D — Sesiones</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.6.0/jspdf.plugin.autotable.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -180,6 +182,49 @@
       line-height: 1.6;
       margin-bottom: 16px;
     }
+
+    /* ── BOTONES DOCUMENTOS ── */
+    .btn-doc {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 30px; height: 30px; border-radius: 7px;
+      border: 1.5px solid #E0E8EA; background: white;
+      cursor: pointer; font-size: 14px; transition: all 0.15s;
+      margin: 0 2px;
+    }
+    .btn-doc:hover { background: #F5F0FA; border-color: #A72280; }
+    .btn-doc.justif:hover { background: #EAF5FB; border-color: #00ADD8; }
+    td.td-docs { white-space: nowrap; text-align: center; }
+
+    /* ── MODAL JUSTIFICANTE ── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.45); z-index: 300;
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.visible { display: flex; }
+    .modal-box {
+      background: white; border-radius: 16px; padding: 28px 32px;
+      min-width: 360px; box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+    }
+    .modal-titulo { font-size: 16px; font-weight: 600; color: #A72280; margin-bottom: 4px; }
+    .modal-sub { font-size: 13px; color: #9BB5BC; margin-bottom: 20px; }
+    .modal-campo { display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px; }
+    .modal-campo label { font-size: 11px; color: #7A8A8E; text-transform: uppercase; letter-spacing: 0.7px; }
+    .modal-campo input {
+      font-family: inherit; font-size: 14px; padding: 8px 11px;
+      border: 1.5px solid #E0E8EA; border-radius: 8px; color: #3C4A50; outline: none;
+    }
+    .modal-campo input:focus { border-color: #A72280; }
+    .modal-btns { display: flex; gap: 10px; justify-content: flex-end; margin-top: 6px; }
+    .modal-btn-cancel {
+      padding: 8px 18px; background: white; color: #9BB5BC;
+      border: 1.5px solid #E0E8EA; border-radius: 8px; font-family: inherit; font-size: 13px; cursor: pointer;
+    }
+    .modal-btn-ok {
+      padding: 8px 20px; background: #A72280; color: white;
+      border: none; border-radius: 8px; font-family: inherit; font-size: 13px; cursor: pointer; font-weight: 500;
+    }
+    .modal-btn-ok:hover { background: #8A1A6B; }
   </style>
 </head>
 <body>
@@ -238,9 +283,36 @@
 
 </div>
 
+<!-- MODAL JUSTIFICANTE -->
+<div class="modal-overlay" id="modal-justif">
+  <div class="modal-box">
+    <div class="modal-titulo">📋 Justificante de asistencia</div>
+    <div class="modal-sub">Revisa o edita los datos antes de generar</div>
+    <div class="modal-campo">
+      <label>Nombre completo</label>
+      <input type="text" id="justif-nombre" placeholder="Nombre completo" />
+    </div>
+    <div class="modal-campo">
+      <label>DNI / NIE</label>
+      <input type="text" id="justif-dni" placeholder="00000000X" />
+    </div>
+    <div class="modal-campo">
+      <label>Hora de la cita (ej. 12:00-13:30 h)</label>
+      <input type="text" id="justif-hora" placeholder="12:00-13:30 h" />
+    </div>
+    <div class="modal-btns">
+      <button class="modal-btn-cancel" onclick="cerrarModalJustif()">Cancelar</button>
+      <button class="modal-btn-ok" onclick="confirmarJustif()">Generar PDF</button>
+    </div>
+  </div>
+</div>
+
 <script>
   // ── CONFIG ──
-  const SHEET_ID   = '1Zb5yWR1oQF03jU8JNDDr4ynChC66WEObkDwnvYLOkpM';
+  const SHEET_ID        = '1Zb5yWR1oQF03jU8JNDDr4ynChC66WEObkDwnvYLOkpM';
+  const FACTURACION_ID  = '1GvsIDydV9L0-J_JMAsHJuYOpNrJLeQM3W_drp8H6L-A';
+  const TICKET_NAME     = 'Ticket';
+  const JUSTIF_NAME     = 'Justificante';
   const SHEET_NAME = 'Respuestas de formulario 2026';
 
   const COLORES = {
@@ -265,7 +337,9 @@
   document.getElementById('user-name').textContent = sesion.name || sesion.email;
 
   // ── DATOS GLOBALES ──
-  let todasLasFilas = []; // [{fila, sheetRow}]
+  let todasLasFilas  = []; // [{fila, sheetRow}]
+  let filasRender    = []; // filas actualmente visibles
+  let _justifFila    = null; // fila en espera para justificante
 
   // ── CARGAR DATOS ──
   async function cargarSesiones() {
@@ -399,6 +473,7 @@
     const tabla = document.createElement('div');
     tabla.className = 'tabla-wrapper';
 
+    filasRender = filas; // guardar para los botones
     const esOwner = sesion.role === 'owner';
     const html = `
       <table>
@@ -412,6 +487,7 @@
             <th style="text-align:center">WhatsApp</th>
             <th style="text-align:center">Carta</th>
             ${esOwner ? '<th>Importe</th><th>Cobrado</th>' : ''}
+            <th style="text-align:center">Docs</th>
           </tr>
         </thead>
         <tbody id="tabla-body"></tbody>
@@ -421,7 +497,7 @@
     contenido.appendChild(tabla);
 
     const tbody = document.getElementById('tabla-body');
-    filas.forEach(({ fila, sheetRow }) => {
+    filas.forEach(({ fila, sheetRow }, idx) => {
       const fecha    = fila[3] || '';
       const nombre   = (fila[0] || '').trim();
       const apellidos = (fila[1] || '').trim();
@@ -445,7 +521,11 @@
         <td class="td-toggle">${toggleBtn('H', sheetRow, editada, '✏️')}</td>
         <td class="td-toggle">${toggleBtn('I', sheetRow, whatsapp, '💬')}</td>
         <td class="td-toggle">${toggleBtn('J', sheetRow, carta, '✉️')}</td>
-        ${esOwner ? `<td class="td-importe">${importe ? importe : ''}</td><td class="td-cobrado">${cobrado}</td>` : ''}`;
+        ${esOwner ? `<td class="td-importe">${importe ? importe : ''}</td><td class="td-cobrado">${cobrado}</td>` : ''}
+        <td class="td-docs">
+          <button class="btn-doc" title="Ticket de venta" onclick="generarTicket(${idx})">🧾</button>
+          <button class="btn-doc justif" title="Justificante de asistencia" onclick="abrirModalJustif(${idx})">📋</button>
+        </td>`;
       tbody.appendChild(tr);
     });
   }
@@ -501,6 +581,325 @@
   function logout() {
     sessionStorage.removeItem('emociona_session');
     window.location.href = 'index.html';
+  }
+
+  // ─────────────────────────────────────────────────
+  // ── TICKET DE VENTA ──────────────────────────────
+  // ─────────────────────────────────────────────────
+
+  async function generarTicket(idx) {
+    const { fila } = filasRender[idx];
+    const nombre = ((fila[0]||'') + ' ' + (fila[1]||'')).trim();
+    const dni    = (fila[2]||'').trim();
+    try {
+      const logoDataUrl = await cargarLogo();
+      const nf = await obtenerSiguienteNumeroTicket();
+      const nfStr = formatNumero(nf);
+      const doc = construirTicket({ fila, nombre, dni }, nfStr, logoDataUrl);
+      doc.save(`Ticket_${nfStr}_${nombre}.pdf`);
+      const fecha   = (fila[3]||'').trim();
+      const svc     = (fila[10]||'').trim();
+      const cobrado = parseFloat((fila[11]||'0').toString().replace(',','.').replace('€','').trim()) || 0;
+      const pago    = (fila[12]||'').trim();
+      await escribirEnHoja(TICKET_NAME, [[fecha, nfStr, nombre, svc, cobrado.toFixed(2) + ' €', pago]]);
+    } catch(e) {
+      alert('Error al generar ticket: ' + e.message);
+      console.error(e);
+    }
+  }
+
+  async function obtenerSiguienteNumeroTicket() {
+    const range = encodeURIComponent(`'${TICKET_NAME}'!B:B`);
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${FACTURACION_ID}/values/${range}`;
+    const resp = await fetch(url, { headers: { Authorization: 'Bearer ' + sesion.access_token } });
+    const data = await resp.json();
+    const valores = (data.values || []).flat().filter(v => v && /^A-\d+$/.test(v.trim()));
+    if (valores.length === 0) return 1;
+    return Math.max(...valores.map(v => parseInt(v.replace('A-','')))) + 1;
+  }
+
+  function formatNumero(n) {
+    return `A-${String(n).padStart(4, '0')}`;
+  }
+
+  function construirTicket({ fila, nombre }, numeroTicket, logoDataUrl) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const W = 210, ML = 14, MR = 14;
+
+    const MORADO   = [167, 34, 140];
+    const SALMON   = [220, 170, 185];
+    const BLUE_LT  = [210, 232, 245];
+    const BLUE_MED = [170, 210, 235];
+    const DARK_H   = [50, 80, 110];
+    const GRAY     = [70, 70, 80];
+    const GRAY_LT  = [130, 130, 140];
+    const GRAY_BOX = [240, 242, 244];
+    const DARK_BAR = [40, 40, 50];
+
+    // ── TÍTULO ──
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(26);
+    doc.setTextColor(...MORADO);
+    doc.text('TICKET DE VENTA', ML, 26);
+
+    // ── LOGO ──
+    if (logoDataUrl) {
+      const fmt = logoDataUrl.startsWith('data:image/png') ? 'PNG'
+                : logoDataUrl.startsWith('data:image/gif') ? 'GIF' : 'JPEG';
+      doc.addImage(logoDataUrl, fmt, W - MR - 56, 6, 56, 35);
+    }
+
+    // ── EMISOR ──
+    const ey = 34;
+    doc.setFillColor(...GRAY_BOX);
+    doc.rect(ML, ey, 90, 30, 'F');
+    doc.setFontSize(8.5);
+    doc.setTextColor(...GRAY);
+    const ex = ML + 3;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Isabel ', ex, ey + 7);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Zancada Zarcero', ex + doc.getTextWidth('Isabel '), ey + 7);
+    doc.text('NIF 71216423M', ex, ey + 13);
+    doc.text('Tlfn. 644593823', ex, ey + 19);
+    doc.text("C/ Vicente Aleixandre, 1 'Emprendemérita'", ex, ey + 25);
+    doc.text('06800 Mérida (Badajoz)', ex, ey + 30);
+
+    // ── BANDA CLIENTE ──
+    const by = ey + 33;
+    doc.setFillColor(...SALMON);
+    doc.rect(ML, by, W - ML - MR, 8, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(255, 255, 255);
+    doc.text(nombre, ML + 3, by + 5.5);
+
+    // ── DOCUMENTO / Nº / FECHA ──
+    const hy = by + 8;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(...GRAY_LT);
+    doc.text('DOCUMENTO', ML + 90, hy + 5);
+    doc.text('Nº',        ML + 133, hy + 5);
+    doc.text('FECHA',     ML + 155, hy + 5);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(...GRAY);
+    doc.text('Ticket',          ML + 90,  hy + 12);
+    doc.text(numeroTicket,      ML + 133, hy + 12);
+    doc.text((fila[3]||'').trim(), ML + 155, hy + 12);
+
+    // ── SEPARADOR ──
+    const sy = hy + 18;
+    doc.setFillColor(...DARK_BAR);
+    doc.rect(ML, sy, W - ML - MR, 2, 'F');
+
+    // ── CONCEPTO ──
+    const cy = sy + 4;
+    const cobrado = parseFloat((fila[11]||'0').toString().replace(',','.').replace('€','').trim()) || 0;
+    const baseConcepto = cobrado / 1.21;
+    const descPct = parseInt((fila[25]||'0').replace('%','').trim()) || 0;
+    const svc = (fila[10]||'').trim();
+    const svcDisplay = svc.charAt(0).toUpperCase() + svc.slice(1);
+
+    doc.setFillColor(...BLUE_LT);
+    doc.rect(ML, cy, W - ML - MR, 38, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...GRAY);
+    doc.text('CONCEPTO', W / 2, cy + 7, { align: 'center' });
+    doc.setFontSize(10);
+    doc.text(svcDisplay, ML + 20, cy + 18);
+    doc.text(baseConcepto.toFixed(2) + ' €', W - MR - 5, cy + 18, { align: 'right' });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(...GRAY_LT);
+    doc.text('Dto.', ML + 40, cy + 30);
+    doc.text(descPct + '%', W / 2, cy + 30, { align: 'center' });
+
+    // ── TABLA IVA ──
+    const baseStr  = baseConcepto.toFixed(2);
+    const ivaStr   = (cobrado - parseFloat(baseStr)).toFixed(2);
+    const totalStr = cobrado.toFixed(2);
+
+    doc.autoTable({
+      head: [['TIPO', 'BASE IMPONIBLE', 'IVA']],
+      body: [['21%', baseStr + ' €', ivaStr + ' €']],
+      startY: cy + 44,
+      margin: { left: W / 2 - 10, right: MR },
+      theme: 'plain',
+      headStyles: { fillColor: DARK_H, textColor: [255,255,255], fontSize: 9, fontStyle: 'bold', halign: 'center', cellPadding: { top:4,bottom:4,left:3,right:3 } },
+      bodyStyles: { fillColor: BLUE_LT, fontSize: 9.5, textColor: GRAY, halign: 'center', cellPadding: { top:5,bottom:5,left:3,right:3 } },
+      alternateRowStyles: { fillColor: BLUE_MED }
+    });
+    doc.autoTable({
+      body: [['TOTAL', totalStr + ' €']],
+      startY: doc.lastAutoTable.finalY,
+      margin: { left: W / 2 - 10, right: MR },
+      theme: 'plain',
+      bodyStyles: { fillColor: [228,235,242], fontSize: 11, fontStyle: 'bold', textColor: GRAY, cellPadding: { top:5,bottom:5,left:3,right:3 } },
+      columnStyles: { 0: { halign: 'left' }, 1: { halign: 'right', textColor: MORADO } }
+    });
+
+    // ── FORMA DE PAGO ──
+    const py = doc.lastAutoTable.finalY + 8;
+    doc.setFillColor(...BLUE_LT);
+    doc.rect(ML + 40, py, W - ML - 40 - MR, 10, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...GRAY);
+    doc.text('FORMA DE PAGO', ML + 44, py + 6.5);
+    doc.setFont('helvetica', 'normal');
+    doc.text((fila[12]||'').trim(), ML + 105, py + 6.5);
+
+    return doc;
+  }
+
+  // ─────────────────────────────────────────────────
+  // ── JUSTIFICANTE ─────────────────────────────────
+  // ─────────────────────────────────────────────────
+
+  function abrirModalJustif(idx) {
+    const { fila } = filasRender[idx];
+    _justifFila = fila;
+    document.getElementById('justif-nombre').value = ((fila[0]||'') + ' ' + (fila[1]||'')).trim();
+    document.getElementById('justif-dni').value    = (fila[2]||'').trim();
+    document.getElementById('justif-hora').value   = '';
+    document.getElementById('modal-justif').classList.add('visible');
+    setTimeout(() => document.getElementById('justif-hora').focus(), 100);
+  }
+
+  function cerrarModalJustif() {
+    document.getElementById('modal-justif').classList.remove('visible');
+    _justifFila = null;
+  }
+
+  async function confirmarJustif() {
+    const nombre = document.getElementById('justif-nombre').value.trim();
+    const dni    = document.getElementById('justif-dni').value.trim();
+    const hora   = document.getElementById('justif-hora').value.trim();
+    const fila   = _justifFila;
+    cerrarModalJustif();
+    if (!fila) return;
+    try {
+      const logoDataUrl = await cargarLogo();
+      const fecha = (fila[3]||'').trim();
+      const doc = construirJustificante({ nombre, dni, fecha, hora }, logoDataUrl);
+      doc.save(`Justificante_${nombre.replace(/ /g,'_')}_${fecha.replace(/\//g,'-')}.pdf`);
+      await escribirEnHoja(JUSTIF_NAME, [[fecha, nombre, dni, hora]]);
+    } catch(e) {
+      alert('Error al generar justificante: ' + e.message);
+      console.error(e);
+    }
+  }
+
+  function construirJustificante({ nombre, dni, fecha, hora }, logoDataUrl) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const W = 210, H = 297;
+
+    const MORADO  = [167, 34, 140];
+    const GRAY    = [70, 70, 80];
+    const GRAY_LT = [140, 140, 150];
+
+    // ── LOGO CENTRADO ──
+    if (logoDataUrl) {
+      const fmt = logoDataUrl.startsWith('data:image/png') ? 'PNG'
+                : logoDataUrl.startsWith('data:image/gif') ? 'GIF' : 'JPEG';
+      doc.addImage(logoDataUrl, fmt, (W - 72) / 2, 28, 72, 45);
+    }
+
+    // ── BANDA TÍTULO ──
+    doc.setFillColor(...MORADO);
+    doc.rect(18, 86, W - 36, 11, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(255, 255, 255);
+    doc.text('JUSTIFICANTE DE ASISTENCIA A ECOGRAFÍA DE EMBARAZO', W / 2, 93, { align: 'center' });
+
+    // ── CAMPOS ──
+    const campos = [
+      { label: 'NOMBRE:', valor: nombre },
+      { label: 'DNI:',    valor: dni || '' },
+      { label: 'FECHA',   valor: fecha },
+      { label: 'HORA:',   valor: hora || '' },
+    ];
+    let cy = 118;
+    campos.forEach(({ label, valor }) => {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(...GRAY);
+      doc.text(label, 28, cy);
+      doc.setFontSize(14);
+      doc.setTextColor(30, 30, 40);
+      doc.text(valor, 72, cy);
+      cy += 22;
+    });
+
+    // ── BANDA DECORATIVA ──
+    doc.setFillColor(...MORADO);
+    doc.rect(18, cy + 8, W - 36, 7, 'F');
+
+    // ── BANDA FOOTER ──
+    const fb = H - 46;
+    doc.setFillColor(...MORADO);
+    doc.rect(0, fb, W, 20, 'F');
+    doc.setTextColor(255, 255, 255);
+
+    // Izquierda: web
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.text('www.emocionaecografia5d.com', 12, fb + 9);
+
+    // Centro: slogan itálica + "5D" bold (posiciones fijas)
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(10.5);
+    doc.text('Siente una experiencia única, familiar y', 72, fb + 10);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.text('5D', 185, fb + 10.5);
+
+    // ── PIE CONTACTO ──
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(...GRAY_LT);
+    doc.text('info@emocionaecografia5d.com  ·  644 59 38 23', W / 2, fb + 25, { align: 'center' });
+    doc.text('C/ Vicente Aleixandre, 1  ·  Emprendemerita (centro de negocios) Oficina 12  ·  06800 Mérida', W / 2, fb + 31, { align: 'center' });
+
+    return doc;
+  }
+
+  // ─────────────────────────────────────────────────
+  // ── HELPERS ──────────────────────────────────────
+  // ─────────────────────────────────────────────────
+
+  async function cargarLogo() {
+    for (const ext of ['logo.jpg', 'logo.jpeg', 'logo.gif', 'logo.png']) {
+      try {
+        const r = await fetch('./' + ext);
+        if (r.ok) {
+          const blob = await r.blob();
+          return await new Promise(res => {
+            const reader = new FileReader();
+            reader.onload = () => res(reader.result);
+            reader.readAsDataURL(blob);
+          });
+        }
+      } catch(e) {}
+    }
+    return null;
+  }
+
+  async function escribirEnHoja(nombreHoja, registros) {
+    const range = encodeURIComponent(`'${nombreHoja}'!A:Z`);
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${FACTURACION_ID}/values/${range}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + sesion.access_token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ values: registros })
+    });
+    if (!resp.ok) console.warn('Error al escribir en hoja:', resp.status);
   }
 
   // Arrancar
