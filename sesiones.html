@@ -926,7 +926,8 @@
     return null;
   }
 
-  async function enviarPorEmail(doc, filename, emailDest, nombre, tipo, fecha) {
+  async function enviarPorEmail(doc, filename, emailRaw, nombre, tipo, fecha) {
+    const emailDest = (emailRaw || '').trim().replace(/[\r\n\t]/g, '');
     const primerNombre = nombre.split(' ')[0];
 
     if (!emailDest || !emailDest.includes('@')) {
