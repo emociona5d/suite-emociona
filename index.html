@@ -176,7 +176,11 @@
     document.getElementById('login-btn').disabled = true;
     document.getElementById('loading-msg').style.display = 'block';
     document.getElementById('login-error').style.display = 'none';
-    tokenClient.requestAccessToken();
+    // Si ya concedió gmail.send antes → login directo sin pantalla de permisos
+    // Si no → pedir consentimiento ahora (desde clic directo, no desde callback,
+    //          para que el navegador no lo bloquee como popup)
+    const gmailOk = localStorage.getItem('emociona_gmail_ok') === '1';
+    tokenClient.requestAccessToken(gmailOk ? {} : { prompt: 'consent' });
   }
 
   async function handleTokenResponse(response) {
@@ -189,15 +193,16 @@
     try {
       const accessToken = response.access_token;
 
-      // Verificar que el token incluye el permiso de Gmail
-      const infoResp = await fetch(`https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=${accessToken}`);
-      const tokenInfo = await infoResp.json();
-      const scopes = (tokenInfo.scope || '').split(' ');
-      if (!scopes.includes('https://www.googleapis.com/auth/gmail.send')) {
-        // Primera vez con el nuevo permiso: pedir consentimiento explícito
-        tokenClient.requestAccessToken({ prompt: 'consent' });
-        return;
-      }
+      // Confirmar si el token obtenido incluye gmail.send y actualizar el flag
+      try {
+        const ti = await fetch(`https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=${accessToken}`);
+        const tiData = await ti.json();
+        if ((tiData.scope || '').includes('gmail.send')) {
+          localStorage.setItem('emociona_gmail_ok', '1');   // ya concedido: no volver a pedir
+        } else {
+          localStorage.removeItem('emociona_gmail_ok');      // no concedido: pedir en próximo login
+        }
+      } catch(e) {} // si falla el check, continuar igualmente
 
       // Obtener datos del usuario
       const userResp = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
