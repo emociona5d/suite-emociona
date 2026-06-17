@@ -189,6 +189,16 @@
     try {
       const accessToken = response.access_token;
 
+      // Verificar que el token incluye el permiso de Gmail
+      const infoResp = await fetch(`https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=${accessToken}`);
+      const tokenInfo = await infoResp.json();
+      const scopes = (tokenInfo.scope || '').split(' ');
+      if (!scopes.includes('https://www.googleapis.com/auth/gmail.send')) {
+        // Primera vez con el nuevo permiso: pedir consentimiento explícito
+        tokenClient.requestAccessToken({ prompt: 'consent' });
+        return;
+      }
+
       // Obtener datos del usuario
       const userResp = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
         headers: { Authorization: 'Bearer ' + accessToken }
