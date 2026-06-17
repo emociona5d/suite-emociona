@@ -596,13 +596,12 @@
       const nf = await obtenerSiguienteNumeroTicket();
       const nfStr = formatNumero(nf);
       const doc = construirTicket({ fila, nombre, dni }, nfStr, logo);
-      doc.save(`Ticket_${nfStr}_${nombre}.pdf`);
       const fecha   = (fila[3]||'').trim();
       const svc     = (fila[10]||'').trim();
       const cobrado = parseFloat((fila[11]||'0').toString().replace(',','.').replace('€','').trim()) || 0;
       const pago    = (fila[12]||'').trim();
       await escribirEnHoja(TICKET_NAME, [[fecha, nfStr, nombre, svc, cobrado.toFixed(2) + ' €', pago]]);
-      mostrarWhatsApp(nombre, fila[16]||'', 'ticket', fecha);
+      await compartirConWhatsApp(doc, `Ticket_${nfStr}_${nombre}.pdf`, nombre, fila[16]||'', 'ticket', fecha);
     } catch(e) {
       alert('Error al generar ticket: ' + e.message);
       console.error(e);
@@ -787,9 +786,8 @@
       const logo = await cargarLogo();
       const fecha = (fila[3]||'').trim();
       const doc = await construirJustificante({ nombre, dni, fecha, hora }, logo);
-      doc.save(`Justificante_${nombre.replace(/ /g,'_')}_${fecha.replace(/\//g,'-')}.pdf`);
       await escribirEnHoja(JUSTIF_NAME, [[fecha, nombre, dni, hora]]);
-      mostrarWhatsApp(nombre, fila[16]||'', 'justificante', fecha);
+      await compartirConWhatsApp(doc, `Justificante_${nombre.replace(/ /g,'_')}_${fecha.replace(/\//g,'-')}.pdf`, nombre, fila[16]||'', 'justificante', fecha);
     } catch(e) {
       alert('Error al generar justificante: ' + e.message);
       console.error(e);
@@ -856,7 +854,7 @@
       doc.setFontSize(11);
       doc.setTextColor(...GRAY);
       doc.text(label, 28, cy);
-      doc.setFont(fc.Simplicity ? 'Simplicity' : 'helvetica', 'normal');
+      doc.setFont('helvetica', 'normal');
       doc.setFontSize(14);
       doc.setTextColor(30, 30, 40);
       doc.text(valor, 72, cy);
@@ -928,23 +926,36 @@
     return null;
   }
 
-  function mostrarWhatsApp(nombre, telefono, tipo, fecha) {
+  async function compartirConWhatsApp(doc, filename, nombre, telefono, tipo, fecha) {
+    const primerNombre = nombre.split(' ')[0];
+    const msg = tipo === 'ticket'
+      ? `Hola ${primerNombre}! 🧾 Te enviamos tu ticket de venta de Emociona 5D. ¡Gracias por tu visita!`
+      : `Hola ${primerNombre}! 📋 Te enviamos tu justificante de asistencia a la ecografía del ${fecha}. ¡Hasta pronto!`;
+
+    // ── Web Share API: abre el menú nativo del sistema con el PDF adjunto ──
+    try {
+      const blob = doc.output('blob');
+      const file = new File([blob], filename, { type: 'application/pdf' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: 'Emociona 5D', text: msg });
+        return; // listo (o la usuaria canceló)
+      }
+    } catch(e) {
+      if (e.name === 'AbortError') return; // canceló el diálogo
+      // si hay otro error, seguimos con el fallback
+    }
+
+    // ── Fallback: descargar PDF + toast con enlace wa.me ──
+    doc.save(filename);
     let tel = (telefono || '').replace(/\s/g, '').replace(/[^0-9]/g, '');
     if (!tel) return;
     tel = tel.replace(/^0034/, '').replace(/^34/, '');
     tel = '34' + tel;
     if (tel.length < 11) return;
-    const primerNombre = nombre.split(' ')[0];
-    let msg;
-    if (tipo === 'ticket') {
-      msg = `Hola ${primerNombre}! 🧾 Te enviamos tu ticket de venta de Emociona 5D. ¡Gracias por tu visita!`;
-    } else {
-      msg = `Hola ${primerNombre}! 📋 Te enviamos tu justificante de asistencia a la ecografía del ${fecha}. ¡Hasta pronto!`;
-    }
     const waUrl = `https://wa.me/${tel}?text=${encodeURIComponent(msg)}`;
     const toast = document.createElement('div');
     toast.style.cssText = 'position:fixed;bottom:28px;right:28px;background:#25D366;color:white;padding:14px 20px;border-radius:14px;box-shadow:0 6px 24px rgba(0,0,0,0.18);z-index:9999;display:flex;align-items:center;gap:12px;font-family:inherit;font-size:14px;cursor:pointer;max-width:360px;';
-    toast.innerHTML = `<span style="font-size:22px">💬</span><div><div style="font-weight:600;margin-bottom:3px">Enviar a ${primerNombre} por WhatsApp</div><div style="font-size:12px;opacity:0.85">Clic para abrir el chat</div></div>`;
+    toast.innerHTML = `<span style="font-size:22px">💬</span><div><div style="font-weight:600;margin-bottom:3px">Enviar a ${primerNombre} por WhatsApp</div><div style="font-size:12px;opacity:0.85">PDF descargado — adjúntalo al abrirlo</div></div>`;
     toast.onclick = () => { window.open(waUrl, '_blank'); toast.remove(); };
     document.body.appendChild(toast);
     setTimeout(() => toast.remove(), 14000);
