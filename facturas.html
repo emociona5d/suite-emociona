@@ -157,6 +157,52 @@
     .error-state { background: #FFF8F8; border: 1px solid #F5C6C6; border-radius: 12px; padding: 20px 24px; color: #C0392B; font-size: 14px; line-height: 1.6; }
     .loading-msg { text-align: center; padding: 40px; color: #9BB5BC; font-size: 14px; }
 
+    /* ── BOTÓN INFORME ── */
+    .btn-informe {
+      padding: 9px 20px; background: white; color: #2C5F6E;
+      border: 1.5px solid #2C5F6E; border-radius: 10px;
+      font-size: 13px; font-family: inherit; cursor: pointer;
+      transition: all 0.2s; font-weight: 500;
+    }
+    .btn-informe:hover { background: #2C5F6E; color: white; }
+
+    /* ── MODAL INFORME ── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.4); z-index: 300;
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.visible { display: flex; }
+    .modal-box {
+      background: white; border-radius: 16px;
+      padding: 32px 28px; width: 100%; max-width: 420px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+    }
+    .modal-titulo { font-size: 16px; font-weight: 600; color: #2C5F6E; margin-bottom: 4px; }
+    .modal-sub { font-size: 13px; color: #9BB5BC; margin-bottom: 20px; }
+    .modal-campo { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+    .modal-campo label { font-size: 11px; color: #9BB5BC; text-transform: uppercase; letter-spacing: 0.7px; }
+    .modal-campo input, .modal-campo select {
+      font-family: inherit; font-size: 13px; padding: 8px 11px;
+      border: 1.5px solid #E0E8EA; border-radius: 8px; color: #3C4A50;
+      background: white; outline: none;
+    }
+    .modal-campo input:focus, .modal-campo select:focus { border-color: #2C5F6E; }
+    .modal-fila { display: flex; gap: 12px; }
+    .modal-fila .modal-campo { flex: 1; }
+    .modal-btns { display: flex; gap: 10px; margin-top: 22px; }
+    .modal-btn-cancel {
+      flex: 1; padding: 10px; border: 1.5px solid #E0E8EA; border-radius: 8px;
+      background: white; color: #7A8A8E; font-size: 13px;
+      font-family: inherit; cursor: pointer;
+    }
+    .modal-btn-ok {
+      flex: 2; padding: 10px; border: none; border-radius: 8px;
+      background: #2C5F6E; color: white; font-size: 13px;
+      font-family: inherit; cursor: pointer; font-weight: 500;
+    }
+    .modal-btn-ok:hover { background: #234E5C; }
+
   </style>
 </head>
 <body>
@@ -181,6 +227,7 @@
 <div class="main">
   <div class="page-top">
     <div class="page-title">Generar facturas en bloque</div>
+    <button class="btn-informe" onclick="abrirModalInforme()">📊 Informe para el gestor</button>
   </div>
 
   <div class="controles">
@@ -234,6 +281,87 @@
 
   <div id="contenido">
     <div class="loading-msg">Cargando sesiones...</div>
+  </div>
+</div>
+
+<!-- MODAL INFORME GESTOR -->
+<div class="modal-overlay" id="modal-informe">
+  <div class="modal-box">
+    <div class="modal-titulo">📊 Informe para el gestor</div>
+    <div class="modal-sub">Selecciona el período del informe</div>
+
+    <div class="modal-campo">
+      <label>Período</label>
+      <select id="informe-tipo" onchange="actualizarCamposInforme()">
+        <option value="trimestre">Trimestre</option>
+        <option value="mes">Mes</option>
+        <option value="anio">Año completo</option>
+        <option value="libre">Fechas libres</option>
+      </select>
+    </div>
+
+    <div id="informe-bloque-trimestre">
+      <div class="modal-fila">
+        <div class="modal-campo">
+          <label>Trimestre</label>
+          <select id="informe-trimestre">
+            <option value="1">T1 — Enero a Marzo</option>
+            <option value="2">T2 — Abril a Junio</option>
+            <option value="3">T3 — Julio a Septiembre</option>
+            <option value="4">T4 — Octubre a Diciembre</option>
+          </select>
+        </div>
+        <div class="modal-campo">
+          <label>Año</label>
+          <input type="number" id="informe-anio-t" min="2020" max="2099">
+        </div>
+      </div>
+    </div>
+
+    <div id="informe-bloque-mes" style="display:none">
+      <div class="modal-fila">
+        <div class="modal-campo">
+          <label>Mes</label>
+          <select id="informe-mes">
+            <option value="1">Enero</option><option value="2">Febrero</option>
+            <option value="3">Marzo</option><option value="4">Abril</option>
+            <option value="5">Mayo</option><option value="6">Junio</option>
+            <option value="7">Julio</option><option value="8">Agosto</option>
+            <option value="9">Septiembre</option><option value="10">Octubre</option>
+            <option value="11">Noviembre</option><option value="12">Diciembre</option>
+          </select>
+        </div>
+        <div class="modal-campo">
+          <label>Año</label>
+          <input type="number" id="informe-anio-m" min="2020" max="2099">
+        </div>
+      </div>
+    </div>
+
+    <div id="informe-bloque-anio" style="display:none">
+      <div class="modal-campo">
+        <label>Año</label>
+        <input type="number" id="informe-anio-a" min="2020" max="2099">
+      </div>
+    </div>
+
+    <div id="informe-bloque-libre" style="display:none">
+      <div class="modal-fila">
+        <div class="modal-campo">
+          <label>Desde</label>
+          <input type="date" id="informe-desde">
+        </div>
+        <div class="modal-campo">
+          <label>Hasta</label>
+          <input type="date" id="informe-hasta">
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-btns">
+      <button class="modal-btn-cancel" onclick="cerrarModalInforme()">Cancelar</button>
+      <button class="modal-btn-ok" onclick="generarInformeGestor()">Generar PDF</button>
+    </div>
   </div>
 </div>
 
@@ -1375,6 +1503,177 @@
   }
 
   cargar();
+
+  // ══════════════════════════════════════════════
+  // ── INFORME PARA EL GESTOR ────────────────────
+  // ══════════════════════════════════════════════
+
+  function abrirModalInforme() {
+    const now = new Date();
+    const mesActual = now.getMonth() + 1;
+    const añoActual = now.getFullYear();
+    const tActual = Math.ceil(mesActual / 3);
+    const ultimoT = tActual === 1 ? 4 : tActual - 1;
+    const añoT    = tActual === 1 ? añoActual - 1 : añoActual;
+    document.getElementById('informe-trimestre').value = ultimoT;
+    document.getElementById('informe-anio-t').value    = añoT;
+    document.getElementById('informe-anio-m').value    = añoActual;
+    document.getElementById('informe-mes').value       = mesActual === 1 ? 12 : mesActual - 1;
+    document.getElementById('informe-anio-a').value    = añoActual;
+    const hoyStr = now.toISOString().split('T')[0];
+    document.getElementById('informe-hasta').value = hoyStr;
+    document.getElementById('informe-desde').value = añoActual + '-01-01';
+    actualizarCamposInforme();
+    document.getElementById('modal-informe').classList.add('visible');
+  }
+
+  function cerrarModalInforme() {
+    document.getElementById('modal-informe').classList.remove('visible');
+  }
+
+  function actualizarCamposInforme() {
+    const tipo = document.getElementById('informe-tipo').value;
+    ['trimestre','mes','anio','libre'].forEach(t => {
+      document.getElementById('informe-bloque-' + t).style.display = tipo === t ? 'block' : 'none';
+    });
+  }
+
+  function parseFechaHistorico(str) {
+    if (!str) return 0;
+    const p = str.trim().split('/');
+    if (p.length !== 3) return 0;
+    return new Date(parseInt(p[2]), parseInt(p[1]) - 1, parseInt(p[0])).getTime();
+  }
+
+  async function generarInformeGestor() {
+    const tipo = document.getElementById('informe-tipo').value;
+    const MESES_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+                      'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    let desdeTs, hastaTs, tituloFichero, tituloPeriodo;
+
+    if (tipo === 'trimestre') {
+      const t = parseInt(document.getElementById('informe-trimestre').value);
+      const a = parseInt(document.getElementById('informe-anio-t').value);
+      const rangos = [[1,3],[4,6],[7,9],[10,12]];
+      const [m1, m2] = rangos[t - 1];
+      desdeTs = new Date(a, m1 - 1, 1).getTime();
+      hastaTs = new Date(a, m2, 0, 23, 59, 59).getTime();
+      tituloFichero = `T${t}_${a}`;
+      tituloPeriodo = `${MESES_ES[m1-1]} — ${MESES_ES[m2-1]} ${a}`;
+    } else if (tipo === 'mes') {
+      const m = parseInt(document.getElementById('informe-mes').value);
+      const a = parseInt(document.getElementById('informe-anio-m').value);
+      desdeTs = new Date(a, m - 1, 1).getTime();
+      hastaTs = new Date(a, m, 0, 23, 59, 59).getTime();
+      tituloFichero = `${MESES_ES[m-1]}_${a}`;
+      tituloPeriodo = `${MESES_ES[m-1]} ${a}`;
+    } else if (tipo === 'anio') {
+      const a = parseInt(document.getElementById('informe-anio-a').value);
+      desdeTs = new Date(a, 0, 1).getTime();
+      hastaTs = new Date(a, 11, 31, 23, 59, 59).getTime();
+      tituloFichero = `Año_${a}`;
+      tituloPeriodo = `Año ${a}`;
+    } else {
+      const desde = document.getElementById('informe-desde').value;
+      const hasta  = document.getElementById('informe-hasta').value;
+      desdeTs = new Date(desde).getTime();
+      hastaTs = new Date(hasta + 'T23:59:59').getTime();
+      tituloFichero = `${desde}_${hasta}`;
+      tituloPeriodo = `${desde} al ${hasta}`;
+    }
+
+    cerrarModalInforme();
+
+    try {
+      const range = encodeURIComponent(`'${HISTORICO_NAME}'!A:F`);
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${FACTURACION_ID}/values/${range}`;
+      const resp = await fetch(url, { headers: { Authorization: 'Bearer ' + sesion.access_token } });
+      if (!resp.ok) throw new Error('Error al leer Histórico: ' + resp.status);
+      const data = await resp.json();
+
+      // Saltar cabecera si la hay
+      let filas = (data.values || []);
+      if (filas.length > 0 && !/^A-\d+/.test((filas[0][1]||'').trim())) filas = filas.slice(1);
+
+      const filtradas = filas.filter(fila => {
+        const ts = parseFechaHistorico((fila[0]||'').trim());
+        return ts >= desdeTs && ts <= hastaTs;
+      });
+
+      if (filtradas.length === 0) {
+        alert('No hay facturas en el período seleccionado.\n\nPrueba a ampliar el rango o usa "Fechas libres".');
+        return;
+      }
+
+      construirInformePDF(filtradas, tituloPeriodo, tituloFichero);
+
+    } catch(e) {
+      alert('Error al generar informe: ' + e.message);
+      console.error(e);
+    }
+  }
+
+  function construirInformePDF(filas, tituloPeriodo, tituloFichero) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+    const parseImporte = s =>
+      parseFloat((s || '0').replace(/€/g, '').replace(',', '.').trim()) || 0;
+    const fmtNum = n => n.toFixed(2).replace('.', ',') + '€';
+
+    let baseTotal = 0, ivaTotal = 0, totalTotal = 0;
+
+    const rows = filas.map(fila => {
+      const base  = parseImporte(fila[3]);
+      const iva   = parseImporte(fila[4]);
+      const total = parseImporte(fila[5]);
+      baseTotal  += base;
+      ivaTotal   += iva;
+      totalTotal += total;
+      return [
+        (fila[0]||'').trim(),
+        (fila[1]||'').trim(),
+        (fila[2]||'').trim(),
+        fmtNum(base),
+        fmtNum(iva),
+        fmtNum(total),
+      ];
+    });
+
+    rows.push(['', '', 'TOTALES:', fmtNum(baseTotal), fmtNum(ivaTotal), fmtNum(totalTotal)]);
+
+    doc.autoTable({
+      head: [['FECHA', 'Nº FACTURA', 'CLIENTA', 'BASE IMPONIBLE', 'IVA', 'TOTAL']],
+      body: rows,
+      startY: 14,
+      margin: { left: 14, right: 14 },
+      theme: 'plain',
+      headStyles: {
+        fontStyle: 'bold', fontSize: 9, textColor: [0, 0, 0],
+        cellPadding: { top: 3, bottom: 4, left: 2, right: 2 },
+        lineColor: [0, 0, 0], lineWidth: { bottom: 0.4 }
+      },
+      bodyStyles: {
+        fontSize: 8.5, textColor: [0, 0, 0],
+        cellPadding: { top: 2, bottom: 2, left: 2, right: 2 }
+      },
+      columnStyles: {
+        0: { cellWidth: 26, halign: 'left' },
+        1: { cellWidth: 22, halign: 'left' },
+        2: { cellWidth: 72, halign: 'left' },
+        3: { cellWidth: 30, halign: 'right' },
+        4: { cellWidth: 16, halign: 'right' },
+        5: { cellWidth: 16, halign: 'right' },
+      },
+      didParseCell(data) {
+        if (data.row.index === rows.length - 1) {
+          data.cell.styles.fontStyle = 'bold';
+        }
+      }
+    });
+
+    doc.save(`Informe_Gestor_${tituloFichero}.pdf`);
+  }
 </script>
 
 </body>
