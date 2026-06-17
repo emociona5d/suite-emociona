@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Emociona 5D — Ingresos</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.6.0/jspdf.plugin.autotable.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #FDF8F4; min-height: 100vh; }
+
+    header { background: white; padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 1px 6px rgba(0,0,0,0.06); position: sticky; top: 0; z-index: 100; }
+    .brand { font-size: 14px; font-weight: 300; color: #2C5F6E; letter-spacing: 3px; text-transform: uppercase; }
+    .header-user { display: flex; align-items: center; gap: 10px; }
+    .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: #C8E6E0; object-fit: cover; }
+    .user-name { font-size: 13px; color: #7A8A8E; }
+    .logout-btn { font-size: 12px; color: #9BB5BC; background: none; border: 1px solid #D8E8EB; border-radius: 6px; padding: 4px 12px; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+    .logout-btn:hover { background: #F0F8F9; color: #2C5F6E; }
+
+    nav { background: white; border-bottom: 1px solid #EEF2F4; padding: 0 28px; display: flex; }
+    .nav-tab { padding: 12px 20px; font-size: 13px; color: #9BB5BC; border-bottom: 2px solid transparent; transition: all 0.2s; text-decoration: none; display: block; }
+    .nav-tab.active { color: #2C5F6E; border-bottom-color: #2C5F6E; font-weight: 500; }
+    .nav-tab.disabled { opacity: 0.4; pointer-events: none; }
+
+    .main { max-width: 1100px; margin: 28px auto; padding: 0 24px 60px; }
+
+    /* ── CABECERA ── */
+    .page-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+    .page-title { font-size: 22px; font-weight: 300; color: #2C5F6E; }
+
+    /* ── SELECTOR DE PERÍODO ── */
+    .period-bar {
+      background: white; border-radius: 12px; padding: 16px 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end;
+      margin-bottom: 22px;
+    }
+    .ctrl-grupo { display: flex; flex-direction: column; gap: 4px; }
+    .ctrl-label { font-size: 11px; color: #9BB5BC; text-transform: uppercase; letter-spacing: 0.8px; }
+    .ctrl-input, .ctrl-select {
+      font-family: inherit; font-size: 13px; padding: 7px 10px;
+      border: 1.5px solid #E0E8EA; border-radius: 8px; color: #3C4A50;
+      background: white; outline: none; transition: border-color 0.2s;
+    }
+    .ctrl-input:focus, .ctrl-select:focus { border-color: #5BAA96; }
+    .btn-calcular {
+      padding: 8px 22px; background: #2C5F6E; color: white;
+      border: none; border-radius: 8px; font-size: 13px; font-family: inherit;
+      cursor: pointer; transition: background 0.2s; font-weight: 500; height: 34px;
+    }
+    .btn-calcular:hover { background: #234E5C; }
+    .btn-pdf {
+      padding: 8px 18px; background: white; color: #2C5F6E;
+      border: 1.5px solid #2C5F6E; border-radius: 8px;
+      font-size: 13px; font-family: inherit; cursor: pointer;
+      transition: all 0.2s; font-weight: 500; height: 34px; display: none;
+    }
+    .btn-pdf:hover { background: #2C5F6E; color: white; }
+
+    /* ── MENSAJES ── */
+    .loading-msg { text-align: center; padding: 60px; color: #9BB5BC; font-size: 14px; }
+    .empty-state { background: white; border-radius: 16px; padding: 52px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.04); }
+    .empty-icon { font-size: 36px; margin-bottom: 12px; }
+    .empty-title { font-size: 17px; color: #2C5F6E; margin-bottom: 8px; }
+    .empty-text { font-size: 14px; color: #9BB5BC; }
+    .error-state { background: #FFF8F8; border: 1px solid #F5C6C6; border-radius: 12px; padding: 20px 24px; color: #C0392B; font-size: 14px; line-height: 1.6; }
+
+    /* ── SECTION TITLES ── */
+    .section-title { font-size: 12px; font-weight: 600; color: #9BB5BC; text-transform: uppercase; letter-spacing: 0.9px; margin: 24px 0 10px; }
+
+    /* ── KPI GRID ── */
+    .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 6px; }
+    .kpi-card {
+      background: white; border-radius: 12px; padding: 18px 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    .kpi-label { font-size: 11px; color: #9BB5BC; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
+    .kpi-value { font-size: 26px; font-weight: 300; color: #2C5F6E; line-height: 1.1; }
+    .kpi-sub { font-size: 12px; color: #9BB5BC; margin-top: 6px; }
+    .kpi-delta { font-size: 13px; margin-top: 4px; font-weight: 500; }
+    .kpi-delta.positivo { color: #2A8A5A; }
+    .kpi-delta.negativo { color: #C0392B; }
+    .kpi-delta.neutro { color: #9BB5BC; }
+
+    /* ── MÉTODOS DE PAGO ── */
+    .metodos-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 6px; }
+    .metodo-card {
+      background: white; border-radius: 10px; padding: 14px 16px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+    }
+    .metodo-card.sin-cobrar { border: 1px solid #F5D8C0; background: #FFFAF5; }
+    .metodo-nombre { font-size: 11px; color: #9BB5BC; text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 6px; }
+    .metodo-total { font-size: 18px; font-weight: 400; color: #2C5F6E; }
+    .metodo-count { font-size: 11px; color: #B0BEC5; margin-top: 3px; }
+    .metodo-pct { font-size: 11px; color: #5BAA96; font-weight: 500; margin-top: 3px; }
+
+    /* ── DOS COLUMNAS ── */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 6px; }
+
+    /* ── CARDS ── */
+    .card {
+      background: white; border-radius: 12px; padding: 20px 22px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    .card-title { font-size: 13px; font-weight: 600; color: #3C4A50; margin-bottom: 16px; }
+
+    /* ── TABLA SERVICIOS / MUNICIPIOS ── */
+    .stat-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .stat-table th { text-align: left; color: #9BB5BC; font-weight: 500; font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; padding: 0 6px 8px 0; border-bottom: 1px solid #EEF2F4; }
+    .stat-table th.right { text-align: right; }
+    .stat-table td { padding: 8px 6px 8px 0; border-bottom: 1px solid #F8FAFB; color: #3C4A50; }
+    .stat-table td.right { text-align: right; color: #7A8A8E; }
+    .stat-table td.bold { font-weight: 600; color: #2C5F6E; }
+    .stat-table tr:last-child td { border-bottom: none; }
+
+    /* ── BARRAS HORIZONTALES ── */
+    .bar-wrap { margin-bottom: 10px; }
+    .bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .bar-nombre { font-size: 11px; color: #3C4A50; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .bar-track { flex: 1; background: #EEF2F4; border-radius: 4px; height: 8px; overflow: hidden; min-width: 40px; }
+    .bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+    .bar-fill.servicio { background: #5BAA96; }
+    .bar-fill.municipio { background: #7A9EC8; }
+    .bar-pct { font-size: 11px; color: #9BB5BC; flex-shrink: 0; width: 36px; text-align: right; }
+
+    /* ── GRÁFICO MENSUAL ── */
+    .chart-outer { margin-top: 4px; }
+    .chart-bars { display: flex; align-items: flex-end; gap: 6px; height: 130px; padding-bottom: 0; }
+    .chart-col { flex: 1; display: flex; flex-direction: column; align-items: center; min-width: 0; }
+    .chart-val { font-size: 9px; color: #9BB5BC; margin-bottom: 3px; white-space: nowrap; }
+    .chart-bar-inner { width: 100%; border-radius: 3px 3px 0 0; background: #C8E6E0; min-height: 3px; transition: height 0.5s; }
+    .chart-bar-inner.mayor { background: #5BAA96; }
+    .chart-axis { display: flex; gap: 6px; border-top: 1px solid #EEF2F4; margin-top: 0; padding-top: 5px; }
+    .chart-mes-label { flex: 1; text-align: center; font-size: 10px; color: #9BB5BC; }
+
+    /* ── FISCAL ── */
+    .fiscal-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .fiscal-card {
+      background: white; border-radius: 12px; padding: 18px 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      border-top: 3px solid #C8E6E0;
+    }
+    .fiscal-label { font-size: 11px; color: #9BB5BC; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
+    .fiscal-value { font-size: 22px; font-weight: 300; color: #2C5F6E; }
+    .fiscal-sub { font-size: 11px; color: #B0BEC5; margin-top: 4px; }
+
+    /* ── PANEL ── */
+    #panel { display: none; }
+
+    @media (max-width: 768px) {
+      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+      .metodos-grid { grid-template-columns: repeat(2, 1fr); }
+      .two-col { grid-template-columns: 1fr; }
+      .fiscal-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="brand">Emociona 5D</div>
+  <div class="header-user">
+    <img class="user-avatar" id="user-avatar" src="" alt="" onerror="this.style.display='none'">
+    <span class="user-name" id="user-name"></span>
+    <button class="logout-btn" onclick="logout()">Cerrar sesión</button>
+  </div>
+</header>
+
+<nav>
+  <a class="nav-tab" href="dashboard.html">Hoy</a>
+  <a class="nav-tab" href="sesiones.html">Sesiones</a>
+  <a class="nav-tab" href="clientas.html">Clientas</a>
+  <a class="nav-tab" href="facturas.html">Facturas</a>
+  <a class="nav-tab active" href="ingresos.html">Ingresos</a>
+</nav>
+
+<div class="main">
+  <div class="page-top">
+    <div class="page-title">Panel de ingresos</div>
+    <button class="btn-pdf" id="btn-pdf" onclick="exportarPDF()">📄 Exportar PDF</button>
+  </div>
+
+  <!-- Selector de período -->
+  <div class="period-bar">
+    <div class="ctrl-grupo">
+      <div class="ctrl-label">Período</div>
+      <select class="ctrl-select" id="periodo-tipo" onchange="cambiarTipoPeriodo()">
+        <option value="mes">Mes</option>
+        <option value="trimestre">Trimestre</option>
+        <option value="anio">Año</option>
+        <option value="libre">Fechas libres</option>
+      </select>
+    </div>
+
+    <!-- Mes -->
+    <div id="bloque-mes" style="display:flex; gap:12px;">
+      <div class="ctrl-grupo">
+        <div class="ctrl-label">Mes</div>
+        <select class="ctrl-select" id="periodo-mes">
+          <option value="1">Enero</option><option value="2">Febrero</option>
+          <option value="3">Marzo</option><option value="4">Abril</option>
+          <option value="5">Mayo</option><option value="6">Junio</option>
+          <option value="7">Julio</option><option value="8">Agosto</option>
+          <option value="9">Septiembre</option><option value="10">Octubre</option>
+          <option value="11">Noviembre</option><option value="12">Diciembre</option>
+        </select>
+      </div>
+      <div class="ctrl-grupo">
+        <div class="ctrl-label">Año</div>
+        <select class="ctrl-select" id="periodo-anio-m"></select>
+      </div>
+    </div>
+
+    <!-- Trimestre -->
+    <div id="bloque-trimestre" style="display:none; gap:12px;">
+      <div class="ctrl-grupo">
+        <div class="ctrl-label">Trimestre</div>
+        <select class="ctrl-select" id="periodo-trimestre">
+          <option value="1">T1 (Ene–Mar)</option>
+          <option value="2">T2 (Abr–Jun)</option>
+          <option value="3">T3 (Jul–Sep)</option>
+          <option value="4">T4 (Oct–Dic)</option>
+        </select>
+      </div>
+      <div class="ctrl-grupo">
+        <div class="ctrl-label">Año</div>
+        <select class="ctrl-select" id="periodo-anio-t"></select>
+      </div>
+    </div>
+
+    <!-- Año -->
+    <div id="bloque-anio" style="display:none;">
+      <div class="ctrl-grupo">
+        <div class="ctrl-label">Año</div>
+        <select class="ctrl-select" id="periodo-anio-a"></select>
+      </div>
+    </div>
+
+    <!-- Fechas libres -->
+    <div id="bloque-libre" style="display:none; gap:12px;">
+      <div class="ctrl-grupo">
+        <div class="ctrl-label">Desde</div>
+        <input type="date" class="ctrl-input" id="periodo-desde">
+      </div>
+      <div class="ctrl-grupo">
+        <div class="ctrl-label">Hasta</div>
+        <input type="date" class="ctrl-input" id="periodo-hasta">
+      </div>
+    </div>
+
+    <button class="btn-calcular" onclick="calcular()">Calcular</button>
+  </div>
+
+  <!-- Estados -->
+  <div id="loading-state" style="display:none" class="loading-msg">Cargando datos...</div>
+  <div id="error-state" style="display:none"></div>
+
+  <!-- Panel de resultados -->
+  <div id="panel">
+
+    <div class="section-title" id="panel-periodo-label"></div>
+
+    <!-- KPIs -->
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">Total cobrado</div>
+        <div class="kpi-value" id="kpi-total">—</div>
+        <div class="kpi-sub" id="kpi-total-sub"></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Sesiones cobradas</div>
+        <div class="kpi-value" id="kpi-sesiones">—</div>
+        <div class="kpi-sub" id="kpi-sesiones-sub"></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Ticket medio</div>
+        <div class="kpi-value" id="kpi-ticket">—</div>
+        <div class="kpi-sub">Por sesión cobrada</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Vs período anterior</div>
+        <div class="kpi-value" id="kpi-delta-val">—</div>
+        <div class="kpi-delta" id="kpi-delta-pct"></div>
+        <div class="kpi-sub" id="kpi-delta-sub"></div>
+      </div>
+    </div>
+
+    <!-- Métodos de pago -->
+    <div class="section-title">Métodos de pago</div>
+    <div class="metodos-grid" id="metodos-grid"></div>
+
+    <!-- Servicios y Municipios -->
+    <div class="section-title">Desglose</div>
+    <div class="two-col">
+      <div class="card">
+        <div class="card-title">Ingresos por servicio</div>
+        <div id="servicios-contenido"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Procedencia de clientas</div>
+        <div id="municipios-contenido"></div>
+      </div>
+    </div>
+
+    <!-- Evolución mensual (solo trimestre/año/libre con >1 mes) -->
+    <div id="evolucion-card" class="card" style="display:none; margin-top:16px;">
+      <div class="card-title">Evolución mensual</div>
+      <div class="chart-outer" id="grafico-meses"></div>
+    </div>
+
+    <!-- Resumen fiscal -->
+    <div class="section-title">Resumen fiscal</div>
+    <div class="fiscal-grid">
+      <div class="fiscal-card">
+        <div class="fiscal-label">Base imponible</div>
+        <div class="fiscal-value" id="fiscal-base">—</div>
+        <div class="fiscal-sub">Total ÷ 1,21</div>
+      </div>
+      <div class="fiscal-card">
+        <div class="fiscal-label">IVA (21%)</div>
+        <div class="fiscal-value" id="fiscal-iva">—</div>
+        <div class="fiscal-sub">Total − base</div>
+      </div>
+      <div class="fiscal-card" style="border-top-color: #5BAA96;">
+        <div class="fiscal-label">Total con IVA</div>
+        <div class="fiscal-value" id="fiscal-total">—</div>
+        <div class="fiscal-sub">= suma cobros registrados</div>
+      </div>
+    </div>
+
+  </div><!-- /panel -->
+</div>
+
+<script>
+  // ── CONSTANTES ──
+  const SHEET_ID   = '1Zb5yWR1oQF03jU8JNDDr4ynChC66WEObkDwnvYLOkpM';
+  const SHEET_NAME = 'Respuestas de formulario 2026';
+
+  const MESES_ES   = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+                      'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const MESES_CORTO = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+  // ── AUTH ──
+  const sesion = (() => {
+    try {
+      const s = JSON.parse(sessionStorage.getItem('emociona_session') || '{}');
+      if (!s.access_token || !s.token_expiry || Date.now() >= s.token_expiry) {
+        window.location.href = 'index.html';
+        return null;
+      }
+      if (s.role !== 'owner') {
+        window.location.href = 'dashboard.html';
+        return null;
+      }
+      return s;
+    } catch(e) { window.location.href = 'index.html'; return null; }
+  })();
+
+  if (sesion) {
+    document.getElementById('user-name').textContent = sesion.name || sesion.email;
+    const av = document.getElementById('user-avatar');
+    if (sesion.picture) { av.src = sesion.picture; } else { av.style.display = 'none'; }
+  }
+
+  // ── CACHE DE DATOS ──
+  let todasLasFilas = null;
+
+  // ── ESTADO ──
+  let statsActuales = null;
+  let tituloPeriodoActual = '';
+  let tituloFicheroActual = '';
+  let tipoActual = '';
+  let paramsActuales = {};
+
+  // ── INIT: poblar selectores de año ──
+  (function initSelectores() {
+    const now = new Date();
+    const anioActual = now.getFullYear();
+    const selectores = ['periodo-anio-m', 'periodo-anio-t', 'periodo-anio-a'];
+    selectores.forEach(id => {
+      const sel = document.getElementById(id);
+      for (let a = anioActual; a >= anioActual - 4; a--) {
+        const opt = document.createElement('option');
+        opt.value = a;
+        opt.textContent = a;
+        sel.appendChild(opt);
+      }
+    });
+
+    // Defecto: mes actual
+    document.getElementById('periodo-mes').value = now.getMonth() + 1;
+
+    // Defecto fechas libres: mes actual
+    const primerDia = `${anioActual}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
+    const ultimoDia = new Date(anioActual, now.getMonth()+1, 0).toISOString().split('T')[0];
+    document.getElementById('periodo-desde').value = primerDia;
+    document.getElementById('periodo-hasta').value = ultimoDia;
+  })();
+
+  function cambiarTipoPeriodo() {
+    const tipo = document.getElementById('periodo-tipo').value;
+    ['mes','trimestre','anio','libre'].forEach(t => {
+      const el = document.getElementById('bloque-' + t);
+      if (el) el.style.display = tipo === t ? 'flex' : 'none';
+    });
+    // bloque-anio no es flex, es block
+    const ba = document.getElementById('bloque-anio');
+    if (ba) ba.style.display = tipo === 'anio' ? 'flex' : 'none';
+  }
+
+  // ── UTILIDADES ──
+  function parseFecha(str) {
+    if (!str) return 0;
+    const p = str.trim().split('/');
+    if (p.length !== 3) return 0;
+    const d = parseInt(p[0]), m = parseInt(p[1]), a = parseInt(p[2]);
+    if (isNaN(d) || isNaN(m) || isNaN(a)) return 0;
+    return new Date(a, m - 1, d).getTime();
+  }
+
+  function parseImporte(str) {
+    return parseFloat((str || '0').toString().replace(/€/g,'').replace(',','.').trim()) || 0;
+  }
+
+  function fmtEur(n) {
+    return n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+  }
+
+  function getMesKey(fechaStr) {
+    const p = (fechaStr||'').trim().split('/');
+    if (p.length !== 3) return null;
+    return `${p[2]}-${p[1].padStart(2,'0')}`;
+  }
+
+  function esFilaPack(fila) {
+    const importe = parseImporte(fila[11]);
+    const metodo  = (fila[12]||'').trim();
+    return importe === 0 && metodo === '';
+  }
+
+  // ── LEER DATOS ──
+  async function leerSheet() {
+    if (todasLasFilas) return todasLasFilas;
+    const range = encodeURIComponent(`'${SHEET_NAME}'!A:W`);
+    const url   = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}`;
+    const resp  = await fetch(url, { headers: { Authorization: 'Bearer ' + sesion.access_token } });
+    if (!resp.ok) throw new Error('Error al leer la hoja: ' + resp.status);
+    const data = await resp.json();
+    let filas = data.values || [];
+    // Saltar cabecera
+    if (filas.length > 0 && !parseFecha((filas[0][3]||'').trim())) filas = filas.slice(1);
+    todasLasFilas = filas;
+    return filas;
+  }
+
+  // ── OBTENER RANGO DE PERÍODO ──
+  function getRango(tipo, params) {
+    if (tipo === 'mes') {
+      const m = params.mes, a = params.anio;
+      return {
+        desdeTs: new Date(a, m-1, 1).getTime(),
+        hastaTs: new Date(a, m, 0, 23, 59, 59).getTime()
+      };
+    }
+    if (tipo === 'trimestre') {
+      const rangos = [[1,3],[4,6],[7,9],[10,12]];
+      const [m1, m2] = rangos[params.trimestre - 1];
+      return {
+        desdeTs: new Date(params.anio, m1-1, 1).getTime(),
+        hastaTs: new Date(params.anio, m2, 0, 23, 59, 59).getTime()
+      };
+    }
+    if (tipo === 'anio') {
+      return {
+        desdeTs: new Date(params.anio, 0, 1).getTime(),
+        hastaTs: new Date(params.anio, 11, 31, 23, 59, 59).getTime()
+      };
+    }
+    // libre
+    return {
+      desdeTs: new Date(params.desde).getTime(),
+      hastaTs: new Date(params.hasta + 'T23:59:59').getTime()
+    };
+  }
+
+  function getRangoAnterior(tipo, params, rangoActual) {
+    if (tipo === 'mes') {
+      let m = params.mes - 1, a = params.anio;
+      if (m === 0) { m = 12; a--; }
+      return getRango('mes', { mes: m, anio: a });
+    }
+    if (tipo === 'trimestre') {
+      let t = params.trimestre - 1, a = params.anio;
+      if (t === 0) { t = 4; a--; }
+      return getRango('trimestre', { trimestre: t, anio: a });
+    }
+    if (tipo === 'anio') {
+      return getRango('anio', { anio: params.anio - 1 });
+    }
+    // libre: mismo intervalo justo antes
+    const dur = rangoActual.hastaTs - rangoActual.desdeTs;
+    return {
+      desdeTs: rangoActual.desdeTs - dur - 86400000,
+      hastaTs: rangoActual.desdeTs - 1
+    };
+  }
+
+  function getMesesEnPeriodo(tipo, params, rango) {
+    const meses = [];
+    if (tipo === 'trimestre') {
+      const rangos = [[1,3],[4,6],[7,9],[10,12]];
+      const [m1, m2] = rangos[params.trimestre - 1];
+      for (let m = m1; m <= m2; m++) {
+        meses.push(`${params.anio}-${String(m).padStart(2,'0')}`);
+      }
+    } else if (tipo === 'anio') {
+      for (let m = 1; m <= 12; m++) {
+        meses.push(`${params.anio}-${String(m).padStart(2,'0')}`);
+      }
+    } else if (tipo === 'libre') {
+      let d = new Date(rango.desdeTs);
+      const end = new Date(rango.hastaTs);
+      while (d <= end) {
+        const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+        if (!meses.includes(key)) meses.push(key);
+        d = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+      }
+    }
+    return meses; // vacío → no mostrar gráfico mensual
+  }
+
+  // ── CALCULAR ESTADÍSTICAS ──
+  function calcularStats(filas, desdeTs, hastaTs) {
+    const stats = {
+      totalCobrado: 0,
+      sesionesCobradas: 0,
+      sinCobrarTotal: 0,
+      sinCobrarCount: 0,
+      porMetodo: {},
+      porServicio: {},
+      porMunicipio: {},
+      porMes: {}
+    };
+
+    filas.forEach(fila => {
+      const ts = parseFecha((fila[3]||'').trim());
+      if (!ts || ts < desdeTs || ts > hastaTs) return;
+      if (esFilaPack(fila)) return;
+
+      const importe   = parseImporte(fila[11]);
+      const metodo    = (fila[12]||'').trim();
+      const servicio  = (fila[10]||'').trim();
+      const municipio = (fila[21]||'').trim();
+      const cobrada   = metodo !== '';
+
+      if (cobrada) {
+        stats.totalCobrado += importe;
+        stats.sesionesCobradas++;
+
+        // Por método
+        const mk = metodo.toLowerCase();
+        if (!stats.porMetodo[mk]) stats.porMetodo[mk] = { label: metodo, total: 0, count: 0 };
+        stats.porMetodo[mk].total += importe;
+        stats.porMetodo[mk].count++;
+
+        // Por mes
+        const mesKey = getMesKey((fila[3]||'').trim());
+        if (mesKey) {
+          if (!stats.porMes[mesKey]) stats.porMes[mesKey] = { total: 0, count: 0 };
+          stats.porMes[mesKey].total += importe;
+          stats.porMes[mesKey].count++;
+        }
+      } else if (importe > 0) {
+        stats.sinCobrarTotal += importe;
+        stats.sinCobrarCount++;
+      }
+
+      // Por servicio (todas las sesiones excl. packs)
+      if (servicio) {
+        const sk = servicio.toLowerCase();
+        if (!stats.porServicio[sk]) {
+          stats.porServicio[sk] = { label: servicio, total: 0, countTotal: 0, countCobradas: 0 };
+        }
+        stats.porServicio[sk].countTotal++;
+        if (cobrada) {
+          stats.porServicio[sk].total += importe;
+          stats.porServicio[sk].countCobradas++;
+        }
+      }
+
+      // Por municipio (todas las sesiones excl. packs)
+      if (municipio) {
+        const munK = municipio.toLowerCase();
+        if (!stats.porMunicipio[munK]) {
+          stats.porMunicipio[munK] = { label: municipio, total: 0, countTotal: 0, countCobradas: 0 };
+        }
+        stats.porMunicipio[munK].countTotal++;
+        if (cobrada) {
+          stats.porMunicipio[munK].total += importe;
+          stats.porMunicipio[munK].countCobradas++;
+        }
+      }
+    });
+
+    stats.ticketMedio = stats.sesionesCobradas > 0 ? stats.totalCobrado / stats.sesionesCobradas : 0;
+    stats.base = stats.totalCobrado / 1.21;
+    stats.iva  = stats.totalCobrado - stats.base;
+    return stats;
+  }
+
+  // ── CALCULAR ──
+  async function calcular() {
+    const tipo = document.getElementById('periodo-tipo').value;
+    let params = {}, titulo = '', fichero = '';
+
+    if (tipo === 'mes') {
+      const m = parseInt(document.getElementById('periodo-mes').value);
+      const a = parseInt(document.getElementById('periodo-anio-m').value);
+      params = { mes: m, anio: a };
+      titulo  = `${MESES_ES[m-1]} ${a}`;
+      fichero = `${MESES_ES[m-1]}_${a}`;
+    } else if (tipo === 'trimestre') {
+      const t = parseInt(document.getElementById('periodo-trimestre').value);
+      const a = parseInt(document.getElementById('periodo-anio-t').value);
+      params  = { trimestre: t, anio: a };
+      titulo  = `T${t} ${a}`;
+      fichero = `T${t}_${a}`;
+    } else if (tipo === 'anio') {
+      const a = parseInt(document.getElementById('periodo-anio-a').value);
+      params  = { anio: a };
+      titulo  = `Año ${a}`;
+      fichero = `Año_${a}`;
+    } else {
+      const desde = document.getElementById('periodo-desde').value;
+      const hasta  = document.getElementById('periodo-hasta').value;
+      if (!desde || !hasta) { alert('Indica las fechas de inicio y fin.'); return; }
+      params  = { desde, hasta };
+      titulo  = `${desde} al ${hasta}`;
+      fichero = `${desde}_${hasta}`;
+    }
+
+    tipoActual = tipo;
+    paramsActuales = params;
+    tituloPeriodoActual = titulo;
+    tituloFicheroActual = fichero;
+
+    // UI
+    document.getElementById('panel').style.display = 'none';
+    document.getElementById('error-state').style.display = 'none';
+    document.getElementById('loading-state').style.display = 'block';
+    document.getElementById('btn-pdf').style.display = 'none';
+
+    try {
+      const filas = await leerSheet();
+      const rango = getRango(tipo, params);
+
+      if (!rango.desdeTs || !rango.hastaTs || isNaN(rango.desdeTs)) {
+        throw new Error('Fechas no válidas.');
+      }
+
+      const stats = calcularStats(filas, rango.desdeTs, rango.hastaTs);
+
+      // Período anterior
+      const rangoAnterior = getRangoAnterior(tipo, params, rango);
+      const statsAnterior = calcularStats(filas, rangoAnterior.desdeTs, rangoAnterior.hastaTs);
+
+      // Meses para gráfico
+      const mesesPeriodo = getMesesEnPeriodo(tipo, params, rango);
+
+      statsActuales = stats;
+      renderizar(stats, statsAnterior, titulo, mesesPeriodo, tipo);
+      document.getElementById('loading-state').style.display = 'none';
+      document.getElementById('panel').style.display = 'block';
+      document.getElementById('btn-pdf').style.display = 'inline-block';
+    } catch(e) {
+      document.getElementById('loading-state').style.display = 'none';
+      const errEl = document.getElementById('error-state');
+      errEl.style.display = 'block';
+      errEl.innerHTML = `<div class="error-state">Error al cargar los datos: ${e.message}</div>`;
+      console.error(e);
+    }
+  }
+
+  // ── RENDERIZAR ──
+  function renderizar(stats, statsAnt, titulo, mesesPeriodo, tipo) {
+    document.getElementById('panel-periodo-label').textContent = titulo;
+
+    // KPIs
+    document.getElementById('kpi-total').textContent    = fmtEur(stats.totalCobrado);
+    document.getElementById('kpi-total-sub').textContent = `${stats.sinCobrarCount > 0 ? stats.sinCobrarCount + ' pendiente(s) de cobro' : 'Todo cobrado'}`;
+    document.getElementById('kpi-sesiones').textContent = stats.sesionesCobradas;
+    document.getElementById('kpi-sesiones-sub').textContent = stats.sinCobrarCount > 0 ? `+ ${stats.sinCobrarCount} sin cobrar` : '';
+    document.getElementById('kpi-ticket').textContent   = stats.sesionesCobradas > 0 ? fmtEur(stats.ticketMedio) : '—';
+
+    // Delta vs anterior
+    const deltaEl    = document.getElementById('kpi-delta-val');
+    const deltaPctEl = document.getElementById('kpi-delta-pct');
+    const deltaSubEl = document.getElementById('kpi-delta-sub');
+    if (statsAnt.totalCobrado > 0) {
+      const diff = stats.totalCobrado - statsAnt.totalCobrado;
+      const pct  = (diff / statsAnt.totalCobrado) * 100;
+      deltaEl.textContent = fmtEur(Math.abs(diff));
+      deltaPctEl.textContent = (diff >= 0 ? '↑ +' : '↓ ') + pct.toFixed(1) + '%';
+      deltaPctEl.className = 'kpi-delta ' + (diff > 0 ? 'positivo' : diff < 0 ? 'negativo' : 'neutro');
+      deltaSubEl.textContent = 'anterior: ' + fmtEur(statsAnt.totalCobrado);
+    } else {
+      deltaEl.textContent     = '—';
+      deltaPctEl.textContent  = 'Sin datos anteriores';
+      deltaPctEl.className    = 'kpi-delta neutro';
+      deltaSubEl.textContent  = '';
+    }
+
+    // Métodos de pago
+    renderMetodos(stats);
+
+    // Servicios
+    renderServicios(stats);
+
+    // Municipios
+    renderMunicipios(stats);
+
+    // Gráfico mensual
+    if (mesesPeriodo.length > 1) {
+      renderGraficoMensual(stats.porMes, mesesPeriodo);
+      document.getElementById('evolucion-card').style.display = 'block';
+    } else {
+      document.getElementById('evolucion-card').style.display = 'none';
+    }
+
+    // Fiscal
+    document.getElementById('fiscal-base').textContent  = fmtEur(stats.base);
+    document.getElementById('fiscal-iva').textContent   = fmtEur(stats.iva);
+    document.getElementById('fiscal-total').textContent = fmtEur(stats.totalCobrado);
+  }
+
+  function renderMetodos(stats) {
+    const grid = document.getElementById('metodos-grid');
+    grid.innerHTML = '';
+
+    const metodos = Object.values(stats.porMetodo).sort((a, b) => b.total - a.total);
+
+    metodos.forEach(m => {
+      const pct = stats.totalCobrado > 0 ? ((m.total / stats.totalCobrado) * 100).toFixed(1) : '0';
+      const card = document.createElement('div');
+      card.className = 'metodo-card';
+      card.innerHTML = `
+        <div class="metodo-nombre">${m.label}</div>
+        <div class="metodo-total">${fmtEur(m.total)}</div>
+        <div class="metodo-count">${m.count} cobro${m.count !== 1 ? 's' : ''}</div>
+        <div class="metodo-pct">${pct}% del total</div>`;
+      grid.appendChild(card);
+    });
+
+    if (stats.sinCobrarCount > 0) {
+      const card = document.createElement('div');
+      card.className = 'metodo-card sin-cobrar';
+      card.innerHTML = `
+        <div class="metodo-nombre">Sin cobrar</div>
+        <div class="metodo-total" style="color:#C07840;">${fmtEur(stats.sinCobrarTotal)}</div>
+        <div class="metodo-count">${stats.sinCobrarCount} sesión${stats.sinCobrarCount !== 1 ? 'es' : ''}</div>
+        <div class="metodo-pct" style="color:#C07840;">Pendiente de registrar</div>`;
+      grid.appendChild(card);
+    }
+
+    if (metodos.length === 0 && stats.sinCobrarCount === 0) {
+      grid.innerHTML = '<div style="color:#9BB5BC; font-size:13px; padding:10px 0;">Sin datos de cobro en este período.</div>';
+    }
+  }
+
+  function renderServicios(stats) {
+    const cont = document.getElementById('servicios-contenido');
+    const servicios = Object.values(stats.porServicio).sort((a, b) => b.total - a.total);
+
+    if (servicios.length === 0) {
+      cont.innerHTML = '<div style="color:#9BB5BC; font-size:13px;">Sin datos.</div>';
+      return;
+    }
+
+    const maxTotal = Math.max(...servicios.map(s => s.total), 1);
+
+    let html = `<table class="stat-table">
+      <thead><tr>
+        <th>Servicio</th>
+        <th class="right">Ses.</th>
+        <th class="right">Cobrado</th>
+        <th class="right">T. medio</th>
+      </tr></thead><tbody>`;
+
+    servicios.forEach(s => {
+      const ticket = s.countCobradas > 0 ? fmtEur(s.total / s.countCobradas) : '—';
+      const pct    = stats.totalCobrado > 0 ? ((s.total / stats.totalCobrado) * 100).toFixed(0) : 0;
+      const w      = stats.totalCobrado > 0 ? Math.round((s.total / maxTotal) * 100) : 0;
+      html += `<tr>
+        <td>
+          <div style="font-size:12px; color:#3C4A50; margin-bottom:4px;">${s.label}</div>
+          <div class="bar-track" style="max-width:120px;"><div class="bar-fill servicio" style="width:${w}%"></div></div>
+        </td>
+        <td class="right">${s.countTotal}</td>
+        <td class="right bold">${fmtEur(s.total)}</td>
+        <td class="right">${ticket}</td>
+      </tr>`;
+    });
+
+    html += '</tbody></table>';
+    cont.innerHTML = html;
+  }
+
+  function renderMunicipios(stats) {
+    const cont = document.getElementById('municipios-contenido');
+    const municipios = Object.values(stats.porMunicipio)
+      .sort((a, b) => b.countTotal - a.countTotal)
+      .slice(0, 12);
+
+    if (municipios.length === 0) {
+      cont.innerHTML = '<div style="color:#9BB5BC; font-size:13px;">Sin datos de municipio.</div>';
+      return;
+    }
+
+    const totalSes = Object.values(stats.porMunicipio).reduce((s, m) => s + m.countTotal, 0);
+    const maxCount = Math.max(...municipios.map(m => m.countTotal), 1);
+
+    let html = `<table class="stat-table">
+      <thead><tr>
+        <th>Municipio</th>
+        <th class="right">Ses.</th>
+        <th class="right">%</th>
+        <th class="right">Cobrado</th>
+      </tr></thead><tbody>`;
+
+    municipios.forEach(m => {
+      const pct = totalSes > 0 ? ((m.countTotal / totalSes) * 100).toFixed(1) : '0';
+      const w   = Math.round((m.countTotal / maxCount) * 100);
+      html += `<tr>
+        <td>
+          <div style="font-size:12px; color:#3C4A50; margin-bottom:4px;">${m.label}</div>
+          <div class="bar-track" style="max-width:100px;"><div class="bar-fill municipio" style="width:${w}%"></div></div>
+        </td>
+        <td class="right">${m.countTotal}</td>
+        <td class="right">${pct}%</td>
+        <td class="right bold">${fmtEur(m.total)}</td>
+      </tr>`;
+    });
+
+    const otrosMunicipios = Object.values(stats.porMunicipio).length - municipios.length;
+    if (otrosMunicipios > 0) {
+      const otrosCount = Object.values(stats.porMunicipio)
+        .sort((a,b) => b.countTotal - a.countTotal)
+        .slice(12)
+        .reduce((s, m) => s + m.countTotal, 0);
+      html += `<tr><td style="color:#9BB5BC; font-size:11px;" colspan="4">+ ${otrosMunicipios} municipio${otrosMunicipios!==1?'s':''} más (${otrosCount} ses.)</td></tr>`;
+    }
+
+    html += '</tbody></table>';
+    cont.innerHTML = html;
+  }
+
+  function renderGraficoMensual(porMes, mesesPeriodo) {
+    const graf = document.getElementById('grafico-meses');
+    const valores = mesesPeriodo.map(k => (porMes[k] || {}).total || 0);
+    const maxVal  = Math.max(...valores, 1);
+    const mayorIdx = valores.indexOf(Math.max(...valores));
+
+    let barsHtml = '<div class="chart-bars">';
+    valores.forEach((v, i) => {
+      const h = Math.round((v / maxVal) * 110);
+      const esMayor = i === mayorIdx;
+      const label   = v >= 1000 ? (v/1000).toFixed(1) + 'k' : Math.round(v) + '';
+      barsHtml += `
+        <div class="chart-col">
+          <div class="chart-val">${v > 0 ? label : ''}</div>
+          <div class="chart-bar-inner${esMayor ? ' mayor' : ''}" style="height:${h}px;"></div>
+        </div>`;
+    });
+    barsHtml += '</div>';
+
+    let axisHtml = '<div class="chart-axis">';
+    mesesPeriodo.forEach(k => {
+      const [a, m] = k.split('-');
+      axisHtml += `<div class="chart-mes-label">${MESES_CORTO[parseInt(m)-1]}</div>`;
+    });
+    axisHtml += '</div>';
+
+    graf.innerHTML = barsHtml + axisHtml;
+  }
+
+  // ── EXPORTAR PDF ──
+  function exportarPDF() {
+    if (!statsActuales) return;
+    const { jsPDF } = window.jspdf;
+    const doc  = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const stats = statsActuales;
+    const titulo = tituloPeriodoActual;
+
+    const fmtE = n => n.toFixed(2).replace('.', ',') + ' €';
+    const tbl = (opts) => doc.autoTable(opts);
+    const HS = { fontStyle: 'bold', fontSize: 8.5, textColor: [0,0,0],
+                 lineColor: [0,0,0], lineWidth: { bottom: 0.4 },
+                 cellPadding: { top: 2, bottom: 3, left: 2, right: 2 } };
+    const BS = { fontSize: 8.5, textColor: [0,0,0],
+                 cellPadding: { top: 2, bottom: 2, left: 2, right: 2 } };
+    let y = 12;
+
+    // Título
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.setTextColor(0, 0, 0);
+    doc.text('EMOCIONA 5D — PANEL DE INGRESOS', 105, y, { align: 'center' });
+    y += 6;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text(titulo, 105, y, { align: 'center' });
+    y += 8;
+
+    // KPIs
+    tbl({
+      head: [['TOTAL COBRADO', 'SESIONES COBRADAS', 'TICKET MEDIO']],
+      body: [[fmtE(stats.totalCobrado), stats.sesionesCobradas + ' sesiones',
+              stats.sesionesCobradas > 0 ? fmtE(stats.ticketMedio) : '—']],
+      startY: y, margin: { left: 14, right: 14 }, theme: 'plain',
+      headStyles: { ...HS, halign: 'center' },
+      bodyStyles: { ...BS, fontSize: 10, fontStyle: 'bold', halign: 'center',
+                    cellPadding: { top: 4, bottom: 4, left: 3, right: 3 } }
+    });
+    y = doc.lastAutoTable.finalY + 8;
+
+    // Métodos de pago
+    const metodos = Object.values(stats.porMetodo).sort((a,b) => b.total - a.total);
+    if (metodos.length > 0 || stats.sinCobrarCount > 0) {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+      doc.text('MÉTODOS DE PAGO', 14, y); y += 4;
+      const rows = metodos.map(m => {
+        const pct = stats.totalCobrado > 0 ? ((m.total / stats.totalCobrado)*100).toFixed(1)+'%' : '—';
+        return [m.label, fmtE(m.total), String(m.count), pct];
+      });
+      if (stats.sinCobrarCount > 0) rows.push(['Sin cobrar', fmtE(stats.sinCobrarTotal), String(stats.sinCobrarCount), '—']);
+      tbl({
+        head: [['MÉTODO', 'IMPORTE', 'SESIONES', '% TOTAL']],
+        body: rows, startY: y, margin: { left: 14, right: 14 }, theme: 'plain',
+        headStyles: HS, bodyStyles: BS,
+        columnStyles: { 1: { halign: 'right' }, 2: { halign: 'center' }, 3: { halign: 'center' } }
+      });
+      y = doc.lastAutoTable.finalY + 8;
+    }
+
+    // Servicios
+    const servicios = Object.values(stats.porServicio).sort((a,b) => b.total - a.total);
+    if (servicios.length > 0) {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+      doc.text('INGRESOS POR SERVICIO', 14, y); y += 4;
+      tbl({
+        head: [['SERVICIO', 'SES. TOTALES', 'TOTAL COBRADO', 'TICKET MEDIO', '% TOTAL']],
+        body: servicios.map(s => {
+          const ticket = s.countCobradas > 0 ? fmtE(s.total / s.countCobradas) : '—';
+          const pct    = stats.totalCobrado > 0 ? ((s.total / stats.totalCobrado)*100).toFixed(1)+'%' : '—';
+          return [s.label, String(s.countTotal), fmtE(s.total), ticket, pct];
+        }),
+        startY: y, margin: { left: 14, right: 14 }, theme: 'plain',
+        headStyles: HS, bodyStyles: BS,
+        columnStyles: { 1: { halign:'center' }, 2: { halign:'right' }, 3: { halign:'right' }, 4: { halign:'center' } }
+      });
+      y = doc.lastAutoTable.finalY + 8;
+    }
+
+    // Municipios (top 15)
+    const municipios = Object.values(stats.porMunicipio).sort((a,b) => b.countTotal - a.countTotal).slice(0,15);
+    if (municipios.length > 0) {
+      const totalSes = Object.values(stats.porMunicipio).reduce((s,m) => s + m.countTotal, 0);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+      doc.text('PROCEDENCIA DE CLIENTAS', 14, y); y += 4;
+      tbl({
+        head: [['MUNICIPIO', 'SESIONES', '% SESIONES', 'TOTAL COBRADO']],
+        body: municipios.map(m => {
+          const pct = totalSes > 0 ? ((m.countTotal / totalSes)*100).toFixed(1)+'%' : '—';
+          return [m.label, String(m.countTotal), pct, fmtE(m.total)];
+        }),
+        startY: y, margin: { left: 14, right: 14 }, theme: 'plain',
+        headStyles: HS, bodyStyles: BS,
+        columnStyles: { 1: { halign:'center' }, 2: { halign:'center' }, 3: { halign:'right' } }
+      });
+      y = doc.lastAutoTable.finalY + 8;
+    }
+
+    // Evolución mensual (si hay datos por mes)
+    const mesesConDatos = Object.entries(stats.porMes).sort((a,b) => a[0].localeCompare(b[0]));
+    if (mesesConDatos.length > 1) {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+      doc.text('EVOLUCIÓN MENSUAL', 14, y); y += 4;
+      tbl({
+        head: [['MES', 'SESIONES', 'TOTAL COBRADO']],
+        body: mesesConDatos.map(([k, v]) => {
+          const [a, m] = k.split('-');
+          return [`${MESES_ES[parseInt(m)-1]} ${a}`, String(v.count), fmtE(v.total)];
+        }),
+        startY: y, margin: { left: 14, right: 14 }, theme: 'plain',
+        headStyles: HS, bodyStyles: BS,
+        columnStyles: { 1: { halign:'center' }, 2: { halign:'right' } }
+      });
+      y = doc.lastAutoTable.finalY + 8;
+    }
+
+    // Fiscal
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+    doc.text('RESUMEN FISCAL', 14, y); y += 4;
+    tbl({
+      head: [['BASE IMPONIBLE', 'IVA (21%)', 'TOTAL CON IVA']],
+      body: [[fmtE(stats.base), fmtE(stats.iva), fmtE(stats.totalCobrado)]],
+      startY: y, margin: { left: 14, right: 14 }, theme: 'plain',
+      headStyles: { ...HS, halign: 'center' },
+      bodyStyles: { ...BS, fontSize: 10, fontStyle: 'bold', halign: 'right',
+                    cellPadding: { top: 4, bottom: 4, left: 3, right: 3 } }
+    });
+
+    // Pie
+    const pageH = doc.internal.pageSize.getHeight();
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(180,180,180);
+    doc.text('Emociona 5D — Documento generado automáticamente', 105, pageH - 8, { align: 'center' });
+
+    doc.save(`Panel_Ingresos_${tituloFicheroActual}.pdf`);
+  }
+
+  function logout() {
+    sessionStorage.removeItem('emociona_session');
+    window.location.href = 'index.html';
+  }
+</script>
+
+</body>
+</html>
