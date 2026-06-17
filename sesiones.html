@@ -601,7 +601,7 @@
       const cobrado = parseFloat((fila[11]||'0').toString().replace(',','.').replace('€','').trim()) || 0;
       const pago    = (fila[12]||'').trim();
       await escribirEnHoja(TICKET_NAME, [[fecha, nfStr, nombre, svc, cobrado.toFixed(2) + ' €', pago]]);
-      await compartirConWhatsApp(doc, `Ticket_${nfStr}_${nombre}.pdf`, nombre, fila[16]||'', 'ticket', fecha);
+      await enviarPorEmail(doc, `Ticket_${nfStr}_${nombre}.pdf`, fila[17]||'', nombre, 'ticket', fecha);
     } catch(e) {
       alert('Error al generar ticket: ' + e.message);
       console.error(e);
@@ -787,7 +787,7 @@
       const fecha = (fila[3]||'').trim();
       const doc = await construirJustificante({ nombre, dni, fecha, hora }, logo);
       await escribirEnHoja(JUSTIF_NAME, [[fecha, nombre, dni, hora]]);
-      await compartirConWhatsApp(doc, `Justificante_${nombre.replace(/ /g,'_')}_${fecha.replace(/\//g,'-')}.pdf`, nombre, fila[16]||'', 'justificante', fecha);
+      await enviarPorEmail(doc, `Justificante_${nombre.replace(/ /g,'_')}_${fecha.replace(/\//g,'-')}.pdf`, fila[17]||'', nombre, 'justificante', fecha);
     } catch(e) {
       alert('Error al generar justificante: ' + e.message);
       console.error(e);
@@ -926,39 +926,89 @@
     return null;
   }
 
-  async function compartirConWhatsApp(doc, filename, nombre, telefono, tipo, fecha) {
+  async function enviarPorEmail(doc, filename, emailDest, nombre, tipo, fecha) {
     const primerNombre = nombre.split(' ')[0];
-    const msg = tipo === 'ticket'
-      ? `Hola ${primerNombre}! 🧾 Te enviamos tu ticket de venta de Emociona 5D. ¡Gracias por tu visita!`
-      : `Hola ${primerNombre}! 📋 Te enviamos tu justificante de asistencia a la ecografía del ${fecha}. ¡Hasta pronto!`;
 
-    // ── Web Share API: abre el menú nativo del sistema con el PDF adjunto ──
-    try {
-      const blob = doc.output('blob');
-      const file = new File([blob], filename, { type: 'application/pdf' });
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], title: 'Emociona 5D', text: msg });
-        return; // listo (o la usuaria canceló)
-      }
-    } catch(e) {
-      if (e.name === 'AbortError') return; // canceló el diálogo
-      // si hay otro error, seguimos con el fallback
+    if (!emailDest || !emailDest.includes('@')) {
+      // Sin email: descargar PDF y avisar
+      doc.save(filename);
+      alert(`${primerNombre} no tiene email registrado. El PDF se ha descargado.`);
+      return;
     }
 
-    // ── Fallback: descargar PDF + toast con enlace wa.me ──
-    doc.save(filename);
-    let tel = (telefono || '').replace(/\s/g, '').replace(/[^0-9]/g, '');
-    if (!tel) return;
-    tel = tel.replace(/^0034/, '').replace(/^34/, '');
-    tel = '34' + tel;
-    if (tel.length < 11) return;
-    const waUrl = `https://wa.me/${tel}?text=${encodeURIComponent(msg)}`;
-    const toast = document.createElement('div');
-    toast.style.cssText = 'position:fixed;bottom:28px;right:28px;background:#25D366;color:white;padding:14px 20px;border-radius:14px;box-shadow:0 6px 24px rgba(0,0,0,0.18);z-index:9999;display:flex;align-items:center;gap:12px;font-family:inherit;font-size:14px;cursor:pointer;max-width:360px;';
-    toast.innerHTML = `<span style="font-size:22px">💬</span><div><div style="font-weight:600;margin-bottom:3px">Enviar a ${primerNombre} por WhatsApp</div><div style="font-size:12px;opacity:0.85">PDF descargado — adjúntalo al abrirlo</div></div>`;
-    toast.onclick = () => { window.open(waUrl, '_blank'); toast.remove(); };
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 14000);
+    const asunto = tipo === 'ticket'
+      ? `Tu ticket de venta — Emociona 5D`
+      : `Tu justificante de asistencia — Emociona 5D`;
+
+    const cuerpo = tipo === 'ticket'
+      ? `Hola ${primerNombre},\n\nAdjuntamos tu ticket de venta de la sesión de ecografía en Emociona 5D.\n\n¡Muchas gracias por tu visita! Ha sido un placer acompañaros.\n\nEmociona 5D\nwww.emocionaecografia5d.com\n644 59 38 23`
+      : `Hola ${primerNombre},\n\nAdjuntamos tu justificante de asistencia a la ecografía del ${fecha}.\n\n¡Ha sido un placer acompañaros! Hasta pronto.\n\nEmociona 5D\nwww.emocionaecografia5d.com\n644 59 38 23`;
+
+    // PDF → base64
+    const pdfB64 = doc.output('datauristring').split(',')[1];
+
+    // Construir mensaje MIME
+    const bnd = 'emociona5d_' + Date.now();
+    const mime = [
+      `From: Emociona 5D <emocionaecografia5d@gmail.com>`,
+      `To: ${emailDest}`,
+      `Subject: ${asunto}`,
+      `MIME-Version: 1.0`,
+      `Content-Type: multipart/mixed; boundary="${bnd}"`,
+      ``,
+      `--${bnd}`,
+      `Content-Type: text/plain; charset=UTF-8`,
+      `Content-Transfer-Encoding: quoted-printable`,
+      ``,
+      cuerpo,
+      ``,
+      `--${bnd}`,
+      `Content-Type: application/pdf`,
+      `Content-Transfer-Encoding: base64`,
+      `Content-Disposition: attachment; filename="${filename}"`,
+      ``,
+      pdfB64,
+      ``,
+      `--${bnd}--`
+    ].join('\r\n');
+
+    // Base64url del MIME completo (safe para Unicode)
+    const bytes = new TextEncoder().encode(mime);
+    let bin = '';
+    bytes.forEach(b => bin += String.fromCharCode(b));
+    const raw = btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+
+    try {
+      const resp = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + sesion.access_token,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ raw })
+      });
+
+      if (resp.ok) {
+        const toast = document.createElement('div');
+        toast.style.cssText = 'position:fixed;bottom:28px;right:28px;background:#2C7A5A;color:white;padding:14px 20px;border-radius:14px;box-shadow:0 6px 24px rgba(0,0,0,0.18);z-index:9999;display:flex;align-items:center;gap:12px;font-family:inherit;font-size:14px;max-width:380px;';
+        toast.innerHTML = `<span style="font-size:22px">✉️</span><div><div style="font-weight:600;margin-bottom:3px">Email enviado a ${primerNombre}</div><div style="font-size:12px;opacity:0.85">${emailDest}</div></div>`;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 6000);
+      } else {
+        const err = await resp.json().catch(() => ({}));
+        console.error('Gmail API error:', err);
+        if (resp.status === 401 || resp.status === 403) {
+          alert('Sin permiso de Gmail. Cierra sesión, vuelve a entrar y acepta el permiso de email.');
+        } else {
+          alert('Error al enviar: ' + (err.error?.message || resp.status) + '\nEl PDF se descargará.');
+          doc.save(filename);
+        }
+      }
+    } catch(e) {
+      console.error(e);
+      alert('Error de red al enviar el email. El PDF se descargará.');
+      doc.save(filename);
+    }
   }
 
   async function escribirEnHoja(nombreHoja, registros) {
