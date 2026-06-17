@@ -167,7 +167,7 @@
   window.addEventListener('load', function () {
     tokenClient = google.accounts.oauth2.initTokenClient({
       client_id: CLIENT_ID,
-      scope: 'openid email profile https://www.googleapis.com/auth/spreadsheets',
+      scope: 'openid email profile https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/gmail.send',
       callback: handleTokenResponse
     });
   });
