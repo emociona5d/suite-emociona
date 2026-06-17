@@ -998,7 +998,8 @@
         const err = await resp.json().catch(() => ({}));
         console.error('Gmail API error:', err);
         if (resp.status === 401 || resp.status === 403) {
-          alert('Sin permiso de Gmail. Cierra sesión, vuelve a entrar y acepta el permiso de email.');
+          localStorage.removeItem('emociona_gmail_ok'); // forzar re-consent en próximo login
+          alert('Sin permiso de Gmail. Cierra sesión y vuelve a entrar para autorizarlo.');
         } else {
           alert('Error al enviar: ' + (err.error?.message || resp.status) + '\nEl PDF se descargará.');
           doc.save(filename);
