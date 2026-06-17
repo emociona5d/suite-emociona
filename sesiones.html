@@ -927,57 +927,60 @@
   }
 
   async function enviarPorEmail(doc, filename, emailRaw, nombre, tipo, fecha) {
-    const emailDest = (emailRaw || '').trim().replace(/[\r\n\t]/g, '');
+    const emailDest = (emailRaw || '').trim().replace(/[^\x20-\x7E@.]/g, '');
     const primerNombre = nombre.split(' ')[0];
 
     if (!emailDest || !emailDest.includes('@')) {
-      // Sin email: descargar PDF y avisar
       doc.save(filename);
       alert(`${primerNombre} no tiene email registrado. El PDF se ha descargado.`);
       return;
     }
 
+    // Asunto en ASCII puro (sin tildes) para evitar problemas de cabecera MIME
     const asunto = tipo === 'ticket'
-      ? `Tu ticket de venta — Emociona 5D`
-      : `Tu justificante de asistencia — Emociona 5D`;
+      ? 'Tu ticket de venta - Emociona 5D'
+      : 'Tu justificante de asistencia - Emociona 5D';
 
     const cuerpo = tipo === 'ticket'
-      ? `Hola ${primerNombre},\n\nAdjuntamos tu ticket de venta de la sesión de ecografía en Emociona 5D.\n\n¡Muchas gracias por tu visita! Ha sido un placer acompañaros.\n\nEmociona 5D\nwww.emocionaecografia5d.com\n644 59 38 23`
-      : `Hola ${primerNombre},\n\nAdjuntamos tu justificante de asistencia a la ecografía del ${fecha}.\n\n¡Ha sido un placer acompañaros! Hasta pronto.\n\nEmociona 5D\nwww.emocionaecografia5d.com\n644 59 38 23`;
+      ? `Hola ${primerNombre},\r\n\r\nAdjuntamos tu ticket de venta de la sesion de ecografia en Emociona 5D.\r\n\r\nMuchas gracias por tu visita!\r\n\r\nEmociona 5D\r\nwww.emocionaecografia5d.com\r\n644 59 38 23`
+      : `Hola ${primerNombre},\r\n\r\nAdjuntamos tu justificante de asistencia a la ecografia del ${fecha}.\r\n\r\nHasta pronto!\r\n\r\nEmociona 5D\r\nwww.emocionaecografia5d.com\r\n644 59 38 23`;
+
+    // Codificar cuerpo como base64 puro ASCII
+    const u8 = new TextEncoder().encode(cuerpo);
+    let bodyBin = '';
+    for (let i = 0; i < u8.length; i++) bodyBin += String.fromCharCode(u8[i]);
+    const cuerpoB64 = btoa(bodyBin);
 
     // PDF → base64
     const pdfB64 = doc.output('datauristring').split(',')[1];
 
-    // Construir mensaje MIME
+    // MIME 100% ASCII (cuerpo y PDF en base64, asunto sin tildes)
     const bnd = 'emociona5d_' + Date.now();
     const mime = [
-      `From: Emociona 5D <emocionaecografia5d@gmail.com>`,
+      'MIME-Version: 1.0',
+      'From: emocionaecografia5d@gmail.com',
       `To: ${emailDest}`,
       `Subject: ${asunto}`,
-      `MIME-Version: 1.0`,
       `Content-Type: multipart/mixed; boundary="${bnd}"`,
-      ``,
+      '',
       `--${bnd}`,
-      `Content-Type: text/plain; charset=UTF-8`,
-      `Content-Transfer-Encoding: quoted-printable`,
-      ``,
-      cuerpo,
-      ``,
+      'Content-Type: text/plain; charset=UTF-8',
+      'Content-Transfer-Encoding: base64',
+      '',
+      cuerpoB64,
+      '',
       `--${bnd}`,
-      `Content-Type: application/pdf`,
-      `Content-Transfer-Encoding: base64`,
+      `Content-Type: application/pdf; name="${filename}"`,
+      'Content-Transfer-Encoding: base64',
       `Content-Disposition: attachment; filename="${filename}"`,
-      ``,
+      '',
       pdfB64,
-      ``,
-      `--${bnd}--`
+      '',
+      `--${bnd}--`,
     ].join('\r\n');
 
-    // Base64url del MIME completo (safe para Unicode)
-    const bytes = new TextEncoder().encode(mime);
-    let bin = '';
-    bytes.forEach(b => bin += String.fromCharCode(b));
-    const raw = btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+    // MIME es 100% ASCII → btoa directo
+    const raw = btoa(mime).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 
     try {
       const resp = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
