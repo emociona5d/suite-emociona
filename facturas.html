@@ -517,7 +517,12 @@
     });
 
     // Ordenar grupos alfabéticamente
-    gruposFiltrados = Object.values(grupos).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+    // Ordenar por fecha de la sesión más reciente del grupo (cronológico)
+    gruposFiltrados = Object.values(grupos).sort((a, b) => {
+      const tsA = Math.max(...a.sesiones.map(s => parseFecha((s.fila[3]||'').trim())));
+      const tsB = Math.max(...b.sesiones.map(s => parseFecha((s.fila[3]||'').trim())));
+      return tsA - tsB;
+    });
 
     renderGrupos();
   }
