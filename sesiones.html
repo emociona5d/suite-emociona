@@ -592,16 +592,17 @@
     const nombre = ((fila[0]||'') + ' ' + (fila[1]||'')).trim();
     const dni    = (fila[2]||'').trim();
     try {
-      const logoDataUrl = await cargarLogo();
+      const logo = await cargarLogo();
       const nf = await obtenerSiguienteNumeroTicket();
       const nfStr = formatNumero(nf);
-      const doc = construirTicket({ fila, nombre, dni }, nfStr, logoDataUrl);
+      const doc = construirTicket({ fila, nombre, dni }, nfStr, logo);
       doc.save(`Ticket_${nfStr}_${nombre}.pdf`);
       const fecha   = (fila[3]||'').trim();
       const svc     = (fila[10]||'').trim();
       const cobrado = parseFloat((fila[11]||'0').toString().replace(',','.').replace('€','').trim()) || 0;
       const pago    = (fila[12]||'').trim();
       await escribirEnHoja(TICKET_NAME, [[fecha, nfStr, nombre, svc, cobrado.toFixed(2) + ' €', pago]]);
+      mostrarWhatsApp(nombre, fila[16]||'', 'ticket', fecha);
     } catch(e) {
       alert('Error al generar ticket: ' + e.message);
       console.error(e);
@@ -622,7 +623,7 @@
     return `A-${String(n).padStart(4, '0')}`;
   }
 
-  function construirTicket({ fila, nombre }, numeroTicket, logoDataUrl) {
+  function construirTicket({ fila, nombre }, numeroTicket, logo) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     const W = 210, ML = 14, MR = 14;
@@ -643,31 +644,31 @@
     doc.setTextColor(...MORADO);
     doc.text('TICKET DE VENTA', ML, 26);
 
-    // ── LOGO ──
-    if (logoDataUrl) {
-      const fmt = logoDataUrl.startsWith('data:image/png') ? 'PNG'
-                : logoDataUrl.startsWith('data:image/gif') ? 'GIF' : 'JPEG';
-      doc.addImage(logoDataUrl, fmt, W - MR - 56, 6, 56, 35);
+    // ── LOGO (ratio conservado) ──
+    if (logo) {
+      const fmt = logo.dataUrl.startsWith('data:image/png') ? 'PNG'
+                : logo.dataUrl.startsWith('data:image/gif') ? 'GIF' : 'JPEG';
+      const logoW = 52;
+      const logoH = Math.round(logoW * logo.ratio * 10) / 10;
+      doc.addImage(logo.dataUrl, fmt, W - MR - logoW, 5, logoW, logoH);
     }
 
     // ── EMISOR ──
     const ey = 34;
     doc.setFillColor(...GRAY_BOX);
-    doc.rect(ML, ey, 90, 30, 'F');
+    doc.rect(ML, ey, 90, 36, 'F');
     doc.setFontSize(8.5);
     doc.setTextColor(...GRAY);
     const ex = ML + 3;
-    doc.setFont('helvetica', 'bold');
-    doc.text('Isabel ', ex, ey + 7);
     doc.setFont('helvetica', 'normal');
-    doc.text('Zancada Zarcero', ex + doc.getTextWidth('Isabel '), ey + 7);
+    doc.text('Isabel Zancada Zarcero', ex, ey + 7);
     doc.text('NIF 71216423M', ex, ey + 13);
     doc.text('Tlfn. 644593823', ex, ey + 19);
     doc.text("C/ Vicente Aleixandre, 1 'Emprendemérita'", ex, ey + 25);
-    doc.text('06800 Mérida (Badajoz)', ex, ey + 30);
+    doc.text('06800 Mérida (Badajoz)', ex, ey + 31);
 
     // ── BANDA CLIENTE ──
-    const by = ey + 33;
+    const by = ey + 39;
     doc.setFillColor(...SALMON);
     doc.rect(ML, by, W - ML - MR, 8, 'F');
     doc.setFont('helvetica', 'bold');
@@ -783,18 +784,19 @@
     cerrarModalJustif();
     if (!fila) return;
     try {
-      const logoDataUrl = await cargarLogo();
+      const logo = await cargarLogo();
       const fecha = (fila[3]||'').trim();
-      const doc = construirJustificante({ nombre, dni, fecha, hora }, logoDataUrl);
+      const doc = await construirJustificante({ nombre, dni, fecha, hora }, logo);
       doc.save(`Justificante_${nombre.replace(/ /g,'_')}_${fecha.replace(/\//g,'-')}.pdf`);
       await escribirEnHoja(JUSTIF_NAME, [[fecha, nombre, dni, hora]]);
+      mostrarWhatsApp(nombre, fila[16]||'', 'justificante', fecha);
     } catch(e) {
       alert('Error al generar justificante: ' + e.message);
       console.error(e);
     }
   }
 
-  function construirJustificante({ nombre, dni, fecha, hora }, logoDataUrl) {
+  async function construirJustificante({ nombre, dni, fecha, hora }, logo) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     const W = 210, H = 297;
@@ -803,11 +805,34 @@
     const GRAY    = [70, 70, 80];
     const GRAY_LT = [140, 140, 150];
 
-    // ── LOGO CENTRADO ──
-    if (logoDataUrl) {
-      const fmt = logoDataUrl.startsWith('data:image/png') ? 'PNG'
-                : logoDataUrl.startsWith('data:image/gif') ? 'GIF' : 'JPEG';
-      doc.addImage(logoDataUrl, fmt, (W - 72) / 2, 28, 72, 45);
+    // ── FUENTES CORPORATIVAS (con fallback a helvetica) ──
+    const fc = {};
+    const cargarFuente = async (archivo, familia) => {
+      try {
+        const r = await fetch('./' + archivo);
+        if (!r.ok) return;
+        const buf = await r.arrayBuffer();
+        let bin = '';
+        const bytes = new Uint8Array(buf);
+        for (let i = 0; i < bytes.length; i += 8192)
+          bin += String.fromCharCode(...bytes.subarray(i, Math.min(i + 8192, bytes.length)));
+        doc.addFileToVFS(archivo, btoa(bin));
+        doc.addFont(archivo, familia, 'normal');
+        fc[familia] = true;
+      } catch(e) {}
+    };
+    await Promise.all([
+      cargarFuente('Simplicity.ttf', 'Simplicity'),
+      cargarFuente('Quantify.ttf',   'Quantify'),
+    ]);
+
+    // ── LOGO CENTRADO (ratio conservado) ──
+    if (logo) {
+      const fmt = logo.dataUrl.startsWith('data:image/png') ? 'PNG'
+                : logo.dataUrl.startsWith('data:image/gif') ? 'GIF' : 'JPEG';
+      const logoW = 72;
+      const logoH = Math.round(logoW * logo.ratio * 10) / 10;
+      doc.addImage(logo.dataUrl, fmt, (W - logoW) / 2, 28, logoW, logoH);
     }
 
     // ── BANDA TÍTULO ──
@@ -822,7 +847,7 @@
     const campos = [
       { label: 'NOMBRE:', valor: nombre },
       { label: 'DNI:',    valor: dni || '' },
-      { label: 'FECHA',   valor: fecha },
+      { label: 'FECHA:',  valor: fecha },
       { label: 'HORA:',   valor: hora || '' },
     ];
     let cy = 118;
@@ -831,6 +856,7 @@
       doc.setFontSize(11);
       doc.setTextColor(...GRAY);
       doc.text(label, 28, cy);
+      doc.setFont(fc.Simplicity ? 'Simplicity' : 'helvetica', 'normal');
       doc.setFontSize(14);
       doc.setTextColor(30, 30, 40);
       doc.text(valor, 72, cy);
@@ -852,13 +878,17 @@
     doc.setFontSize(8);
     doc.text('www.emocionaecografia5d.com', 12, fb + 9);
 
-    // Centro: slogan itálica + "5D" bold (posiciones fijas)
-    doc.setFont('helvetica', 'italic');
+    // Centro: slogan + "5D" — medir con la fuente activa ANTES de cambiar
+    const sloganText = 'Siente una experiencia única, familiar y ';
+    doc.setFont(fc.Simplicity ? 'Simplicity' : 'helvetica', 'normal');
     doc.setFontSize(10.5);
-    doc.text('Siente una experiencia única, familiar y', 72, fb + 10);
-    doc.setFont('helvetica', 'bold');
+    const sloganW = doc.getTextWidth(sloganText);   // ← medición con fuente correcta
+    const sloganX = 68;
+    doc.text(sloganText, sloganX, fb + 10);
+
+    doc.setFont(fc.Quantify ? 'Quantify' : 'helvetica', fc.Quantify ? 'normal' : 'bold');
     doc.setFontSize(13);
-    doc.text('5D', 185, fb + 10.5);
+    doc.text('5D', sloganX + sloganW, fb + 10.5);  // ← pegado al slogan
 
     // ── PIE CONTACTO ──
     doc.setFont('helvetica', 'normal');
@@ -880,15 +910,44 @@
         const r = await fetch('./' + ext);
         if (r.ok) {
           const blob = await r.blob();
-          return await new Promise(res => {
+          const dataUrl = await new Promise(res => {
             const reader = new FileReader();
             reader.onload = () => res(reader.result);
             reader.readAsDataURL(blob);
           });
+          const ratio = await new Promise(res => {
+            const img = new Image();
+            img.onload  = () => res(img.naturalHeight / img.naturalWidth);
+            img.onerror = () => res(0.65);
+            img.src = dataUrl;
+          });
+          return { dataUrl, ratio };
         }
       } catch(e) {}
     }
     return null;
+  }
+
+  function mostrarWhatsApp(nombre, telefono, tipo, fecha) {
+    let tel = (telefono || '').replace(/\s/g, '').replace(/[^0-9]/g, '');
+    if (!tel) return;
+    tel = tel.replace(/^0034/, '').replace(/^34/, '');
+    tel = '34' + tel;
+    if (tel.length < 11) return;
+    const primerNombre = nombre.split(' ')[0];
+    let msg;
+    if (tipo === 'ticket') {
+      msg = `Hola ${primerNombre}! 🧾 Te enviamos tu ticket de venta de Emociona 5D. ¡Gracias por tu visita!`;
+    } else {
+      msg = `Hola ${primerNombre}! 📋 Te enviamos tu justificante de asistencia a la ecografía del ${fecha}. ¡Hasta pronto!`;
+    }
+    const waUrl = `https://wa.me/${tel}?text=${encodeURIComponent(msg)}`;
+    const toast = document.createElement('div');
+    toast.style.cssText = 'position:fixed;bottom:28px;right:28px;background:#25D366;color:white;padding:14px 20px;border-radius:14px;box-shadow:0 6px 24px rgba(0,0,0,0.18);z-index:9999;display:flex;align-items:center;gap:12px;font-family:inherit;font-size:14px;cursor:pointer;max-width:360px;';
+    toast.innerHTML = `<span style="font-size:22px">💬</span><div><div style="font-weight:600;margin-bottom:3px">Enviar a ${primerNombre} por WhatsApp</div><div style="font-size:12px;opacity:0.85">Clic para abrir el chat</div></div>`;
+    toast.onclick = () => { window.open(waUrl, '_blank'); toast.remove(); };
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 14000);
   }
 
   async function escribirEnHoja(nombreHoja, registros) {
