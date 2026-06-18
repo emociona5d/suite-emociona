@@ -11,23 +11,23 @@
     body { font-family: 'Segoe UI', system-ui, sans-serif; background: #FDF8F4; min-height: 100vh; }
 
     header { background: white; padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 1px 6px rgba(0,0,0,0.06); position: sticky; top: 0; z-index: 100; }
-    .brand { font-size: 14px; font-weight: 300; color: #2C5F6E; letter-spacing: 3px; text-transform: uppercase; }
+    .brand-logo { height: 46px; max-width: 160px; object-fit: contain; display: block; }
     .header-user { display: flex; align-items: center; gap: 10px; }
-    .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: #C8E6E0; object-fit: cover; }
+    .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: #E8C8E3; object-fit: cover; }
     .user-name { font-size: 13px; color: #7A8A8E; }
     .logout-btn { font-size: 12px; color: #9BB5BC; background: none; border: 1px solid #D8E8EB; border-radius: 6px; padding: 4px 12px; cursor: pointer; transition: all 0.2s; font-family: inherit; }
-    .logout-btn:hover { background: #F0F8F9; color: #2C5F6E; }
+    .logout-btn:hover { background: #F9EEF7; color: #A7228C; }
 
     nav { background: white; border-bottom: 1px solid #EEF2F4; padding: 0 28px; display: flex; }
     .nav-tab { padding: 12px 20px; font-size: 13px; color: #9BB5BC; border-bottom: 2px solid transparent; transition: all 0.2s; text-decoration: none; display: block; }
-    .nav-tab.active { color: #2C5F6E; border-bottom-color: #2C5F6E; font-weight: 500; }
+    .nav-tab.active { color: #A7228C; border-bottom-color: #A7228C; font-weight: 500; }
     .nav-tab.disabled { opacity: 0.4; pointer-events: none; }
 
     .main { max-width: 1100px; margin: 28px auto; padding: 0 24px 60px; }
 
     /* ── CABECERA ── */
     .page-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
-    .page-title { font-size: 22px; font-weight: 300; color: #2C5F6E; }
+    .page-title { font-size: 22px; font-weight: 300; color: #A7228C; }
 
     /* ── SELECTOR DE PERÍODO ── */
     .period-bar {
@@ -45,24 +45,24 @@
     }
     .ctrl-input:focus, .ctrl-select:focus { border-color: #5BAA96; }
     .btn-calcular {
-      padding: 8px 22px; background: #2C5F6E; color: white;
+      padding: 8px 22px; background: #A7228C; color: white;
       border: none; border-radius: 8px; font-size: 13px; font-family: inherit;
       cursor: pointer; transition: background 0.2s; font-weight: 500; height: 34px;
     }
     .btn-calcular:hover { background: #234E5C; }
     .btn-pdf {
-      padding: 8px 18px; background: white; color: #2C5F6E;
-      border: 1.5px solid #2C5F6E; border-radius: 8px;
+      padding: 8px 18px; background: white; color: #A7228C;
+      border: 1.5px solid #A7228C; border-radius: 8px;
       font-size: 13px; font-family: inherit; cursor: pointer;
       transition: all 0.2s; font-weight: 500; height: 34px; display: none;
     }
-    .btn-pdf:hover { background: #2C5F6E; color: white; }
+    .btn-pdf:hover { background: #A7228C; color: white; }
 
     /* ── MENSAJES ── */
     .loading-msg { text-align: center; padding: 60px; color: #9BB5BC; font-size: 14px; }
     .empty-state { background: white; border-radius: 16px; padding: 52px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.04); }
     .empty-icon { font-size: 36px; margin-bottom: 12px; }
-    .empty-title { font-size: 17px; color: #2C5F6E; margin-bottom: 8px; }
+    .empty-title { font-size: 17px; color: #A7228C; margin-bottom: 8px; }
     .empty-text { font-size: 14px; color: #9BB5BC; }
     .error-state { background: #FFF8F8; border: 1px solid #F5C6C6; border-radius: 12px; padding: 20px 24px; color: #C0392B; font-size: 14px; line-height: 1.6; }
 
@@ -76,7 +76,7 @@
       box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
     .kpi-label { font-size: 11px; color: #9BB5BC; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
-    .kpi-value { font-size: 26px; font-weight: 300; color: #2C5F6E; line-height: 1.1; }
+    .kpi-value { font-size: 26px; font-weight: 300; color: #A7228C; line-height: 1.1; }
     .kpi-sub { font-size: 12px; color: #9BB5BC; margin-top: 6px; }
     .kpi-delta { font-size: 13px; margin-top: 4px; font-weight: 500; }
     .kpi-delta.positivo { color: #2A8A5A; }
@@ -91,7 +91,7 @@
     }
     .metodo-card.sin-cobrar { border: 1px solid #F5D8C0; background: #FFFAF5; }
     .metodo-nombre { font-size: 11px; color: #9BB5BC; text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 6px; }
-    .metodo-total { font-size: 18px; font-weight: 400; color: #2C5F6E; }
+    .metodo-total { font-size: 18px; font-weight: 400; color: #A7228C; }
     .metodo-count { font-size: 11px; color: #B0BEC5; margin-top: 3px; }
     .metodo-pct { font-size: 11px; color: #5BAA96; font-weight: 500; margin-top: 3px; }
 
@@ -111,7 +111,7 @@
     .stat-table th.right { text-align: right; }
     .stat-table td { padding: 8px 6px 8px 0; border-bottom: 1px solid #F8FAFB; color: #3C4A50; }
     .stat-table td.right { text-align: right; color: #7A8A8E; }
-    .stat-table td.bold { font-weight: 600; color: #2C5F6E; }
+    .stat-table td.bold { font-weight: 600; color: #A7228C; }
     .stat-table tr:last-child td { border-bottom: none; }
 
     /* ── BARRAS HORIZONTALES ── */
@@ -129,7 +129,7 @@
     .chart-bars { display: flex; align-items: flex-end; gap: 6px; height: 130px; padding-bottom: 0; }
     .chart-col { flex: 1; display: flex; flex-direction: column; align-items: center; min-width: 0; }
     .chart-val { font-size: 9px; color: #9BB5BC; margin-bottom: 3px; white-space: nowrap; }
-    .chart-bar-inner { width: 100%; border-radius: 3px 3px 0 0; background: #C8E6E0; min-height: 3px; transition: height 0.5s; }
+    .chart-bar-inner { width: 100%; border-radius: 3px 3px 0 0; background: #E8C8E3; min-height: 3px; transition: height 0.5s; }
     .chart-bar-inner.mayor { background: #5BAA96; }
     .chart-axis { display: flex; gap: 6px; border-top: 1px solid #EEF2F4; margin-top: 0; padding-top: 5px; }
     .chart-mes-label { flex: 1; text-align: center; font-size: 10px; color: #9BB5BC; }
@@ -139,10 +139,10 @@
     .fiscal-card {
       background: white; border-radius: 12px; padding: 18px 20px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-      border-top: 3px solid #C8E6E0;
+      border-top: 3px solid #E8C8E3;
     }
     .fiscal-label { font-size: 11px; color: #9BB5BC; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
-    .fiscal-value { font-size: 22px; font-weight: 300; color: #2C5F6E; }
+    .fiscal-value { font-size: 22px; font-weight: 300; color: #A7228C; }
     .fiscal-sub { font-size: 11px; color: #B0BEC5; margin-top: 4px; }
 
     /* ── PANEL ── */
@@ -159,7 +159,7 @@
 <body>
 
 <header>
-  <div class="brand">Emociona 5D</div>
+  <img class="brand-logo" src="logo-secundario.jpg" alt="Emociona 5D">
   <div class="header-user">
     <img class="user-avatar" id="user-avatar" src="" alt="" onerror="this.style.display='none'">
     <span class="user-name" id="user-name"></span>

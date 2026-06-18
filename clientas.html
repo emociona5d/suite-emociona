@@ -25,17 +25,17 @@
       top: 0;
       z-index: 100;
     }
-    .brand { font-size: 14px; font-weight: 300; color: #2C5F6E; letter-spacing: 3px; text-transform: uppercase; }
+    .brand-logo { height: 46px; max-width: 160px; object-fit: contain; display: block; }
     .header-user { display: flex; align-items: center; gap: 10px; }
-    .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: #C8E6E0; object-fit: cover; }
+    .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: #E8C8E3; object-fit: cover; }
     .user-name { font-size: 13px; color: #7A8A8E; }
     .logout-btn { font-size: 12px; color: #9BB5BC; background: none; border: 1px solid #D8E8EB; border-radius: 6px; padding: 4px 12px; cursor: pointer; transition: all 0.2s; font-family: inherit; }
-    .logout-btn:hover { background: #F0F8F9; color: #2C5F6E; }
+    .logout-btn:hover { background: #F9EEF7; color: #A7228C; }
 
     /* ── NAV ── */
     nav { background: white; border-bottom: 1px solid #EEF2F4; padding: 0 28px; display: flex; }
     .nav-tab { padding: 12px 20px; font-size: 13px; color: #9BB5BC; border-bottom: 2px solid transparent; transition: all 0.2s; text-decoration: none; display: block; }
-    .nav-tab.active { color: #2C5F6E; border-bottom-color: #2C5F6E; font-weight: 500; }
+    .nav-tab.active { color: #A7228C; border-bottom-color: #A7228C; font-weight: 500; }
     .nav-tab.disabled { opacity: 0.4; pointer-events: none; }
 
     /* ── LAYOUT ── */
@@ -59,7 +59,7 @@
       padding: 20px 20px 12px;
       border-bottom: 1px solid #F0F4F5;
     }
-    .lista-header h2 { font-size: 15px; font-weight: 500; color: #2C5F6E; margin-bottom: 12px; }
+    .lista-header h2 { font-size: 15px; font-weight: 500; color: #A7228C; margin-bottom: 12px; }
 
     .search-box {
       position: relative;
@@ -134,7 +134,7 @@
     .ficha-nombre {
       font-size: 24px;
       font-weight: 300;
-      color: #2C5F6E;
+      color: #A7228C;
       margin-bottom: 4px;
     }
     .ficha-sub { font-size: 13px; color: #9BB5BC; margin-bottom: 24px; }
@@ -261,7 +261,7 @@
     .btn-guardar-datos {
       margin-top: 16px;
       padding: 10px 22px;
-      background: #2C5F6E;
+      background: #A7228C;
       color: white;
       border: none;
       border-radius: 8px;
@@ -289,7 +289,7 @@
     /* ── BOTÓN VOLVER (móvil) ── */
     .btn-volver-movil {
       display: none; align-items: center; gap: 6px;
-      font-size: 13px; color: #2C5F6E; background: none; border: none;
+      font-size: 13px; color: #A7228C; background: none; border: none;
       cursor: pointer; font-family: inherit; padding: 0 0 16px; font-weight: 500;
     }
 
@@ -310,7 +310,7 @@
 <body>
 
 <header>
-  <div class="brand">Emociona 5D</div>
+  <img class="brand-logo" src="logo-secundario.jpg" alt="Emociona 5D">
   <div class="header-user">
     <img class="user-avatar" id="user-avatar" src="" alt="" onerror="this.style.display='none'">
     <span class="user-name" id="user-name"></span>

@@ -12,23 +12,23 @@
     body { font-family: 'Segoe UI', system-ui, sans-serif; background: #FDF8F4; min-height: 100vh; }
 
     header { background: white; padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 1px 6px rgba(0,0,0,0.06); position: sticky; top: 0; z-index: 100; }
-    .brand { font-size: 14px; font-weight: 300; color: #2C5F6E; letter-spacing: 3px; text-transform: uppercase; }
+    .brand-logo { height: 46px; max-width: 160px; object-fit: contain; display: block; }
     .header-user { display: flex; align-items: center; gap: 10px; }
-    .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: #C8E6E0; object-fit: cover; }
+    .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: #E8C8E3; object-fit: cover; }
     .user-name { font-size: 13px; color: #7A8A8E; }
     .logout-btn { font-size: 12px; color: #9BB5BC; background: none; border: 1px solid #D8E8EB; border-radius: 6px; padding: 4px 12px; cursor: pointer; transition: all 0.2s; font-family: inherit; }
-    .logout-btn:hover { background: #F0F8F9; color: #2C5F6E; }
+    .logout-btn:hover { background: #F9EEF7; color: #A7228C; }
 
     nav { background: white; border-bottom: 1px solid #EEF2F4; padding: 0 28px; display: flex; }
     .nav-tab { padding: 12px 20px; font-size: 13px; color: #9BB5BC; border-bottom: 2px solid transparent; transition: all 0.2s; text-decoration: none; display: block; }
-    .nav-tab.active { color: #2C5F6E; border-bottom-color: #2C5F6E; font-weight: 500; }
+    .nav-tab.active { color: #A7228C; border-bottom-color: #A7228C; font-weight: 500; }
     .nav-tab.disabled { opacity: 0.4; pointer-events: none; }
 
     .main { max-width: 1100px; margin: 28px auto; padding: 0 24px; }
 
     /* ── CABECERA ── */
     .page-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; flex-wrap: wrap; gap: 12px; }
-    .page-title { font-size: 22px; font-weight: 300; color: #2C5F6E; }
+    .page-title { font-size: 22px; font-weight: 300; color: #A7228C; }
 
     /* ── CONTROLES ── */
     .controles {
@@ -56,7 +56,7 @@
     /* ── STATS ── */
     .stats-bar { display: flex; gap: 20px; margin-bottom: 14px; padding: 0 4px; align-items: center; flex-wrap: wrap; }
     .stat-pill { font-size: 13px; color: #7A8A8E; }
-    .stat-pill strong { color: #2C5F6E; }
+    .stat-pill strong { color: #A7228C; }
 
     /* ── SELECCIÓN MASIVA ── */
     .acciones-top { display: flex; gap: 10px; margin-bottom: 14px; align-items: center; flex-wrap: wrap; }
@@ -65,7 +65,7 @@
       border-radius: 8px; background: white; color: #7A8A8E;
       cursor: pointer; font-family: inherit; transition: all 0.2s;
     }
-    .btn-sel-todo:hover, .btn-limpiar:hover { background: #F0F8F9; border-color: #5BAA96; color: #2C5F6E; }
+    .btn-sel-todo:hover, .btn-limpiar:hover { background: #F9EEF7; border-color: #5BAA96; color: #A7228C; }
 
     /* ── GRUPOS DE CLIENTA ── */
     .grupos-lista { display: flex; flex-direction: column; gap: 12px; padding-bottom: 100px; }
@@ -119,13 +119,13 @@
       z-index: 50;
     }
     .barra-info { font-size: 13px; color: #7A8A8E; }
-    .barra-info strong { color: #2C5F6E; font-size: 15px; }
+    .barra-info strong { color: #A7228C; font-size: 15px; }
     .barra-fecha { display: flex; align-items: center; gap: 8px; }
     .barra-fecha label { font-size: 12px; color: #9BB5BC; }
     .barra-fecha input { font-family: inherit; font-size: 13px; padding: 6px 10px; border: 1.5px solid #E0E8EA; border-radius: 8px; color: #3C4A50; outline: none; }
     .barra-fecha input:focus { border-color: #5BAA96; }
     .btn-generar {
-      padding: 11px 28px; background: #2C5F6E; color: white;
+      padding: 11px 28px; background: #A7228C; color: white;
       border: none; border-radius: 10px; font-size: 14px; font-family: inherit;
       cursor: pointer; transition: background 0.2s; font-weight: 500;
     }
@@ -143,7 +143,7 @@
       background: white; border-radius: 16px; padding: 36px 44px;
       text-align: center; min-width: 320px; box-shadow: 0 8px 32px rgba(0,0,0,0.15);
     }
-    .progreso-titulo { font-size: 16px; font-weight: 500; color: #2C5F6E; margin-bottom: 6px; }
+    .progreso-titulo { font-size: 16px; font-weight: 500; color: #A7228C; margin-bottom: 6px; }
     .progreso-sub { font-size: 13px; color: #9BB5BC; margin-bottom: 20px; }
     .progreso-bar-wrap { background: #EEF2F4; border-radius: 8px; height: 8px; overflow: hidden; margin-bottom: 12px; }
     .progreso-bar { background: #5BAA96; height: 8px; border-radius: 8px; transition: width 0.3s; width: 0; }
@@ -152,19 +152,19 @@
     /* ── EMPTY / ERROR ── */
     .empty-state { background: white; border-radius: 16px; padding: 52px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.04); }
     .empty-icon { font-size: 36px; margin-bottom: 12px; }
-    .empty-title { font-size: 17px; color: #2C5F6E; margin-bottom: 8px; }
+    .empty-title { font-size: 17px; color: #A7228C; margin-bottom: 8px; }
     .empty-text { font-size: 14px; color: #9BB5BC; }
     .error-state { background: #FFF8F8; border: 1px solid #F5C6C6; border-radius: 12px; padding: 20px 24px; color: #C0392B; font-size: 14px; line-height: 1.6; }
     .loading-msg { text-align: center; padding: 40px; color: #9BB5BC; font-size: 14px; }
 
     /* ── BOTÓN INFORME ── */
     .btn-informe {
-      padding: 9px 20px; background: white; color: #2C5F6E;
-      border: 1.5px solid #2C5F6E; border-radius: 10px;
+      padding: 9px 20px; background: white; color: #A7228C;
+      border: 1.5px solid #A7228C; border-radius: 10px;
       font-size: 13px; font-family: inherit; cursor: pointer;
       transition: all 0.2s; font-weight: 500;
     }
-    .btn-informe:hover { background: #2C5F6E; color: white; }
+    .btn-informe:hover { background: #A7228C; color: white; }
 
     /* ── MODAL INFORME ── */
     .modal-overlay {
@@ -178,7 +178,7 @@
       padding: 32px 28px; width: 100%; max-width: 420px;
       box-shadow: 0 8px 32px rgba(0,0,0,0.15);
     }
-    .modal-titulo { font-size: 16px; font-weight: 600; color: #2C5F6E; margin-bottom: 4px; }
+    .modal-titulo { font-size: 16px; font-weight: 600; color: #A7228C; margin-bottom: 4px; }
     .modal-sub { font-size: 13px; color: #9BB5BC; margin-bottom: 20px; }
     .modal-campo { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
     .modal-campo label { font-size: 11px; color: #9BB5BC; text-transform: uppercase; letter-spacing: 0.7px; }
@@ -187,7 +187,7 @@
       border: 1.5px solid #E0E8EA; border-radius: 8px; color: #3C4A50;
       background: white; outline: none;
     }
-    .modal-campo input:focus, .modal-campo select:focus { border-color: #2C5F6E; }
+    .modal-campo input:focus, .modal-campo select:focus { border-color: #A7228C; }
     .modal-fila { display: flex; gap: 12px; }
     .modal-fila .modal-campo { flex: 1; }
     .modal-btns { display: flex; gap: 10px; margin-top: 22px; }
@@ -198,7 +198,7 @@
     }
     .modal-btn-ok {
       flex: 2; padding: 10px; border: none; border-radius: 8px;
-      background: #2C5F6E; color: white; font-size: 13px;
+      background: #A7228C; color: white; font-size: 13px;
       font-family: inherit; cursor: pointer; font-weight: 500;
     }
     .modal-btn-ok:hover { background: #234E5C; }
@@ -208,7 +208,7 @@
 <body>
 
 <header>
-  <div class="brand">Emociona 5D</div>
+  <img class="brand-logo" src="logo-secundario.jpg" alt="Emociona 5D">
   <div class="header-user">
     <img class="user-avatar" id="user-avatar" src="" alt="" onerror="this.style.display='none'">
     <span class="user-name" id="user-name"></span>

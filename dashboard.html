@@ -25,17 +25,17 @@
       top: 0;
       z-index: 100;
     }
-    .brand { font-size: 14px; font-weight: 300; color: #2C5F6E; letter-spacing: 3px; text-transform: uppercase; }
+    .brand-logo { height: 46px; max-width: 160px; object-fit: contain; display: block; }
     .header-user { display: flex; align-items: center; gap: 10px; }
-    .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: #C8E6E0; object-fit: cover; }
+    .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: #E8C8E3; object-fit: cover; }
     .user-name { font-size: 13px; color: #7A8A8E; }
     .logout-btn { font-size: 12px; color: #9BB5BC; background: none; border: 1px solid #D8E8EB; border-radius: 6px; padding: 4px 12px; cursor: pointer; transition: all 0.2s; font-family: inherit; }
-    .logout-btn:hover { background: #F0F8F9; color: #2C5F6E; }
+    .logout-btn:hover { background: #F9EEF7; color: #A7228C; }
 
     /* ── NAV ── */
     nav { background: white; border-bottom: 1px solid #EEF2F4; padding: 0 28px; display: flex; }
     .nav-tab { padding: 12px 20px; font-size: 13px; color: #9BB5BC; border-bottom: 2px solid transparent; transition: all 0.2s; text-decoration: none; display: block; }
-    .nav-tab.active { color: #2C5F6E; border-bottom-color: #2C5F6E; font-weight: 500; }
+    .nav-tab.active { color: #A7228C; border-bottom-color: #A7228C; font-weight: 500; }
     .nav-tab.disabled { opacity: 0.4; pointer-events: none; }
 
     /* ── MAIN ── */
@@ -50,7 +50,7 @@
       flex-wrap: wrap;
       gap: 12px;
     }
-    .page-title { font-size: 22px; font-weight: 300; color: #2C5F6E; }
+    .page-title { font-size: 22px; font-weight: 300; color: #A7228C; }
     .page-date { font-size: 13px; color: #9BB5BC; margin-top: 3px; }
 
     .fecha-selector {
@@ -81,12 +81,12 @@
       font-family: inherit;
       transition: all 0.2s;
     }
-    .btn-hoy:hover { background: #F0F8F9; border-color: #5BAA96; color: #2C5F6E; }
+    .btn-hoy:hover { background: #F9EEF7; border-color: #5BAA96; color: #A7228C; }
 
     /* ── STATS ── */
     .resumen { display: flex; gap: 14px; margin-bottom: 24px; }
     .stat-card { background: white; border-radius: 12px; padding: 16px 22px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); flex: 1; text-align: center; }
-    .stat-number { font-size: 26px; font-weight: 300; color: #2C5F6E; }
+    .stat-number { font-size: 26px; font-weight: 300; color: #A7228C; }
     .stat-label { font-size: 11px; color: #9BB5BC; margin-top: 4px; text-transform: uppercase; letter-spacing: 1px; }
 
     /* ── CITAS ── */
@@ -110,7 +110,7 @@
     }
     .cita-nombre { font-size: 16px; color: #2C3E40; font-weight: 500; }
     .cita-nombre.nombre-link { cursor: pointer; }
-    .cita-nombre.nombre-link:hover { text-decoration: underline; color: #2C5F6E; }
+    .cita-nombre.nombre-link:hover { text-decoration: underline; color: #A7228C; }
     .cita-badges { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
     .badge-repe {
@@ -127,7 +127,7 @@
     .servicio-badge { font-size: 11px; padding: 3px 10px; border-radius: 12px; font-weight: 500; white-space: nowrap; }
 
     .cita-tel { font-size: 13px; color: #7A8A8E; margin-bottom: 16px; }
-    .cita-tel a { color: #2C5F6E; text-decoration: none; }
+    .cita-tel a { color: #A7228C; text-decoration: none; }
     .cita-tel a:hover { text-decoration: underline; }
 
     /* ── ESTADO TOGGLES ── */
@@ -175,7 +175,7 @@
     /* ── EMPTY / ERROR ── */
     .empty-state { background: white; border-radius: 16px; padding: 52px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.04); }
     .empty-icon { font-size: 36px; margin-bottom: 12px; }
-    .empty-title { font-size: 17px; color: #2C5F6E; margin-bottom: 8px; }
+    .empty-title { font-size: 17px; color: #A7228C; margin-bottom: 8px; }
     .empty-text { font-size: 14px; color: #9BB5BC; }
 
     .error-state { background: #FFF8F8; border: 1px solid #F5C6C6; border-radius: 12px; padding: 20px 24px; color: #C0392B; font-size: 14px; line-height: 1.6; }
@@ -186,7 +186,7 @@
 <body>
 
 <header>
-  <div class="brand">Emociona 5D</div>
+  <img class="brand-logo" src="logo-secundario.jpg" alt="Emociona 5D">
   <div class="header-user">
     <img class="user-avatar" id="user-avatar" src="" alt="" onerror="this.style.display='none'">
     <span class="user-name" id="user-name"></span>
