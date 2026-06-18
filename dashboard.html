@@ -109,6 +109,8 @@
       gap: 12px;
     }
     .cita-nombre { font-size: 16px; color: #2C3E40; font-weight: 500; }
+    .cita-nombre.nombre-link { cursor: pointer; }
+    .cita-nombre.nombre-link:hover { text-decoration: underline; color: #2C5F6E; }
     .cita-badges { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
     .badge-repe {
@@ -388,7 +390,7 @@
 
       card.innerHTML = `
         <div class="cita-top">
-          <a class="cita-nombre" href="clientas.html?buscar=${encodeURIComponent(telefono || nombre)}" style="text-decoration:none;">${nombre}</a>
+          <div class="cita-nombre nombre-link" onclick="window.location.href='clientas.html?buscar=${encodeURIComponent(telefono || nombre)}'" title="Ver ficha de clienta">${nombre}</div>
           <div class="cita-badges">
             ${esRepe ? '<span class="badge-repe">Repetición</span>' : ''}
             ${servicio ? `<span class="servicio-badge" style="background:${svcColor.bg};color:${svcColor.color}">${servicio}</span>` : ''}
