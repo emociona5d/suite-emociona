@@ -405,6 +405,30 @@
       });
 
       renderLista(clientasOrdenadas);
+
+      // Auto-seleccionar clienta si viene ?buscar= en la URL
+      const urlParam = new URLSearchParams(window.location.search).get('buscar');
+      if (urlParam) {
+        // Buscar por teléfono exacto primero, luego por nombre completo
+        let clave = clientasOrdenadas.find(k => k === urlParam);
+        if (!clave) {
+          clave = clientasOrdenadas.find(k => {
+            const f = clientasMap[k].datosFila;
+            return ((f[0]||'') + ' ' + (f[1]||'')).trim().toLowerCase() === urlParam.toLowerCase();
+          });
+        }
+        if (clave) {
+          // Rellenar búsqueda y mostrar solo esa clienta
+          document.getElementById('busqueda').value = urlParam;
+          filtrarLista();
+          // Esperar a que el DOM se actualice y abrir la ficha
+          setTimeout(() => {
+            const el = document.querySelector(`.cliente-item[data-clave="${CSS.escape(clave)}"]`);
+            abrirFicha(clave, el || null);
+          }, 50);
+        }
+      }
+
     } catch(e) {
       document.getElementById('lista-scroll').innerHTML = `<div class="error-msg">Error al cargar: ${e.message}</div>`;
     }
@@ -443,6 +467,7 @@
           ${tel ? `<span>📞 ${tel}</span>` : ''}
           <span class="badge-sesiones">${nSesiones} sesión${nSesiones !== 1 ? 'es' : ''}</span>
         </div>`;
+      div.dataset.clave = clave;
       div.onclick = () => abrirFicha(clave, div);
       scroll.appendChild(div);
     });

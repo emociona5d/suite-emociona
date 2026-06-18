@@ -388,7 +388,7 @@
 
       card.innerHTML = `
         <div class="cita-top">
-          <div class="cita-nombre">${nombre}</div>
+          <a class="cita-nombre" href="clientas.html?buscar=${encodeURIComponent(telefono || nombre)}" style="text-decoration:none;">${nombre}</a>
           <div class="cita-badges">
             ${esRepe ? '<span class="badge-repe">Repetición</span>' : ''}
             ${servicio ? `<span class="servicio-badge" style="background:${svcColor.bg};color:${svcColor.color}">${servicio}</span>` : ''}

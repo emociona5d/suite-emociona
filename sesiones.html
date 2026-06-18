@@ -129,6 +129,8 @@
     .td-fecha { white-space: nowrap; color: #7A8A8E; font-size: 12px; }
     .td-nombre { font-weight: 500; color: #2C3E40; }
     .td-apellidos { color: #6A7A80; font-weight: 400; }
+    .nombre-link { color: inherit; text-decoration: none; }
+    .nombre-link:hover { text-decoration: underline; color: #2C5F6E; }
 
     .servicio-badge {
       font-size: 11px;
@@ -504,6 +506,7 @@
       const servicio = (fila[10] || '').trim();
       const importe  = (fila[11] || '').toString().trim();
       const cobrado  = (fila[12] || '').trim();
+      const telefono = (fila[16] || '').trim();
       const ecoOK    = fila[6] || '';
       const editada  = fila[7] || '';
       const whatsapp = fila[8] || '';
@@ -515,7 +518,7 @@
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td class="td-fecha">${fecha}</td>
-        <td class="td-nombre">${nombre} <span class="td-apellidos">${apellidos}</span></td>
+        <td class="td-nombre"><a class="nombre-link" href="clientas.html?buscar=${encodeURIComponent(telefono || (nombre + ' ' + apellidos).trim())}">${nombre}</a> <span class="td-apellidos">${apellidos}</span></td>
         <td>${servicio ? `<span class="servicio-badge" style="background:${svcColor.bg};color:${svcColor.color}">${servicio}</span>` : ''}</td>
         <td class="td-toggle">${toggleBtn('G', sheetRow, ecoOK, '📷')}</td>
         <td class="td-toggle">${toggleBtn('H', sheetRow, editada, '✏️')}</td>
