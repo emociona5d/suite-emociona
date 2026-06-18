@@ -1,6 +1,6 @@
 {
   "name": "Emociona 5D",
-  "short_name": "Emociona",
+  "short_name": "Emociona 5D",
   "description": "Suite de gestión interna Emociona 5D",
   "start_url": "./index.html",
   "display": "standalone",
@@ -11,13 +11,13 @@
       "src": "silueta.jpg",
       "sizes": "192x192",
       "type": "image/jpeg",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "silueta.jpg",
       "sizes": "512x512",
       "type": "image/jpeg",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ]
 }
