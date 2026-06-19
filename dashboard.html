@@ -371,11 +371,11 @@
         c.esRepe = (c.fila[5] || '').trim() === fechaStr && (c.fila[3] || '').trim() !== fechaStr;
       });
 
-      // Ordenar por hora del calendario; si no hay datos, por fila de hoja
-      if (calHoy.length) {
+      // Ordenar por hora del calendario cruzando por teléfono; fallback: orden de fila
+      const calMap = buildCalMap(calHoy);
+      if (Object.keys(calMap).length) {
         citas.forEach(c => {
-          const ev = matchCalEvent(c.fila, calHoy);
-          c._calTime = ev ? new Date(ev.start.dateTime || ev.start.date).getTime() : Infinity;
+          c._calTime = getCalTime(c.fila, calMap) ?? Infinity;
         });
         citas.sort((a, b) => a._calTime - b._calTime);
       } else {
@@ -502,20 +502,29 @@
 
   // ── CALENDAR ──
   function normStr(s) {
-    return (s || '').toLowerCase()
-      .normalize('NFD').replace(/[̀-ͯ]/g, '')
-      .replace(/[^a-z0-9 ]/g, ' ').trim();
+    return (s || '').toLowerCase().trim();
   }
 
-  function matchCalEvent(fila, eventos) {
-    const nombre    = normStr(fila[0]);
-    const apellidos = normStr(fila[1] || '');
-    return eventos.find(ev => {
-      const sum = normStr(ev.summary || '');
-      if (nombre.length >= 3 && sum.includes(nombre)) return true;
-      if (apellidos) return apellidos.split(' ').some(ap => ap.length >= 4 && sum.includes(ap));
-      return false;
-    }) || null;
+  // Construye un mapa teléfono (últimos 9 dígitos) → evento de Calendar
+  function buildCalMap(eventos) {
+    const map = {};
+    eventos.forEach(ev => {
+      const desc = (ev.description || '').replace(/<[^>]+>/g, ' ');
+      const m = desc.match(/\d[\d\s\-\.]{8,}/);
+      if (!m) return;
+      const tel = m[0].replace(/\D/g, '').slice(-9);
+      if (tel) map[tel] = ev;
+    });
+    return map;
+  }
+
+  // Devuelve el timestamp de inicio del evento que corresponde a esta fila (por teléfono)
+  function getCalTime(fila, calMap) {
+    const tel = (fila[16] || '').replace(/\D/g, '').slice(-9);
+    if (!tel) return null;
+    const ev = calMap[tel];
+    if (!ev) return null;
+    return new Date(ev.start.dateTime || ev.start.date).getTime();
   }
 
   async function fetchCalEvents(token, desde, hasta) {
