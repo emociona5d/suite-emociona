@@ -358,11 +358,6 @@
           esRepe: (fila[5] || '').trim() === fechaStr && (fila[3] || '').trim() !== fechaStr
         }));
 
-      // Eventos de Calendar de hoy (para ordenar por hora)
-      const inicioDia = new Date(fechaActiva.getFullYear(), fechaActiva.getMonth(), fechaActiva.getDate());
-      const finDia    = new Date(inicioDia.getTime() + 86400000);
-      const calHoy    = await fetchCalEvents(sesion.access_token, inicioDia, finDia);
-
       // Auto-rellenar Fecha Repe: busca eventos "repe" en Calendar, cruza por teléfono
       await actualizarFechasRepe(filas, sesion.access_token);
 
@@ -371,16 +366,8 @@
         c.esRepe = (c.fila[5] || '').trim() === fechaStr && (c.fila[3] || '').trim() !== fechaStr;
       });
 
-      // Ordenar por hora del calendario cruzando por teléfono; fallback: orden de fila
-      const calMap = buildCalMap(calHoy);
-      if (Object.keys(calMap).length) {
-        citas.forEach(c => {
-          c._calTime = getCalTime(c.fila, calMap) ?? Infinity;
-        });
-        citas.sort((a, b) => a._calTime - b._calTime);
-      } else {
-        citas.sort((a, b) => a.sheetRow - b.sheetRow);
-      }
+      // Ordenar por fila de hoja
+      citas.sort((a, b) => a.sheetRow - b.sheetRow);
 
       renderCitas(citas);
     } catch(e) {
@@ -505,27 +492,6 @@
     return (s || '').toLowerCase().trim();
   }
 
-  // Construye un mapa teléfono (últimos 9 dígitos) → evento de Calendar
-  function buildCalMap(eventos) {
-    const map = {};
-    eventos.forEach(ev => {
-      const desc = (ev.description || '').replace(/<[^>]+>/g, ' ');
-      const m = desc.match(/\d[\d\s\-\.]{8,}/);
-      if (!m) return;
-      const tel = m[0].replace(/\D/g, '').slice(-9);
-      if (tel) map[tel] = ev;
-    });
-    return map;
-  }
-
-  // Devuelve el timestamp de inicio del evento que corresponde a esta fila (por teléfono)
-  function getCalTime(fila, calMap) {
-    const tel = (fila[16] || '').replace(/\D/g, '').slice(-9);
-    if (!tel) return null;
-    const ev = calMap[tel];
-    if (!ev) return null;
-    return new Date(ev.start.dateTime || ev.start.date).getTime();
-  }
 
   async function fetchCalEvents(token, desde, hasta) {
     try {
