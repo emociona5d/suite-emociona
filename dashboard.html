@@ -358,10 +358,10 @@
           esRepe: (fila[5] || '').trim() === fechaStr && (fila[3] || '').trim() !== fechaStr
         }));
 
-      // Auto-rellenar Fecha Repe: busca eventos "repe" en Calendar, cruza por teléfono
-      await actualizarFechasRepe(filas, sesion.access_token);
+      // Fecha Repe la escribe n8n automáticamente cada día a las 20:00 — no hacer aquí
+      // await actualizarFechasRepe(filas, sesion.access_token);
 
-      // Re-evaluar esRepe tras posible actualización de Fecha Repe
+      // Re-evaluar esRepe
       citas.forEach(c => {
         c.esRepe = (c.fila[5] || '').trim() === fechaStr && (c.fila[3] || '').trim() !== fechaStr;
       });
