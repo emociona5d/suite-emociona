@@ -358,12 +358,29 @@
           esRepe: (fila[5] || '').trim() === fechaStr && (fila[3] || '').trim() !== fechaStr
         }));
 
-      // Ordenar cronológicamente: primera cita del día arriba
-      citas.sort((a, b) => {
-        const ra = parseInt((a.fila[3]||'').split('/')[0]) || 0;
-        const rb = parseInt((b.fila[3]||'').split('/')[0]) || 0;
-        return ra - rb;
+      // Eventos de Calendar de hoy (para ordenar por hora)
+      const inicioDia = new Date(fechaActiva.getFullYear(), fechaActiva.getMonth(), fechaActiva.getDate());
+      const finDia    = new Date(inicioDia.getTime() + 86400000);
+      const calHoy    = await fetchCalEvents(sesion.access_token, inicioDia, finDia);
+
+      // Auto-rellenar Fecha Repe: busca eventos "repe" en Calendar, cruza por teléfono
+      await actualizarFechasRepe(filas, sesion.access_token);
+
+      // Re-evaluar esRepe tras posible actualización de Fecha Repe
+      citas.forEach(c => {
+        c.esRepe = (c.fila[5] || '').trim() === fechaStr && (c.fila[3] || '').trim() !== fechaStr;
       });
+
+      // Ordenar por hora del calendario; si no hay datos, por fila de hoja
+      if (calHoy.length) {
+        citas.forEach(c => {
+          const ev = matchCalEvent(c.fila, calHoy);
+          c._calTime = ev ? new Date(ev.start.dateTime || ev.start.date).getTime() : Infinity;
+        });
+        citas.sort((a, b) => a._calTime - b._calTime);
+      } else {
+        citas.sort((a, b) => a.sheetRow - b.sheetRow);
+      }
 
       renderCitas(citas);
     } catch(e) {
@@ -481,6 +498,89 @@
 
     document.getElementById('contenido').innerHTML = '';
     document.getElementById('contenido').appendChild(lista);
+  }
+
+  // ── CALENDAR ──
+  function normStr(s) {
+    return (s || '').toLowerCase()
+      .normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-z0-9 ]/g, ' ').trim();
+  }
+
+  function matchCalEvent(fila, eventos) {
+    const nombre    = normStr(fila[0]);
+    const apellidos = normStr(fila[1] || '');
+    return eventos.find(ev => {
+      const sum = normStr(ev.summary || '');
+      if (nombre.length >= 3 && sum.includes(nombre)) return true;
+      if (apellidos) return apellidos.split(' ').some(ap => ap.length >= 4 && sum.includes(ap));
+      return false;
+    }) || null;
+  }
+
+  async function fetchCalEvents(token, desde, hasta) {
+    try {
+      const params = new URLSearchParams({
+        timeMin: desde.toISOString(),
+        timeMax: hasta.toISOString(),
+        singleEvents: 'true',
+        orderBy: 'startTime',
+        maxResults: '100'
+      });
+      const resp = await fetch(
+        `https://www.googleapis.com/calendar/v3/calendars/primary/events?${params}`,
+        { headers: { Authorization: 'Bearer ' + token } }
+      );
+      if (!resp.ok) return [];
+      const data = await resp.json();
+      return (data.items || []).filter(ev => ev.start);
+    } catch(e) { return []; }
+  }
+
+  // Busca eventos futuros con "repe" en el título, cruza por teléfono y escribe columna F
+  async function actualizarFechasRepe(todasFilas, token) {
+    const ahora = new Date();
+    const en90  = new Date(ahora.getTime() + 42 * 86400000); // 6 semanas
+    const eventos = await fetchCalEvents(token, ahora, en90);
+
+    // Solo eventos que tengan "repe" en el título
+    const repes = eventos.filter(ev => normStr(ev.summary || '').includes('repe'));
+    if (!repes.length) return;
+
+    for (const ev of repes) {
+      // Extraer teléfono de la descripción del evento (secuencia de 9+ dígitos)
+      const desc = (ev.description || '').replace(/<[^>]+>/g, ' '); // quitar HTML
+      const telMatch = desc.match(/\d[\d\s\-\.]{8,}/);
+      if (!telMatch) continue;
+      const telEvento = telMatch[0].replace(/\D/g, '').slice(-9); // últimos 9 dígitos
+
+      // Buscar fila de la hoja con ese teléfono
+      const idx = todasFilas.findIndex(fila => {
+        const tel = (fila[16] || '').replace(/\D/g, '').slice(-9);
+        return tel && tel === telEvento;
+      });
+      if (idx === -1) continue;
+
+      const fila = todasFilas[idx];
+      if ((fila[5] || '').trim()) continue; // ya tiene Fecha Repe, no sobreescribir
+
+      const d = new Date(ev.start.dateTime || ev.start.date);
+      const fechaRepe = `${d.getDate()}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+      const sheetRow  = idx + 2; // +1 por índice 0, +1 por cabecera
+
+      try {
+        const range = encodeURIComponent(`'${SHEET_NAME}'!F${sheetRow}`);
+        await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}?valueInputOption=USER_ENTERED`,
+          {
+            method: 'PUT',
+            headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ values: [[fechaRepe]] })
+          }
+        );
+        fila[5] = fechaRepe; // actualizar en memoria
+      } catch(e) { /* ignorar silenciosamente */ }
+    }
   }
 
   // ── TOGGLES ──
