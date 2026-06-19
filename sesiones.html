@@ -227,6 +227,19 @@
       border: none; border-radius: 8px; font-family: inherit; font-size: 13px; cursor: pointer; font-weight: 500;
     }
     .modal-btn-ok:hover { background: #8A1A6B; }
+
+    @media (max-width: 768px) {
+      nav { overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 0 8px; }
+      .nav-tab { padding: 12px 12px; font-size: 12px; white-space: nowrap; }
+      .main { padding: 0 10px; margin: 14px auto; }
+      .filtros { gap: 8px; padding: 12px 14px; }
+      .filtros input[type="search"] { width: 100%; font-size: 15px; }
+      .filtros select { font-size: 15px; }
+      table { font-size: 14px; }
+      th { font-size: 12px; padding: 10px 10px; }
+      td { padding: 10px 10px; font-size: 14px; }
+      .stat-pill { font-size: 14px; }
+    }
   </style>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="silueta.jpg">
@@ -365,7 +378,7 @@
         .filter(({ fila }) => fila[3]); // solo filas con fecha
 
       // Ordenar por fecha descendente
-      todasLasFilas.sort((a, b) => parseFecha(b.fila[3]) - parseFecha(a.fila[3]));
+      todasLasFilas.sort((a, b) => parseFecha(a.fila[3]) - parseFecha(b.fila[3]));
 
       poblarFiltroMes();
       aplicarFiltros();
