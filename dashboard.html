@@ -358,6 +358,13 @@
           esRepe: (fila[5] || '').trim() === fechaStr && (fila[3] || '').trim() !== fechaStr
         }));
 
+      // Ordenar cronológicamente: primera cita del día arriba
+      citas.sort((a, b) => {
+        const ra = parseInt((a.fila[3]||'').split('/')[0]) || 0;
+        const rb = parseInt((b.fila[3]||'').split('/')[0]) || 0;
+        return ra - rb;
+      });
+
       renderCitas(citas);
     } catch(e) {
       document.getElementById('contenido').innerHTML = `<div class="error-state"><strong>Error al cargar:</strong> ${e.message}<br>Prueba a cerrar sesión y volver a entrar.</div>`;
