@@ -108,7 +108,7 @@
       margin-bottom: 14px;
       gap: 12px;
     }
-    .cita-nombre { font-size: 16px; color: #2C3E40; font-weight: 500; }
+    .cita-nombre { font-size: 18px; color: #2C3E40; font-weight: 500; }
     .cita-nombre.nombre-link { cursor: pointer; }
     .cita-nombre.nombre-link:hover { text-decoration: underline; color: #A7228C; }
     .cita-badges { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -134,8 +134,8 @@
     .estado-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
     .estado-btn {
       display: inline-flex; align-items: center; gap: 5px;
-      padding: 6px 12px; border-radius: 8px; border: 1.5px solid #E0E8EA;
-      background: white; font-size: 12px; color: #9BB5BC;
+      padding: 8px 14px; border-radius: 8px; border: 1.5px solid #E0E8EA;
+      background: white; font-size: 13px; color: #7A8A8E;
       cursor: pointer; transition: all 0.18s; font-family: inherit;
     }
     .estado-btn.activo { background: #E8F5F2; border-color: #5BAA96; color: #2C7A68; font-weight: 500; }
@@ -153,15 +153,15 @@
     .campo-grupo { display: flex; flex-direction: column; gap: 4px; }
     .campo-grupo.ancho-completo { grid-column: 1 / -1; }
 
-    .campo-label { font-size: 11px; color: #9BB5BC; text-transform: uppercase; letter-spacing: 0.8px; }
+    .campo-label { font-size: 12px; color: #6A7A80; text-transform: uppercase; letter-spacing: 0.8px; }
 
     .campo-input, .campo-select {
       font-family: inherit;
-      font-size: 13px;
-      padding: 8px 10px;
+      font-size: 15px;
+      padding: 9px 11px;
       border: 1.5px solid #E0E8EA;
       border-radius: 8px;
-      color: #3C4A50;
+      color: #2C3E40;
       background: white;
       outline: none;
       transition: border-color 0.2s;
@@ -181,6 +181,21 @@
     .error-state { background: #FFF8F8; border: 1px solid #F5C6C6; border-radius: 12px; padding: 20px 24px; color: #C0392B; font-size: 14px; line-height: 1.6; }
 
     .loading-msg { text-align: center; padding: 40px; color: #9BB5BC; font-size: 14px; }
+
+    @media (max-width: 768px) {
+      nav { overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 0 8px; }
+      .nav-tab { padding: 12px 12px; font-size: 12px; white-space: nowrap; }
+      .main { margin: 16px auto; padding: 0 12px; }
+      .cita-card { padding: 16px 16px; }
+      .cita-nombre { font-size: 19px; }
+      .cita-tel { font-size: 15px; }
+      .estado-btn { font-size: 14px; padding: 10px 14px; }
+      .campo-label { font-size: 13px; }
+      .campo-input, .campo-select { font-size: 16px; padding: 11px 12px; }
+      .resumen { gap: 8px; }
+      .stat-number { font-size: 22px; }
+      .stat-label { font-size: 12px; }
+    }
   </style>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="silueta.jpg">
