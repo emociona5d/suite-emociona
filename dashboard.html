@@ -195,7 +195,111 @@
       .resumen { gap: 8px; }
       .stat-number { font-size: 22px; }
       .stat-label { font-size: 12px; }
+      .modal { padding: 20px 16px; }
+      .modal-grid { grid-template-columns: 1fr; }
+      .modal-campo.ancho-completo { grid-column: 1; }
     }
+
+    /* ── BOTÓN COBRO ANTICIPADO ── */
+    .btn-cobro-anticipado {
+      font-size: 13px;
+      padding: 8px 16px;
+      border: 1.5px solid #A7228C;
+      border-radius: 8px;
+      background: #A7228C;
+      color: white;
+      cursor: pointer;
+      font-family: inherit;
+      font-weight: 500;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .btn-cobro-anticipado:hover { background: #8A1A74; border-color: #8A1A74; }
+
+    /* ── MODAL ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-overlay.visible { display: flex; }
+    .modal {
+      background: white;
+      border-radius: 16px;
+      padding: 28px;
+      width: 100%;
+      max-width: 520px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.18);
+    }
+    .modal-titulo {
+      font-size: 18px;
+      font-weight: 500;
+      color: #A7228C;
+      margin-bottom: 20px;
+    }
+    .modal-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .modal-campo { display: flex; flex-direction: column; gap: 5px; }
+    .modal-campo.ancho-completo { grid-column: 1 / -1; }
+    .modal-label { font-size: 12px; color: #6A7A80; text-transform: uppercase; letter-spacing: 0.8px; }
+    .modal-input, .modal-select {
+      font-family: inherit;
+      font-size: 15px;
+      padding: 9px 11px;
+      border: 1.5px solid #E0E8EA;
+      border-radius: 8px;
+      color: #2C3E40;
+      background: white;
+      outline: none;
+      transition: border-color 0.2s;
+      width: 100%;
+    }
+    .modal-input:focus, .modal-select:focus { border-color: #5BAA96; }
+    .modal-input.error, .modal-select.error { border-color: #E05A4E; }
+    .modal-acciones {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      margin-top: 8px;
+    }
+    .btn-cancelar {
+      font-size: 14px;
+      padding: 9px 20px;
+      border: 1.5px solid #E0E8EA;
+      border-radius: 8px;
+      background: white;
+      color: #7A8A8E;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+    .btn-cancelar:hover { background: #F5F8F9; }
+    .btn-guardar-cobro {
+      font-size: 14px;
+      padding: 9px 24px;
+      border: none;
+      border-radius: 8px;
+      background: #A7228C;
+      color: white;
+      cursor: pointer;
+      font-family: inherit;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    .btn-guardar-cobro:hover { background: #8A1A74; }
+    .btn-guardar-cobro:disabled { opacity: 0.5; cursor: wait; }
+    .modal-msg-error { font-size: 13px; color: #C0392B; min-height: 18px; margin-bottom: 4px; }
   </style>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="silueta.jpg">
@@ -227,10 +331,13 @@
       <div class="page-title" id="page-title">Citas de hoy</div>
       <div class="page-date" id="page-date"></div>
     </div>
-    <div class="fecha-selector">
-      <label>Ver otro día:</label>
-      <input type="date" id="selector-fecha" onchange="cambiarFecha()">
-      <button class="btn-hoy" onclick="volverAHoy()">Hoy</button>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <div class="fecha-selector">
+        <label>Ver otro día:</label>
+        <input type="date" id="selector-fecha" onchange="cambiarFecha()">
+        <button class="btn-hoy" onclick="volverAHoy()">Hoy</button>
+      </div>
+      <button class="btn-cobro-anticipado" onclick="abrirModalCobroAnticipado()">+ Cobro anticipado</button>
     </div>
   </div>
 
@@ -253,6 +360,70 @@
     <div class="loading-msg">Cargando citas...</div>
   </div>
 
+</div>
+
+<!-- ── MODAL COBRO ANTICIPADO ── -->
+<div class="modal-overlay" id="modal-cobro-anticipado">
+  <div class="modal">
+    <div class="modal-titulo">💳 Cobro anticipado</div>
+    <div class="modal-grid">
+      <div class="modal-campo">
+        <div class="modal-label">Nombre *</div>
+        <input class="modal-input" id="ca-nombre" type="text" placeholder="Nombre">
+      </div>
+      <div class="modal-campo">
+        <div class="modal-label">Apellidos *</div>
+        <input class="modal-input" id="ca-apellidos" type="text" placeholder="Apellidos">
+      </div>
+      <div class="modal-campo">
+        <div class="modal-label">Fecha cita *</div>
+        <input class="modal-input" id="ca-fecha" type="date">
+      </div>
+      <div class="modal-campo">
+        <div class="modal-label">Sesión *</div>
+        <select class="modal-select" id="ca-sesion">
+          <option value="">— Elegir sesión —</option>
+          <option>Ecoconfirmación</option>
+          <option>Ecosexo</option>
+          <option>Ecosexo Emociona</option>
+          <option>Ecobasic</option>
+          <option>Ecobasic Plus</option>
+          <option>Ecoemociona</option>
+        </select>
+      </div>
+      <div class="modal-campo">
+        <div class="modal-label">Importe (€) *</div>
+        <input class="modal-input" id="ca-importe" type="text" placeholder="0,00">
+      </div>
+      <div class="modal-campo">
+        <div class="modal-label">Método de pago *</div>
+        <select class="modal-select" id="ca-metodo">
+          <option value="">— Elegir método —</option>
+          <option>Efectivo</option>
+          <option>Tarjeta</option>
+          <option>Bizum</option>
+          <option>Web</option>
+        </select>
+      </div>
+      <div class="modal-campo">
+        <div class="modal-label">Teléfono</div>
+        <input class="modal-input" id="ca-telefono" type="tel" placeholder="600 000 000">
+      </div>
+      <div class="modal-campo">
+        <div class="modal-label">Email</div>
+        <input class="modal-input" id="ca-email" type="email" placeholder="correo@ejemplo.com">
+      </div>
+      <div class="modal-campo ancho-completo">
+        <div class="modal-label">Observaciones</div>
+        <input class="modal-input" id="ca-obs" type="text" placeholder="Notas libres...">
+      </div>
+    </div>
+    <div class="modal-msg-error" id="ca-error"></div>
+    <div class="modal-acciones">
+      <button class="btn-cancelar" onclick="cerrarModalCobroAnticipado()">Cancelar</button>
+      <button class="btn-guardar-cobro" id="ca-btn-guardar" onclick="guardarCobroAnticipado()">Guardar</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -635,6 +806,110 @@
   function logout() {
     sessionStorage.removeItem('emociona_session');
     window.location.href = 'index.html';
+  }
+
+  // ── MODAL COBRO ANTICIPADO ──
+  function abrirModalCobroAnticipado() {
+    // Pre-rellenar la fecha con la fecha activa del dashboard
+    document.getElementById('ca-fecha').value = formatoInput(fechaActiva);
+    // Limpiar campos y errores
+    ['ca-nombre','ca-apellidos','ca-importe','ca-telefono','ca-email','ca-obs'].forEach(id => {
+      document.getElementById(id).value = '';
+      document.getElementById(id).classList.remove('error');
+    });
+    document.getElementById('ca-sesion').value = '';
+    document.getElementById('ca-metodo').value = '';
+    document.getElementById('ca-sesion').classList.remove('error');
+    document.getElementById('ca-metodo').classList.remove('error');
+    document.getElementById('ca-error').textContent = '';
+    document.getElementById('ca-btn-guardar').disabled = false;
+    document.getElementById('modal-cobro-anticipado').classList.add('visible');
+  }
+
+  function cerrarModalCobroAnticipado() {
+    document.getElementById('modal-cobro-anticipado').classList.remove('visible');
+  }
+
+  // Cerrar al hacer clic fuera del modal
+  document.getElementById('modal-cobro-anticipado').addEventListener('click', function(e) {
+    if (e.target === this) cerrarModalCobroAnticipado();
+  });
+
+  async function guardarCobroAnticipado() {
+    const nombre    = document.getElementById('ca-nombre').value.trim();
+    const apellidos = document.getElementById('ca-apellidos').value.trim();
+    const fechaVal  = document.getElementById('ca-fecha').value;
+    const sesion_   = document.getElementById('ca-sesion').value;
+    const importe   = document.getElementById('ca-importe').value.trim();
+    const metodo    = document.getElementById('ca-metodo').value;
+    const telefono  = document.getElementById('ca-telefono').value.trim();
+    const email     = document.getElementById('ca-email').value.trim();
+    const obs       = document.getElementById('ca-obs').value.trim();
+
+    // Validar obligatorios
+    let hayError = false;
+    const obligatorios = [
+      ['ca-nombre', nombre],
+      ['ca-apellidos', apellidos],
+      ['ca-fecha', fechaVal],
+      ['ca-sesion', sesion_],
+      ['ca-importe', importe],
+      ['ca-metodo', metodo]
+    ];
+    obligatorios.forEach(([id, val]) => {
+      const el = document.getElementById(id);
+      if (!val) { el.classList.add('error'); hayError = true; }
+      else { el.classList.remove('error'); }
+    });
+
+    if (hayError) {
+      document.getElementById('ca-error').textContent = 'Completa los campos obligatorios (*)';
+      return;
+    }
+    document.getElementById('ca-error').textContent = '';
+
+    // Convertir fecha de YYYY-MM-DD a D/MM/YYYY
+    const [anyo, mes, dia] = fechaVal.split('-');
+    const fechaHoja = `${parseInt(dia)}/${mes}/${anyo}`;
+
+    // Timestamp actual
+    const ahora = new Date();
+    const ts = `${ahora.getDate()}/${String(ahora.getMonth()+1).padStart(2,'0')}/${ahora.getFullYear()} ${String(ahora.getHours()).padStart(2,'0')}:${String(ahora.getMinutes()).padStart(2,'0')}:${String(ahora.getSeconds()).padStart(2,'0')}`;
+
+    // Construir fila (índices 0-23 = columnas A-X)
+    const fila = Array(24).fill('');
+    fila[0]  = nombre;      // A
+    fila[1]  = apellidos;   // B
+    fila[3]  = fechaHoja;   // D — Fecha cita
+    fila[4]  = ts;          // E — Marca temporal
+    fila[10] = sesion_;     // K — Sesión
+    fila[11] = importe;     // L — Importe
+    fila[12] = metodo;      // M — Cobrado
+    fila[16] = telefono;    // Q — Teléfono
+    fila[17] = email;       // R — Email
+    fila[23] = obs;         // X — Observaciones
+
+    const btn = document.getElementById('ca-btn-guardar');
+    btn.disabled = true;
+    btn.textContent = 'Guardando…';
+
+    try {
+      const range = encodeURIComponent(`'${SHEET_NAME}'!A:X`);
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + sesion.access_token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values: [fila] })
+      });
+      if (!resp.ok) throw new Error('Error ' + resp.status);
+
+      cerrarModalCobroAnticipado();
+      cargarCitas(); // recargar la vista
+    } catch(e) {
+      document.getElementById('ca-error').textContent = 'Error al guardar. Comprueba tu conexión.';
+      btn.disabled = false;
+      btn.textContent = 'Guardar';
+    }
   }
 
   cargarCitas();
