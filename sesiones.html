@@ -765,6 +765,7 @@
       const logo = await cargarLogo();
       const nf = await obtenerSiguienteNumeroTicket();
       const nfStr = formatNumero(nf);
+      localStorage.setItem('emociona_ultimo_ticket', String(nf)); // guardar para siguiente ticket
       const doc = construirTicket({ fila, nombre, dni }, nfStr, logo);
       const fecha    = (fila[3]||'').trim();
       const svc      = (fila[10]||'').trim();
@@ -786,13 +787,28 @@
   }
 
   async function obtenerSiguienteNumeroTicket() {
-    const range = encodeURIComponent(`'${TICKET_NAME}'!B:B`);
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${FACTURACION_ID}/values/${range}`;
-    const resp = await fetch(url, { headers: { Authorization: 'Bearer ' + sesion.access_token } });
-    const data = await resp.json();
-    const valores = (data.values || []).flat().filter(v => v && /^A-\d+$/.test(v.trim()));
-    if (valores.length === 0) return 1;
-    return Math.max(...valores.map(v => parseInt(v.replace('A-','')))) + 1;
+    let maxN = 149; // mínimo: el primer ticket generado será A-0150
+
+    // 1. Consultar localStorage (contador local persistente)
+    const stored = parseInt(localStorage.getItem('emociona_ultimo_ticket') || '0');
+    if (stored > maxN) maxN = stored;
+
+    // 2. Consultar hoja de facturación como respaldo (best-effort)
+    try {
+      const range = encodeURIComponent(`'${TICKET_NAME}'!B:B`);
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${FACTURACION_ID}/values/${range}`;
+      const resp = await fetch(url, { headers: { Authorization: 'Bearer ' + sesion.access_token } });
+      if (resp.ok) {
+        const data = await resp.json();
+        const valores = (data.values || []).flat().filter(v => v && /^A-\d+$/.test((v||'').trim()));
+        if (valores.length > 0) {
+          const sheetMax = Math.max(...valores.map(v => parseInt(v.replace('A-', ''))));
+          if (sheetMax > maxN) maxN = sheetMax;
+        }
+      }
+    } catch(e) { /* ignorar — usamos localStorage */ }
+
+    return maxN + 1;
   }
 
   function formatNumero(n) {
