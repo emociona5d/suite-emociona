@@ -304,6 +304,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="silueta.jpg">
   <meta name="theme-color" content="#A7228C">
+  <script src="https://accounts.google.com/gsi/client" async></script>
 </head>
 <body>
 
@@ -430,6 +431,8 @@
   // ── CONFIG ──
   const SHEET_ID   = '1Zb5yWR1oQF03jU8JNDDr4ynChC66WEObkDwnvYLOkpM';
   const SHEET_NAME = 'Respuestas de formulario 2026';
+  const CLIENT_ID  = '439474376295-jjs3q4nki5pkpc9fc9qfcdmp4ldlj1vh.apps.googleusercontent.com';
+  const SCOPES     = 'openid email profile https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/drive.file';
 
   const SERVICIOS = ['Ecoconfirmación','Ecosexo','Ecosexo Emociona','Ecobasic','Ecobasic Plus','Ecoemociona'];
   const MEDIOS_PAGO = ['Efectivo','Tarjeta','Bizum','Web'];
@@ -791,15 +794,63 @@
     }
   }
 
+  // ── RENOVACIÓN AUTOMÁTICA DE TOKEN ──
+  let _tokenClient = null;
+
+  function getTokenClient() {
+    if (!_tokenClient) {
+      _tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: CLIENT_ID,
+        scope: SCOPES,
+        prompt: '',
+        callback: () => {}
+      });
+    }
+    return _tokenClient;
+  }
+
+  function renovarToken() {
+    return new Promise((resolve, reject) => {
+      try {
+        const client = getTokenClient();
+        client.callback = (tokenResponse) => {
+          if (tokenResponse.error) { reject(new Error(tokenResponse.error)); return; }
+          sesion.access_token  = tokenResponse.access_token;
+          sesion.token_expiry  = Date.now() + (tokenResponse.expires_in * 1000);
+          sessionStorage.setItem('emociona_session', JSON.stringify(sesion));
+          resolve();
+        };
+        client.requestAccessToken();
+      } catch(e) { reject(e); }
+    });
+  }
+
+  async function renovarTokenSiNecesario() {
+    // Renovar si caduca en menos de 5 minutos
+    if (Date.now() > sesion.token_expiry - 5 * 60 * 1000) {
+      await renovarToken();
+    }
+  }
+
   // ── API ──
   async function actualizarCelda(col, row, valor) {
+    await renovarTokenSiNecesario();
     const range = encodeURIComponent(`'${SHEET_NAME}'!${col}${row}`);
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}?valueInputOption=USER_ENTERED`;
-    const resp = await fetch(url, {
+    let resp = await fetch(url, {
       method: 'PUT',
       headers: { Authorization: 'Bearer ' + sesion.access_token, 'Content-Type': 'application/json' },
       body: JSON.stringify({ values: [[valor]] })
     });
+    // Si el token caducó justo en este instante, renovar y reintentar una vez
+    if (resp.status === 401) {
+      await renovarToken();
+      resp = await fetch(url, {
+        method: 'PUT',
+        headers: { Authorization: 'Bearer ' + sesion.access_token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values: [[valor]] })
+      });
+    }
     if (!resp.ok) throw new Error('Error ' + resp.status);
   }
 
@@ -894,13 +945,22 @@
     btn.textContent = 'Guardando…';
 
     try {
+      await renovarTokenSiNecesario();
       const range = encodeURIComponent(`'${SHEET_NAME}'!A:X`);
       const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
-      const resp = await fetch(url, {
+      let resp = await fetch(url, {
         method: 'POST',
         headers: { Authorization: 'Bearer ' + sesion.access_token, 'Content-Type': 'application/json' },
         body: JSON.stringify({ values: [fila] })
       });
+      if (resp.status === 401) {
+        await renovarToken();
+        resp = await fetch(url, {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + sesion.access_token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ values: [fila] })
+        });
+      }
       if (!resp.ok) throw new Error('Error ' + resp.status);
 
       cerrarModalCobroAnticipado();

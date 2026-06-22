@@ -167,16 +167,15 @@
 
   let tokenClient;
 
-  // Migración: borrar flag antiguo para forzar re-consentimiento con nuevo scope Calendar
-  if (localStorage.getItem('emociona_gmail_ok')) {
-    localStorage.removeItem('emociona_gmail_ok');
-  }
-  const SCOPE_KEY = 'emociona_v2_ok';
+  // Migraciones: borrar flags anteriores para forzar re-consentimiento con nuevos scopes
+  localStorage.removeItem('emociona_gmail_ok');
+  localStorage.removeItem('emociona_v2_ok');
+  const SCOPE_KEY = 'emociona_v3_ok';
 
   window.addEventListener('load', function () {
     tokenClient = google.accounts.oauth2.initTokenClient({
       client_id: CLIENT_ID,
-      scope: 'openid email profile https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/calendar.readonly',
+      scope: 'openid email profile https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/drive.file',
       callback: handleTokenResponse
     });
   });
@@ -206,7 +205,7 @@
         const ti = await fetch(`https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=${accessToken}`);
         const tiData = await ti.json();
         const scopes = tiData.scope || '';
-        if (scopes.includes('gmail.send') && scopes.includes('calendar')) {
+        if (scopes.includes('gmail.send') && scopes.includes('calendar') && scopes.includes('drive')) {
           localStorage.setItem(SCOPE_KEY, '1');   // todos los permisos concedidos
         } else {
           localStorage.removeItem(SCOPE_KEY);     // faltan permisos: pedir en próximo login

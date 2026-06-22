@@ -228,6 +228,40 @@
     }
     .modal-btn-ok:hover { background: #8A1A6B; }
 
+    /* ── BOTONES MÉTODO DE ENVÍO ── */
+    .send-method-label { font-size: 12px; color: #9BB5BC; text-transform: uppercase; letter-spacing: 0.8px; margin: 16px 0 8px; }
+    .send-method-grid { display: flex; gap: 10px; margin-bottom: 10px; }
+    .btn-send-method {
+      flex: 1;
+      padding: 13px 8px;
+      border-radius: 10px;
+      border: 1.5px solid #E0E8EA;
+      background: white;
+      font-family: inherit;
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s;
+      color: #3C4A50;
+    }
+    .btn-send-method .send-icon { font-size: 20px; }
+    .btn-send-method .send-label { font-weight: 500; font-size: 13px; }
+    .btn-send-method .send-dest { font-size: 10px; color: #9BB5BC; word-break: break-all; text-align: center; line-height: 1.3; }
+    .btn-send-method:hover:not(:disabled) { border-color: #A72280; background: #F9EEF7; color: #A72280; }
+    .btn-send-method:disabled { opacity: 0.35; cursor: not-allowed; }
+    .btn-solo-descargar {
+      display: block; width: 100%;
+      font-size: 12px; color: #9BB5BC;
+      background: none; border: none;
+      cursor: pointer; font-family: inherit;
+      text-decoration: underline; padding: 2px 0;
+      text-align: center;
+    }
+    .btn-solo-descargar:hover { color: #7A8A8E; }
+
     @media (max-width: 768px) {
       nav { overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 0 8px; }
       .nav-tab { padding: 12px 12px; font-size: 12px; white-space: nowrap; }
@@ -244,6 +278,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="silueta.jpg">
   <meta name="theme-color" content="#A7228C">
+  <script src="https://accounts.google.com/gsi/client" async></script>
 </head>
 <body>
 
@@ -318,9 +353,47 @@
       <label>Hora de la cita (ej. 12:00-13:30 h)</label>
       <input type="text" id="justif-hora" placeholder="12:00-13:30 h" />
     </div>
-    <div class="modal-btns">
+    <div class="send-method-label">¿Cómo quieres enviarlo?</div>
+    <div class="send-method-grid">
+      <button class="btn-send-method" id="justif-btn-email" onclick="confirmarJustif('email')">
+        <span class="send-icon">📧</span>
+        <span class="send-label">Por email</span>
+        <span class="send-dest" id="justif-email-dest"></span>
+      </button>
+      <button class="btn-send-method" id="justif-btn-wa" onclick="confirmarJustif('whatsapp')">
+        <span class="send-icon">💬</span>
+        <span class="send-label">Por WhatsApp</span>
+        <span class="send-dest" id="justif-wa-dest"></span>
+      </button>
+    </div>
+    <button class="btn-solo-descargar" onclick="confirmarJustif('descargar')">Solo descargar PDF</button>
+    <div class="modal-btns" style="margin-top:14px">
       <button class="modal-btn-cancel" onclick="cerrarModalJustif()">Cancelar</button>
-      <button class="modal-btn-ok" onclick="confirmarJustif()">Generar PDF</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL TICKET -->
+<div class="modal-overlay" id="modal-ticket">
+  <div class="modal-box">
+    <div class="modal-titulo">🧾 Ticket de venta</div>
+    <div class="modal-sub" id="ticket-para"></div>
+    <div class="send-method-label">¿Cómo quieres enviarlo?</div>
+    <div class="send-method-grid">
+      <button class="btn-send-method" id="ticket-btn-email" onclick="confirmarTicket('email')">
+        <span class="send-icon">📧</span>
+        <span class="send-label">Por email</span>
+        <span class="send-dest" id="ticket-email-dest"></span>
+      </button>
+      <button class="btn-send-method" id="ticket-btn-wa" onclick="confirmarTicket('whatsapp')">
+        <span class="send-icon">💬</span>
+        <span class="send-label">Por WhatsApp</span>
+        <span class="send-dest" id="ticket-wa-dest"></span>
+      </button>
+    </div>
+    <button class="btn-solo-descargar" onclick="confirmarTicket('descargar')">Solo descargar PDF</button>
+    <div class="modal-btns" style="margin-top:14px">
+      <button class="modal-btn-cancel" onclick="cerrarModalTicket()">Cancelar</button>
     </div>
   </div>
 </div>
@@ -332,6 +405,8 @@
   const TICKET_NAME     = 'Ticket';
   const JUSTIF_NAME     = 'Justificante';
   const SHEET_NAME = 'Respuestas de formulario 2026';
+  const CLIENT_ID  = '439474376295-jjs3q4nki5pkpc9fc9qfcdmp4ldlj1vh.apps.googleusercontent.com';
+  const SCOPES     = 'openid email profile https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/drive.file';
 
   const COLORES = {
     'ecoconfirmación':  { bg: '#F0F0F0', color: '#555' },
@@ -358,6 +433,7 @@
   let todasLasFilas  = []; // [{fila, sheetRow}]
   let filasRender    = []; // filas actualmente visibles
   let _justifFila    = null; // fila en espera para justificante
+  let _ticketIdx     = null; // índice en espera para ticket
 
   // ── CARGAR DATOS ──
   async function cargarSesiones() {
@@ -542,7 +618,7 @@
         <td class="td-toggle">${toggleBtn('J', sheetRow, carta, '✉️')}</td>
         ${esOwner ? `<td class="td-importe">${importe ? importe : ''}</td><td class="td-cobrado">${cobrado}</td>` : ''}
         <td class="td-docs">
-          <button class="btn-doc" title="Ticket de venta" onclick="generarTicket(${idx})">🧾</button>
+          <button class="btn-doc" title="Ticket de venta" onclick="abrirModalTicket(${idx})">🧾</button>
           <button class="btn-doc justif" title="Justificante de asistencia" onclick="abrirModalJustif(${idx})">📋</button>
         </td>`;
       tbody.appendChild(tr);
@@ -583,17 +659,60 @@
     }
   }
 
+  // ── RENOVACIÓN AUTOMÁTICA DE TOKEN ──
+  let _tokenClient = null;
+
+  function getTokenClient() {
+    if (!_tokenClient) {
+      _tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: CLIENT_ID,
+        scope: SCOPES,
+        prompt: '',
+        callback: () => {}
+      });
+    }
+    return _tokenClient;
+  }
+
+  function renovarToken() {
+    return new Promise((resolve, reject) => {
+      try {
+        const client = getTokenClient();
+        client.callback = (tokenResponse) => {
+          if (tokenResponse.error) { reject(new Error(tokenResponse.error)); return; }
+          sesion.access_token = tokenResponse.access_token;
+          sesion.token_expiry = Date.now() + (tokenResponse.expires_in * 1000);
+          sessionStorage.setItem('emociona_session', JSON.stringify(sesion));
+          resolve();
+        };
+        client.requestAccessToken();
+      } catch(e) { reject(e); }
+    });
+  }
+
+  async function renovarTokenSiNecesario() {
+    if (Date.now() > sesion.token_expiry - 5 * 60 * 1000) {
+      await renovarToken();
+    }
+  }
+
   async function actualizarCelda(col, row, valor) {
+    await renovarTokenSiNecesario();
     const range = encodeURIComponent(`'${SHEET_NAME}'!${col}${row}`);
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}?valueInputOption=USER_ENTERED`;
-    const resp = await fetch(url, {
+    let resp = await fetch(url, {
       method: 'PUT',
-      headers: {
-        Authorization: 'Bearer ' + sesion.access_token,
-        'Content-Type': 'application/json'
-      },
+      headers: { Authorization: 'Bearer ' + sesion.access_token, 'Content-Type': 'application/json' },
       body: JSON.stringify({ values: [[valor]] })
     });
+    if (resp.status === 401) {
+      await renovarToken();
+      resp = await fetch(url, {
+        method: 'PUT',
+        headers: { Authorization: 'Bearer ' + sesion.access_token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values: [[valor]] })
+      });
+    }
     if (!resp.ok) throw new Error('Error ' + resp.status);
   }
 
@@ -606,7 +725,39 @@
   // ── TICKET DE VENTA ──────────────────────────────
   // ─────────────────────────────────────────────────
 
-  async function generarTicket(idx) {
+  // ── MODAL TICKET ──
+  function abrirModalTicket(idx) {
+    _ticketIdx = idx;
+    const { fila } = filasRender[idx];
+    const nombre   = ((fila[0]||'') + ' ' + (fila[1]||'')).trim();
+    const email    = (fila[17]||'').match(/[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/)?.[0] || '';
+    const telefono = (fila[16]||'').replace(/\D/g,'').slice(-9);
+
+    document.getElementById('ticket-para').textContent = 'Para: ' + nombre;
+
+    const btnEmail = document.getElementById('ticket-btn-email');
+    const btnWa    = document.getElementById('ticket-btn-wa');
+    btnEmail.disabled = !email;
+    document.getElementById('ticket-email-dest').textContent = email || 'Sin email registrado';
+    btnWa.disabled = telefono.length < 9;
+    document.getElementById('ticket-wa-dest').textContent = telefono.length >= 9 ? telefono : 'Sin teléfono registrado';
+
+    document.getElementById('modal-ticket').classList.add('visible');
+  }
+
+  function cerrarModalTicket() {
+    document.getElementById('modal-ticket').classList.remove('visible');
+    _ticketIdx = null;
+  }
+
+  async function confirmarTicket(metodo) {
+    if (_ticketIdx === null) return;
+    const idx = _ticketIdx;
+    cerrarModalTicket();
+    await generarTicket(idx, metodo);
+  }
+
+  async function generarTicket(idx, metodo = 'email') {
     const { fila } = filasRender[idx];
     const nombre = ((fila[0]||'') + ' ' + (fila[1]||'')).trim();
     const dni    = (fila[2]||'').trim();
@@ -615,12 +766,19 @@
       const nf = await obtenerSiguienteNumeroTicket();
       const nfStr = formatNumero(nf);
       const doc = construirTicket({ fila, nombre, dni }, nfStr, logo);
-      const fecha   = (fila[3]||'').trim();
-      const svc     = (fila[10]||'').trim();
-      const cobrado = parseFloat((fila[11]||'0').toString().replace(',','.').replace('€','').trim()) || 0;
-      const pago    = (fila[12]||'').trim();
+      const fecha    = (fila[3]||'').trim();
+      const svc      = (fila[10]||'').trim();
+      const cobrado  = parseFloat((fila[11]||'0').toString().replace(',','.').replace('€','').trim()) || 0;
+      const pago     = (fila[12]||'').trim();
+      const filename = `Ticket_${nfStr}_${nombre}.pdf`;
       await escribirEnHoja(TICKET_NAME, [[fecha, nfStr, nombre, svc, cobrado.toFixed(2) + ' €', pago]]);
-      await enviarPorEmail(doc, `Ticket_${nfStr}_${nombre}.pdf`, fila[17]||'', nombre, 'ticket', fecha);
+      if (metodo === 'whatsapp') {
+        await enviarPorWhatsapp(doc, filename, fila[16]||'', nombre, 'ticket');
+      } else if (metodo === 'descargar') {
+        doc.save(filename);
+      } else {
+        await enviarPorEmail(doc, filename, fila[17]||'', nombre, 'ticket', fecha);
+      }
     } catch(e) {
       alert('Error al generar ticket: ' + e.message);
       console.error(e);
@@ -785,6 +943,17 @@
     document.getElementById('justif-nombre').value = ((fila[0]||'') + ' ' + (fila[1]||'')).trim();
     document.getElementById('justif-dni').value    = (fila[2]||'').trim();
     document.getElementById('justif-hora').value   = '';
+
+    // Rellenar destinos de envío
+    const email    = (fila[17]||'').match(/[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/)?.[0] || '';
+    const telefono = (fila[16]||'').replace(/\D/g,'').slice(-9);
+    const btnEmail = document.getElementById('justif-btn-email');
+    const btnWa    = document.getElementById('justif-btn-wa');
+    btnEmail.disabled = !email;
+    document.getElementById('justif-email-dest').textContent = email || 'Sin email registrado';
+    btnWa.disabled = telefono.length < 9;
+    document.getElementById('justif-wa-dest').textContent = telefono.length >= 9 ? telefono : 'Sin teléfono registrado';
+
     document.getElementById('modal-justif').classList.add('visible');
     setTimeout(() => document.getElementById('justif-hora').focus(), 100);
   }
@@ -794,7 +963,7 @@
     _justifFila = null;
   }
 
-  async function confirmarJustif() {
+  async function confirmarJustif(metodo = 'email') {
     const nombre = document.getElementById('justif-nombre').value.trim();
     const dni    = document.getElementById('justif-dni').value.trim();
     const hora   = document.getElementById('justif-hora').value.trim();
@@ -802,11 +971,18 @@
     cerrarModalJustif();
     if (!fila) return;
     try {
-      const logo = await cargarLogo();
-      const fecha = (fila[3]||'').trim();
-      const doc = await construirJustificante({ nombre, dni, fecha, hora }, logo);
+      const logo     = await cargarLogo();
+      const fecha    = (fila[3]||'').trim();
+      const doc      = await construirJustificante({ nombre, dni, fecha, hora }, logo);
+      const filename = `Justificante_${nombre.replace(/ /g,'_')}_${fecha.replace(/\//g,'-')}.pdf`;
       await escribirEnHoja(JUSTIF_NAME, [[fecha, nombre, dni, hora]]);
-      await enviarPorEmail(doc, `Justificante_${nombre.replace(/ /g,'_')}_${fecha.replace(/\//g,'-')}.pdf`, fila[17]||'', nombre, 'justificante', fecha);
+      if (metodo === 'whatsapp') {
+        await enviarPorWhatsapp(doc, filename, fila[16]||'', nombre, 'justificante');
+      } else if (metodo === 'descargar') {
+        doc.save(filename);
+      } else {
+        await enviarPorEmail(doc, filename, fila[17]||'', nombre, 'justificante', fecha);
+      }
     } catch(e) {
       alert('Error al generar justificante: ' + e.message);
       console.error(e);
@@ -1052,14 +1228,86 @@
     }
   }
 
+  // ── SUBIR PDF A DRIVE Y OBTENER ENLACE ──
+  async function subirADrive(pdfBlob, filename) {
+    await renovarTokenSiNecesario();
+
+    // 1. Subir archivo
+    const metadata = JSON.stringify({ name: filename, mimeType: 'application/pdf' });
+    const form = new FormData();
+    form.append('metadata', new Blob([metadata], { type: 'application/json' }));
+    form.append('file', pdfBlob);
+
+    let resp = await fetch(
+      'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink',
+      { method: 'POST', headers: { Authorization: 'Bearer ' + sesion.access_token }, body: form }
+    );
+    if (resp.status === 401) {
+      await renovarToken();
+      resp = await fetch(
+        'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink',
+        { method: 'POST', headers: { Authorization: 'Bearer ' + sesion.access_token }, body: form }
+      );
+    }
+    if (!resp.ok) throw new Error('Error al subir a Drive: ' + resp.status);
+    const fileData = await resp.json();
+    const fileId = fileData.id;
+
+    // 2. Hacer público (cualquiera con el enlace puede ver)
+    await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions`, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + sesion.access_token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role: 'reader', type: 'anyone' })
+    });
+
+    return fileData.webViewLink || `https://drive.google.com/file/d/${fileId}/view`;
+  }
+
+  // ── ENVIAR POR WHATSAPP (Drive link) ──
+  async function enviarPorWhatsapp(doc, filename, telefonoRaw, nombre, tipo) {
+    const primerNombre = nombre.split(' ')[0];
+    const pdfBlob = doc.output('blob');
+
+    try {
+      const enlace = await subirADrive(pdfBlob, filename);
+      const msg = tipo === 'ticket'
+        ? `Hola ${primerNombre} 🌸 Te enviamos tu ticket de venta de la sesión en Emociona 5D:\n${enlace}`
+        : `Hola ${primerNombre} 🌸 Te enviamos tu justificante de asistencia a la ecografía en Emociona 5D:\n${enlace}`;
+
+      const tel = (telefonoRaw || '').replace(/\D/g,'').slice(-9);
+      if (tel.length === 9) {
+        window.open(`https://wa.me/34${tel}?text=${encodeURIComponent(msg)}`, '_blank');
+        const toast = document.createElement('div');
+        toast.style.cssText = 'position:fixed;bottom:28px;right:28px;background:#1A7A3A;color:white;padding:14px 20px;border-radius:14px;box-shadow:0 6px 24px rgba(0,0,0,0.18);z-index:9999;display:flex;align-items:center;gap:12px;font-family:inherit;font-size:14px;max-width:380px;';
+        toast.innerHTML = `<span style="font-size:22px">💬</span><div><div style="font-weight:600;margin-bottom:3px">WhatsApp listo para enviar</div><div style="font-size:12px;opacity:0.85">El PDF está en Drive. Solo pulsa enviar en WhatsApp.</div></div>`;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 7000);
+      } else {
+        alert('Sin teléfono registrado. El PDF se ha subido a Drive:\n' + enlace);
+      }
+    } catch(e) {
+      alert('Error al subir a Drive: ' + e.message);
+      doc.save(filename); // fallback: descargar
+    }
+  }
+
   async function escribirEnHoja(nombreHoja, registros) {
+    await renovarTokenSiNecesario();
     const range = encodeURIComponent(`'${nombreHoja}'!A:Z`);
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${FACTURACION_ID}/values/${range}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
-    const resp = await fetch(url, {
+    let resp = await fetch(url, {
       method: 'POST',
       headers: { Authorization: 'Bearer ' + sesion.access_token, 'Content-Type': 'application/json' },
       body: JSON.stringify({ values: registros })
     });
+    if (resp.status === 401) {
+      await renovarToken();
+      resp = await fetch(url, {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + sesion.access_token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values: registros })
+      });
+    }
     if (!resp.ok) console.warn('Error al escribir en hoja:', resp.status);
   }
 
