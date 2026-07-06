@@ -215,6 +215,7 @@
     }
 
   </style>
+  <script src="https://accounts.google.com/gsi/client" async></script>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="silueta.jpg">
   <meta name="theme-color" content="#A7228C">
@@ -405,6 +406,9 @@
   const SHEET_NAME     = 'Respuestas de formulario 2026';
   const FACTURACION_ID = '1GvsIDydV9L0-J_JMAsHJuYOpNrJLeQM3W_drp8H6L-A';
   const HISTORICO_NAME = 'Histórico';
+
+  const CLIENT_ID = '439474376295-jjs3q4nki5pkpc9fc9qfcdmp4ldlj1vh.apps.googleusercontent.com';
+  const SCOPES    = 'openid email profile https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/drive.file';
 
   // Precios base SIN IVA (de hoja Productos)
   const PRECIOS = {
@@ -1045,27 +1049,86 @@
     return { doc, totalStr, baseStr, ivaStr };
   }
 
+  // ── RENOVACIÓN TOKEN ──
+  let _tokenClient = null;
+  function getTokenClient() {
+    if (_tokenClient) return _tokenClient;
+    _tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: CLIENT_ID,
+      scope: SCOPES,
+      prompt: '',
+      callback: (resp) => {
+        if (resp.access_token) {
+          sesion.access_token = resp.access_token;
+          sesion.token_expiry = Date.now() + (resp.expires_in || 3600) * 1000;
+          sessionStorage.setItem('emociona_session', JSON.stringify(sesion));
+        }
+      }
+    });
+    return _tokenClient;
+  }
+
+  function renovarToken() {
+    return new Promise((resolve, reject) => {
+      try {
+        const tc = getTokenClient();
+        const originalCb = tc.callback;
+        tc.callback = (resp) => {
+          if (originalCb) originalCb(resp);
+          if (resp.access_token) resolve();
+          else reject(new Error('No se pudo renovar el token'));
+          tc.callback = originalCb;
+        };
+        tc.requestAccessToken({ prompt: '' });
+      } catch(e) { reject(e); }
+    });
+  }
+
+  async function renovarTokenSiNecesario() {
+    if (!sesion.token_expiry || Date.now() > sesion.token_expiry - 120000) {
+      await renovarToken();
+    }
+  }
+
   // ── ESCRIBIR HISTÓRICO ──
   async function escribirHistorico(registros) {
+    await renovarTokenSiNecesario();
     const range = encodeURIComponent(`'${HISTORICO_NAME}'!A:F`);
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${FACTURACION_ID}/values/${range}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
-    const resp = await fetch(url, {
+    let resp = await fetch(url, {
       method: 'POST',
       headers: { Authorization: 'Bearer ' + sesion.access_token, 'Content-Type': 'application/json' },
       body: JSON.stringify({ values: registros })
     });
+    if (resp.status === 401) {
+      await renovarToken();
+      resp = await fetch(url, {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + sesion.access_token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values: registros })
+      });
+    }
     if (!resp.ok) throw new Error('Error al escribir Histórico: ' + resp.status);
   }
 
   // ── ACTUALIZAR CELDA ──
   async function actualizarCelda(col, row, valor) {
+    await renovarTokenSiNecesario();
     const range = encodeURIComponent(`'${SHEET_NAME}'!${col}${row}`);
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}?valueInputOption=USER_ENTERED`;
-    const resp = await fetch(url, {
+    let resp = await fetch(url, {
       method: 'PUT',
       headers: { Authorization: 'Bearer ' + sesion.access_token, 'Content-Type': 'application/json' },
       body: JSON.stringify({ values: [[valor]] })
     });
+    if (resp.status === 401) {
+      await renovarToken();
+      resp = await fetch(url, {
+        method: 'PUT',
+        headers: { Authorization: 'Bearer ' + sesion.access_token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values: [[valor]] })
+      });
+    }
     if (!resp.ok) throw new Error('Error ' + resp.status);
   }
 
@@ -1512,13 +1575,22 @@
 
   // Escribe filas al final de una hoja de FACTURACION_ID
   async function escribirEnHoja(nombreHoja, registros) {
+    await renovarTokenSiNecesario();
     const range = encodeURIComponent(`'${nombreHoja}'!A:Z`);
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${FACTURACION_ID}/values/${range}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
-    const resp = await fetch(url, {
+    let resp = await fetch(url, {
       method: 'POST',
       headers: { Authorization: 'Bearer ' + sesion.access_token, 'Content-Type': 'application/json' },
       body: JSON.stringify({ values: registros })
     });
+    if (resp.status === 401) {
+      await renovarToken();
+      resp = await fetch(url, {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + sesion.access_token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values: registros })
+      });
+    }
     if (!resp.ok) throw new Error(`Error al escribir en ${nombreHoja}: ` + resp.status);
   }
 
