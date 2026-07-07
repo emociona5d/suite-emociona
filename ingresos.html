@@ -486,8 +486,8 @@
     }
     // libre
     return {
-      desdeTs: new Date(params.desde).getTime(),
-      hastaTs: new Date(params.hasta + 'T23:59:59').getTime()
+      desdeTs: (() => { const p = params.desde.split('-').map(Number); return new Date(p[0], p[1]-1, p[2]).getTime(); })(),
+      hastaTs: (() => { const p = params.hasta.split('-').map(Number); return new Date(p[0], p[1]-1, p[2], 23, 59, 59).getTime(); })()
     };
   }
 
