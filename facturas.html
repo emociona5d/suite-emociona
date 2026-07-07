@@ -519,8 +519,15 @@
     const pago     = document.getElementById('filtro-pago').value.toLowerCase();
     const soloPend = document.getElementById('solo-pendientes').checked;
 
-    const desdeTs = desde ? new Date(desde).getTime() : 0;
-    const hastaTs = hasta ? new Date(hasta + 'T23:59:59').getTime() : Infinity;
+    // Parsear en hora local (no UTC) para coincidir con parseFecha()
+    const parseDateLocal = (str, endOfDay = false) => {
+      if (!str) return endOfDay ? Infinity : 0;
+      const [y, m, d] = str.split('-').map(Number);
+      return endOfDay ? new Date(y, m-1, d, 23, 59, 59).getTime()
+                      : new Date(y, m-1, d).getTime();
+    };
+    const desdeTs = parseDateLocal(desde);
+    const hastaTs = parseDateLocal(hasta, true);
 
     const filtradas = todasLasFilas.filter(({ fila }) => {
       const ts  = parseFecha((fila[3]||'').trim());
