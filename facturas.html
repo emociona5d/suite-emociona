@@ -487,14 +487,15 @@
       const data = await resp.json();
       const filas = (data.values || []).slice(1);
 
-      // Solo filas con fecha, servicio e importe real (excluye 0,00€ sin método de pago)
+      // Solo filas con fecha e importe real — excluye packs (0€ sin método de pago)
       todasLasFilas = filas
         .map((fila, idx) => ({ fila, sheetRow: idx + 2 }))
         .filter(({ fila }) => {
           if (!fila[3]) return false; // sin fecha
-          if (!fila[10]) return false; // sin servicio
           const imp = parseFloat((fila[11]||'').toString().replace(',','.').replace('€','').trim());
+          const met = (fila[12]||'').trim();
           if (isNaN(imp) || imp <= 0) return false; // sin importe o 0€
+          // Excluir únicamente packs (0€ sin método): ya descartados arriba
           return true;
         });
 
@@ -652,16 +653,18 @@
 
         const spanSvc = document.createElement('span');
         spanSvc.className = 'sesion-servicio';
+        const badge = document.createElement('span');
+        badge.className = 'servicio-badge';
         if (servicio) {
-          const badge = document.createElement('span');
-          badge.className = 'servicio-badge';
           badge.style.background = svcColor.bg;
           badge.style.color = svcColor.color;
           badge.textContent = servicio;
-          spanSvc.appendChild(badge);
         } else {
-          spanSvc.textContent = '—';
+          badge.style.background = '#F5F0FF';
+          badge.style.color = '#9066CC';
+          badge.textContent = '⚠ Sin servicio';
         }
+        spanSvc.appendChild(badge);
 
         row.appendChild(schk);
         row.appendChild(spanFecha);
