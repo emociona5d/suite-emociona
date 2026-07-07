@@ -66,6 +66,19 @@
       cursor: pointer; font-family: inherit; transition: all 0.2s;
     }
     .btn-sel-todo:hover, .btn-limpiar:hover { background: #F9EEF7; border-color: #5BAA96; color: #A7228C; }
+    .acciones-sep { width: 1px; height: 24px; background: #E0E8EA; margin: 0 4px; }
+    .desel-pago-wrap { display: flex; align-items: center; gap: 6px; }
+    .desel-pago-select {
+      font-family: inherit; font-size: 12px; padding: 6px 10px;
+      border: 1.5px solid #E0E8EA; border-radius: 8px; color: #7A8A8E;
+      background: white; outline: none; cursor: pointer;
+    }
+    .btn-desel-pago {
+      font-size: 12px; padding: 7px 12px; border: 1.5px solid #F5C6A0;
+      border-radius: 8px; background: white; color: #C07030;
+      cursor: pointer; font-family: inherit; transition: all 0.2s;
+    }
+    .btn-desel-pago:hover { background: #FFF3E0; border-color: #C07030; }
 
     /* ── GRUPOS DE CLIENTA ── */
     .grupos-lista { display: flex; flex-direction: column; gap: 12px; padding-bottom: 100px; }
@@ -291,8 +304,15 @@
   </div>
 
   <div class="acciones-top" id="acciones-top" style="display:none">
-    <button class="btn-sel-todo" onclick="seleccionarTodo(true)">Seleccionar todo</button>
+    <button class="btn-sel-todo" onclick="seleccionarTodo(true)">✔ Seleccionar todo el rango</button>
     <button class="btn-limpiar" onclick="seleccionarTodo(false)">Deseleccionar todo</button>
+    <div class="acciones-sep"></div>
+    <div class="desel-pago-wrap">
+      <select class="desel-pago-select" id="desel-pago-select">
+        <option value="">— forma de pago —</option>
+      </select>
+      <button class="btn-desel-pago" onclick="deseleccionarPorPago()">Deseleccionar este cobro</button>
+    </div>
   </div>
 
   <div id="contenido">
@@ -385,7 +405,8 @@
 <div class="barra-inferior">
   <div class="barra-info">
     <strong id="barra-count">0</strong> facturas seleccionadas
-    <span style="font-size:12px;color:#9BB5BC;margin-left:8px">· fecha de factura = fecha de cobro de cada sesión</span>
+    <span id="barra-total-wrap" style="display:none;margin-left:14px;font-size:14px;color:#4A6A54;font-weight:600">·&nbsp;<span id="barra-total">0,00 €</span></span>
+    <span style="font-size:12px;color:#9BB5BC;margin-left:10px">· fecha = fecha de cobro de cada sesión</span>
   </div>
   <button class="btn-generar" id="btn-generar" onclick="generarFacturas()" disabled>📄 Generar facturas en PDF</button>
 </div>
@@ -620,6 +641,8 @@
         schk.className = 'sesion-check';
         schk.dataset.gi = gi;
         schk.dataset.si = si;
+        schk.dataset.pago = metodoPago.toLowerCase();
+        schk.dataset.importe = parseFloat((fila[11]||'0').toString().replace(',','.').replace('€','').trim()) || 0;
         schk.addEventListener('change', () => actualizarGrupoCheck(gi));
 
         // Construir el resto de la fila sin tocar innerHTML para evitar duplicar el checkbox
@@ -676,6 +699,7 @@
 
     lista.appendChild(cont);
     actualizarBarraInferior();
+    actualizarDesplPago();
   }
 
   // ── SELECCIÓN ──
@@ -705,9 +729,48 @@
   }
 
   function actualizarBarraInferior() {
-    const n = document.querySelectorAll('.sesion-check:checked').length;
+    const checks = document.querySelectorAll('.sesion-check:checked');
+    const n = checks.length;
     document.getElementById('barra-count').textContent = n;
     document.getElementById('btn-generar').disabled = n === 0;
+    let total = 0;
+    checks.forEach(c => { total += parseFloat(c.dataset.importe) || 0; });
+    const wrap = document.getElementById('barra-total-wrap');
+    if (n > 0) {
+      document.getElementById('barra-total').textContent = total.toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €';
+      wrap.style.display = 'inline';
+    } else {
+      wrap.style.display = 'none';
+    }
+  }
+
+  function actualizarDesplPago() {
+    const metodos = new Set();
+    document.querySelectorAll('.sesion-check').forEach(c => {
+      if (c.dataset.pago) metodos.add(c.dataset.pago);
+    });
+    const sel = document.getElementById('desel-pago-select');
+    sel.innerHTML = '<option value="">— forma de pago —</option>';
+    [...metodos].sort().forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m;
+      opt.textContent = m.charAt(0).toUpperCase() + m.slice(1);
+      sel.appendChild(opt);
+    });
+  }
+
+  function deseleccionarPorPago() {
+    const metodo = document.getElementById('desel-pago-select').value;
+    if (!metodo) return;
+    const afectados = new Set();
+    document.querySelectorAll(`.sesion-check[data-pago="${metodo}"]`).forEach(c => {
+      if (c.checked) {
+        c.checked = false;
+        afectados.add(c.dataset.gi);
+      }
+    });
+    afectados.forEach(gi => actualizarGrupoCheck(gi));
+    actualizarBarraInferior();
   }
 
   // ── OBTENER SIGUIENTE NÚMERO ──
@@ -793,8 +856,8 @@
         const nombreArchivo = `${nf} - ${grupo.nombre}.pdf`;
         zip.file(nombreArchivo, pdfBytes);
 
-        // Registros para Histórico
-        registrosHistorico.push([fechaFactura, nf, grupo.nombre, baseStr + ' €', ivaStr + ' €', totalStr + ' €']);
+        // Registros para Histórico (números puros para que SUMA funcione en Sheets)
+        registrosHistorico.push([fechaFactura, nf, grupo.nombre, parseFloat(baseStr), parseFloat(ivaStr), parseFloat(totalStr)]);
 
         // Celdas para marcar facturadas
         grupo.sesiones.forEach(({ sheetRow }) => celdas.push({ sheetRow, nf }));
