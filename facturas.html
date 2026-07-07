@@ -809,11 +809,8 @@
       // Escribir en Histórico
       await escribirHistorico(registrosHistorico);
 
-      // Marcar sesiones como facturadas (col AB)
-      for (const { sheetRow, nf } of celdas) {
-        await actualizarCelda('AB', sheetRow, nf);
-        await new Promise(r => setTimeout(r, 30));
-      }
+      // Marcar sesiones como facturadas (col AB) — una sola llamada batch
+      await marcarFacturadasBatch(celdas);
 
       document.getElementById('progreso-sub').textContent = 'Preparando ZIP...';
       document.getElementById('progreso-bar').style.width = '97%';
@@ -1094,7 +1091,7 @@
   async function escribirHistorico(registros) {
     await renovarTokenSiNecesario();
     const range = encodeURIComponent(`'${HISTORICO_NAME}'!A:F`);
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${FACTURACION_ID}/values/${range}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${FACTURACION_ID}/values/${range}:append?valueInputOption=USER_ENTERED&insertDataOption=OVERWRITE`;
     let resp = await fetch(url, {
       method: 'POST',
       headers: { Authorization: 'Bearer ' + sesion.access_token, 'Content-Type': 'application/json' },
@@ -1130,6 +1127,32 @@
       });
     }
     if (!resp.ok) throw new Error('Error ' + resp.status);
+  }
+
+  // ── MARCAR FACTURADAS EN BATCH (una sola llamada) ──
+  async function marcarFacturadasBatch(celdas) {
+    if (!celdas.length) return;
+    await renovarTokenSiNecesario();
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values:batchUpdate`;
+    const data = celdas.map(({ sheetRow, nf }) => ({
+      range: `'${SHEET_NAME}'!AB${sheetRow}`,
+      values: [[nf]]
+    }));
+    const body = { valueInputOption: 'USER_ENTERED', data };
+    let resp = await fetch(url, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + sesion.access_token, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (resp.status === 401) {
+      await renovarToken();
+      resp = await fetch(url, {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + sesion.access_token, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+    }
+    if (!resp.ok) throw new Error('Error al marcar facturadas: ' + resp.status);
   }
 
   function logout() {
@@ -1750,12 +1773,12 @@
         cellPadding: { top: 2, bottom: 2, left: 2, right: 2 }
       },
       columnStyles: {
-        0: { cellWidth: 26, halign: 'left' },
+        0: { cellWidth: 24, halign: 'left' },
         1: { cellWidth: 22, halign: 'left' },
-        2: { cellWidth: 72, halign: 'left' },
+        2: { cellWidth: 62, halign: 'left' },
         3: { cellWidth: 30, halign: 'right' },
-        4: { cellWidth: 16, halign: 'right' },
-        5: { cellWidth: 16, halign: 'right' },
+        4: { cellWidth: 22, halign: 'right' },
+        5: { cellWidth: 22, halign: 'right' },
       },
       didParseCell(data) {
         if (data.row.index === rows.length - 1) {
