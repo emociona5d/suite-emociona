@@ -618,6 +618,7 @@
 
   // ── CALCULAR ──
   async function calcular() {
+    todasLasFilas = null; // forzar recarga desde Sheets en cada pulsación
     const tipo = document.getElementById('periodo-tipo').value;
     let params = {}, titulo = '', fichero = '';
 

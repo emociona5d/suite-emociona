@@ -785,9 +785,15 @@
 
   // ── OBTENER SIGUIENTE NÚMERO ──
   async function obtenerSiguienteNumero() {
+    await renovarTokenSiNecesario();
     const range = encodeURIComponent(`'${HISTORICO_NAME}'!B:B`);
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${FACTURACION_ID}/values/${range}`;
-    const resp = await fetch(url, { headers: { Authorization: 'Bearer ' + sesion.access_token } });
+    let resp = await fetch(url, { headers: { Authorization: 'Bearer ' + sesion.access_token } });
+    if (resp.status === 401) {
+      await renovarToken();
+      resp = await fetch(url, { headers: { Authorization: 'Bearer ' + sesion.access_token } });
+    }
+    if (!resp.ok) throw new Error('Error al obtener numeración: ' + resp.status);
     const data = await resp.json();
     const valores = (data.values || []).flat().filter(v => v && /^A-\d+$/.test(v.trim()));
     if (valores.length === 0) return 129;
@@ -1155,7 +1161,7 @@
   }
 
   async function renovarTokenSiNecesario() {
-    if (!sesion.token_expiry || Date.now() > sesion.token_expiry - 120000) {
+    if (!sesion.token_expiry || Date.now() > sesion.token_expiry - 300000) {
       await renovarToken();
     }
   }
@@ -1233,405 +1239,6 @@
     window.location.href = 'index.html';
   }
 
-  const TICKET_NAME = 'UNUSED'; // ticket/justificante movidos a sesiones.html
-
-  async function obtenerSiguienteNumeroTicket() {
-    const range = encodeURIComponent(`'${TICKET_NAME}'!B:B`);
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${FACTURACION_ID}/values/${range}`;
-    const resp = await fetch(url, { headers: { Authorization: 'Bearer ' + sesion.access_token } });
-    const data = await resp.json();
-    const valores = (data.values || []).flat().filter(v => v && /^A-\d+$/.test(v.trim()));
-    if (valores.length === 0) return 1;
-    const numeros = valores.map(v => parseInt(v.trim().replace('A-', '')));
-    return Math.max(...numeros) + 1;
-  }
-
-  async function generarTickets() {
-    const sesionesSeleccionadas = recogerSesionesSueltas();
-    if (sesionesSeleccionadas.length === 0) return;
-
-    const overlay = document.getElementById('progreso-overlay');
-    overlay.classList.add('visible');
-    document.getElementById('progreso-sub').textContent = 'Obteniendo numeración de tickets...';
-    document.getElementById('progreso-bar').style.width = '0%';
-    ['btn-generar','btn-ticket','btn-justificante'].forEach(id => document.getElementById(id).disabled = true);
-
-    try {
-      let logoDataUrl = await cargarLogo();
-      let numero = await obtenerSiguienteNumeroTicket();
-      const zip = new JSZip();
-      const registros = [];
-      const total = sesionesSeleccionadas.length;
-
-      for (let i = 0; i < total; i++) {
-        const { fila, nombre, dni } = sesionesSeleccionadas[i];
-        const nf = formatNumero(numero++);
-        document.getElementById('progreso-sub').textContent = `Generando ticket ${nf} — ${nombre}`;
-        document.getElementById('progreso-bar').style.width = `${Math.round((i/total)*100)}%`;
-        document.getElementById('progreso-num').textContent = `${i+1} de ${total}`;
-
-        const doc = construirTicket({ fila, nombre, dni }, nf, logoDataUrl);
-        zip.file(`Ticket_${nf}_${nombre}.pdf`, doc.output('arraybuffer'));
-
-        const fecha  = (fila[3]||'').trim();
-        const svc    = (fila[10]||'').trim();
-        const cobrado = parseFloat((fila[11]||'0').toString().replace(',','.').replace('€','').trim()) || 0;
-        const pago   = (fila[12]||'').trim();
-        registros.push([fecha, nf, nombre, svc, cobrado.toFixed(2) + ' €', pago]);
-        await new Promise(r => setTimeout(r, 50));
-      }
-
-      document.getElementById('progreso-sub').textContent = 'Guardando en hoja Ticket...';
-      document.getElementById('progreso-bar').style.width = '90%';
-      await escribirEnHoja(TICKET_NAME, registros);
-
-      document.getElementById('progreso-sub').textContent = 'Preparando ZIP...';
-      document.getElementById('progreso-bar').style.width = '97%';
-      const content = await zip.generateAsync({ type: 'blob' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(content);
-      link.download = `Tickets_Emociona_${new Date().toISOString().split('T')[0]}.zip`;
-      link.click();
-
-      document.getElementById('progreso-bar').style.width = '100%';
-      document.getElementById('progreso-sub').textContent = '¡Listo!';
-      await new Promise(r => setTimeout(r, 1200));
-      overlay.classList.remove('visible');
-      actualizarBarraInferior();
-    } catch(e) {
-      overlay.classList.remove('visible');
-      actualizarBarraInferior();
-      alert('Error al generar tickets: ' + e.message);
-      console.error(e);
-    }
-  }
-
-  function construirTicket({ fila, nombre, dni }, numeroTicket, logoDataUrl) {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    const W  = 210;
-    const ML = 14;
-    const MR = 14;
-
-    const MORADO    = [167, 34, 140];
-    const SALMON    = [220, 170, 185];
-    const BLUE_LT   = [210, 232, 245];
-    const BLUE_MED  = [170, 210, 235];
-    const DARK_HEAD = [50, 80, 110];
-    const GRAY      = [70, 70, 80];
-    const GRAY_LT   = [130, 130, 140];
-    const GRAY_BOX  = [240, 242, 244];
-    const DARK_BAR  = [40, 40, 50];
-
-    // ── TÍTULO "TICKET DE VENTA" ──
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(26);
-    doc.setTextColor(...MORADO);
-    doc.text('TICKET DE VENTA', ML, 28);
-
-    // ── LOGO (arriba derecha) ──
-    if (logoDataUrl) {
-      const fmt = logoDataUrl.startsWith('data:image/png') ? 'PNG'
-                : logoDataUrl.startsWith('data:image/gif') ? 'GIF' : 'JPEG';
-      doc.addImage(logoDataUrl, fmt, W - MR - 52, 8, 52, 32);
-    }
-
-    // ── CAJA EMISOR (gris claro) ──
-    const emisorY = 36;
-    doc.setFillColor(...GRAY_BOX);
-    doc.rect(ML, emisorY, 88, 30, 'F');
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8.5);
-    doc.setTextColor(...GRAY);
-    const ex = ML + 3;
-    doc.setFont('helvetica', 'bold');
-    doc.text('Isabel', ex, emisorY + 7);
-    const nwAncho = doc.getTextWidth('Isabel ');
-    doc.setFont('helvetica', 'normal');
-    doc.text('Zancada Zarcero', ex + nwAncho, emisorY + 7);
-    doc.text('NIF 71216423M',   ex, emisorY + 13);
-    doc.text('Tlfn. 644593823', ex, emisorY + 19);
-    doc.text("C/ Vicente Aleixandre, 1 'Emprendemérita'", ex, emisorY + 25);
-    doc.text('06800 Mérida (Badajoz)', ex, emisorY + 31 - 1);
-
-    // ── BANDA CLIENTE + DOCUMENTO ──
-    const bandaY = emisorY + 34;
-    doc.setFillColor(...SALMON);
-    doc.rect(ML, bandaY, W - ML - MR, 8, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.setTextColor(255, 255, 255);
-    doc.text(nombre, ML + 3, bandaY + 5.5);
-
-    // Cabeceras DOCUMENTO / Nº / FECHA (sobre fondo blanco)
-    const hdrY = bandaY + 8;
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
-    doc.setTextColor(...GRAY_LT);
-    doc.text('DOCUMENTO', ML + 90, hdrY + 5);
-    doc.text('Nº',        ML + 133, hdrY + 5);
-    doc.text('FECHA',     ML + 155, hdrY + 5);
-
-    // Valores
-    const valY = hdrY + 12;
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.setTextColor(...GRAY);
-    doc.text('Ticket',     ML + 90,  valY);
-    doc.text(numeroTicket, ML + 133, valY);
-    doc.text((fila[3]||'').trim(), ML + 155, valY);
-
-    // ── SEPARADOR OSCURO ──
-    const sepY = valY + 8;
-    doc.setFillColor(...DARK_BAR);
-    doc.rect(ML, sepY, W - ML - MR, 2, 'F');
-
-    // ── CONCEPTO (fondo azul claro) ──
-    const concY = sepY + 4;
-    const cobrado = parseFloat((fila[11]||'0').toString().replace(',','.').replace('€','').trim()) || 0;
-    const baseConcepto = cobrado / 1.21;
-    const descPct = parseInt((fila[25]||'0').replace('%','').trim()) || 0;
-    const svc = (fila[10]||'').trim();
-
-    doc.setFillColor(...BLUE_LT);
-    doc.rect(ML, concY, W - ML - MR, 38, 'F');
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.setTextColor(...GRAY);
-    doc.text('CONCEPTO', W / 2, concY + 7, { align: 'center' });
-
-    // Servicio + precio
-    const nombreSvcDisplay = svc.charAt(0).toUpperCase() + svc.slice(1);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.text(nombreSvcDisplay, ML + 20, concY + 18);
-    doc.text(baseConcepto.toFixed(2) + ' €', W - MR - 5, concY + 18, { align: 'right' });
-
-    // Descuento
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.setTextColor(...GRAY_LT);
-    doc.text('Dto.', ML + 40, concY + 30);
-    doc.text(descPct + '%', W / 2, concY + 30, { align: 'center' });
-
-    // ── TABLA IVA ──
-    const ivaY = concY + 44;
-    const baseStr = baseConcepto.toFixed(2);
-    const ivaStr  = (cobrado - parseFloat(baseStr)).toFixed(2);
-    const totalStr = cobrado.toFixed(2);
-
-    doc.autoTable({
-      head: [['TIPO', 'BASE IMPONIBLE', 'IVA']],
-      body: [['21%', baseStr + ' €', ivaStr + ' €']],
-      startY: ivaY,
-      margin: { left: W / 2 - 10, right: MR },
-      theme: 'plain',
-      headStyles: {
-        fillColor: DARK_HEAD, textColor: [255,255,255],
-        fontSize: 9, fontStyle: 'bold', halign: 'center',
-        cellPadding: { top: 4, bottom: 4, left: 3, right: 3 }
-      },
-      bodyStyles: {
-        fillColor: BLUE_LT, fontSize: 9.5, textColor: GRAY,
-        halign: 'center', cellPadding: { top: 5, bottom: 5, left: 3, right: 3 }
-      },
-      alternateRowStyles: { fillColor: BLUE_MED }
-    });
-
-    // Fila TOTAL
-    doc.autoTable({
-      body: [['TOTAL', totalStr + ' €']],
-      startY: doc.lastAutoTable.finalY,
-      margin: { left: W / 2 - 10, right: MR },
-      theme: 'plain',
-      bodyStyles: {
-        fillColor: [228, 235, 242], fontSize: 11,
-        fontStyle: 'bold', textColor: GRAY,
-        cellPadding: { top: 5, bottom: 5, left: 3, right: 3 }
-      },
-      columnStyles: {
-        0: { halign: 'left' },
-        1: { halign: 'right', textColor: MORADO }
-      }
-    });
-
-    // ── FORMA DE PAGO ──
-    const pagoY = doc.lastAutoTable.finalY + 8;
-    doc.setFillColor(...BLUE_LT);
-    doc.rect(ML + 40, pagoY, W - ML - 40 - MR, 10, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.setTextColor(...GRAY);
-    doc.text('FORMA DE PAGO', ML + 44, pagoY + 6.5);
-    doc.setFont('helvetica', 'normal');
-    doc.text((fila[12]||'').trim(), ML + 100, pagoY + 6.5);
-
-    return doc;
-  }
-
-  // ─────────────────────────────────────────────────
-  // ── JUSTIFICANTE DE ASISTENCIA ───────────────────
-  // ─────────────────────────────────────────────────
-
-  const JUSTIF_NAME = 'Justificante';
-  let _sesionesParaJustificar = [];
-
-  function pedirHoraYJustificar() {
-    _sesionesParaJustificar = recogerSesionesSueltas();
-    if (_sesionesParaJustificar.length === 0) return;
-    document.getElementById('input-hora').value = '';
-    document.getElementById('modal-hora').classList.add('visible');
-    setTimeout(() => document.getElementById('input-hora').focus(), 100);
-  }
-
-  function cerrarModalHora() {
-    document.getElementById('modal-hora').classList.remove('visible');
-    _sesionesParaJustificar = [];
-  }
-
-  function confirmarHora() {
-    const hora = document.getElementById('input-hora').value.trim();
-    document.getElementById('modal-hora').classList.remove('visible');
-    generarJustificantes(_sesionesParaJustificar, hora);
-  }
-
-  async function generarJustificantes(sesiones, hora) {
-    const overlay = document.getElementById('progreso-overlay');
-    overlay.classList.add('visible');
-    document.getElementById('progreso-sub').textContent = 'Generando justificantes...';
-    document.getElementById('progreso-bar').style.width = '0%';
-    ['btn-generar','btn-ticket','btn-justificante'].forEach(id => document.getElementById(id).disabled = true);
-
-    try {
-      let logoDataUrl = await cargarLogo();
-      const zip = new JSZip();
-      const registros = [];
-      const total = sesiones.length;
-
-      for (let i = 0; i < total; i++) {
-        const { fila, nombre, dni } = sesiones[i];
-        const fecha = (fila[3]||'').trim();
-        document.getElementById('progreso-sub').textContent = `Generando justificante — ${nombre}`;
-        document.getElementById('progreso-bar').style.width = `${Math.round((i/total)*100)}%`;
-        document.getElementById('progreso-num').textContent = `${i+1} de ${total}`;
-
-        const doc = construirJustificante({ nombre, dni, fecha, hora }, logoDataUrl);
-        zip.file(`Justificante_${nombre.replace(/ /g,'_')}_${fecha.replace(/\//g,'-')}.pdf`, doc.output('arraybuffer'));
-
-        registros.push([fecha, nombre, dni, hora]);
-        await new Promise(r => setTimeout(r, 50));
-      }
-
-      document.getElementById('progreso-sub').textContent = 'Guardando en hoja Justificante...';
-      document.getElementById('progreso-bar').style.width = '90%';
-      await escribirEnHoja(JUSTIF_NAME, registros);
-
-      document.getElementById('progreso-sub').textContent = 'Preparando ZIP...';
-      document.getElementById('progreso-bar').style.width = '97%';
-      const content = await zip.generateAsync({ type: 'blob' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(content);
-      link.download = `Justificantes_Emociona_${new Date().toISOString().split('T')[0]}.zip`;
-      link.click();
-
-      document.getElementById('progreso-bar').style.width = '100%';
-      document.getElementById('progreso-sub').textContent = '¡Listo!';
-      await new Promise(r => setTimeout(r, 1200));
-      overlay.classList.remove('visible');
-      actualizarBarraInferior();
-    } catch(e) {
-      overlay.classList.remove('visible');
-      actualizarBarraInferior();
-      alert('Error al generar justificantes: ' + e.message);
-      console.error(e);
-    }
-  }
-
-  function construirJustificante({ nombre, dni, fecha, hora }, logoDataUrl) {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    const W  = 210;
-    const H  = 297;
-
-    const MORADO  = [167, 34, 140];
-    const GRAY    = [70, 70, 80];
-    const GRAY_LT = [130, 130, 140];
-
-    // ── LOGO CENTRADO ──
-    if (logoDataUrl) {
-      const fmt = logoDataUrl.startsWith('data:image/png') ? 'PNG'
-                : logoDataUrl.startsWith('data:image/gif') ? 'GIF' : 'JPEG';
-      const lw = 70;
-      doc.addImage(logoDataUrl, fmt, (W - lw) / 2, 30, lw, 44);
-    }
-
-    // ── BANDA MORADA: TÍTULO ──
-    const bandaY = 88;
-    doc.setFillColor(...MORADO);
-    doc.rect(20, bandaY, W - 40, 11, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.setTextColor(255, 255, 255);
-    doc.text('JUSTIFICANTE DE ASISTENCIA A ECOGRAFÍA DE EMBARAZO', W / 2, bandaY + 7.2, { align: 'center' });
-
-    // ── CAMPOS ──
-    const campoX  = 28;
-    const valorX  = 72;
-    let   cy      = 120;
-    const paso    = 20;
-
-    const campos = [
-      { label: 'NOMBRE:', valor: nombre },
-      { label: 'DNI:',    valor: dni || '' },
-      { label: 'FECHA',   valor: fecha },
-      { label: 'HORA:',   valor: hora || '' },
-    ];
-
-    campos.forEach(({ label, valor }) => {
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(11);
-      doc.setTextColor(...GRAY);
-      doc.text(label, campoX, cy);
-
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(13);
-      doc.setTextColor(40, 40, 50);
-      doc.text(valor, valorX, cy);
-      cy += paso;
-    });
-
-    // ── BANDA MORADA DECORATIVA ──
-    const deco1Y = cy + 10;
-    doc.setFillColor(...MORADO);
-    doc.rect(20, deco1Y, W - 40, 7, 'F');
-
-    // ── BANDA MORADA FOOTER ──
-    const footBandaY = H - 44;
-    doc.setFillColor(...MORADO);
-    doc.rect(0, footBandaY, W, 18, 'F');
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8.5);
-    doc.setTextColor(255, 255, 255);
-    doc.text('www.emocionaecografia5d.com', 14, footBandaY + 7);
-    doc.setFont('helvetica', 'italic');
-    doc.setFontSize(11);
-    doc.text('Siente una experiencia única, familiar y ', W/2 + 2, footBandaY + 8, { align: 'left' });
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(13);
-    const tw = doc.getTextWidth('Siente una experiencia única, familiar y ');
-    doc.text('5D', W/2 + 2 + tw, footBandaY + 8.5);
-
-    // ── PIE: CONTACTO ──
-    const pieY = footBandaY + 22;
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(...GRAY_LT);
-    doc.text('info@emocionaecografia5d.com  ·  644 59 38 23', W / 2, pieY, { align: 'center' });
-    doc.text("C/ Vicente Aleixandre, 1  ·  Emprendemerita (centro de negocios) Oficina 12  ·  06800 Mérida", W / 2, pieY + 5, { align: 'center' });
-
-    return doc;
-  }
 
   // ─────────────────────────────────────────────────
   // ── HELPERS COMUNES ──────────────────────────────
@@ -1735,66 +1342,69 @@
 
   async function generarInformeGestor() {
     const tipo = document.getElementById('informe-tipo').value;
-    const MESES_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
-                      'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-    let desdeTs, hastaTs, tituloFichero, tituloPeriodo;
+    let desdeTs = 0, hastaTs = Infinity;
+    let tituloPeriodo = '', tituloFichero = '';
+    const añoT        = parseInt(document.getElementById('informe-anio-t').value);
+    const trimestreNum = parseInt(document.getElementById('informe-trimestre').value);
+    const añoM        = parseInt(document.getElementById('informe-anio-m').value);
+    const mesNum      = parseInt(document.getElementById('informe-mes').value);
+    const añoA        = parseInt(document.getElementById('informe-anio-a').value);
+    const desde       = document.getElementById('informe-desde').value;
+    const hasta       = document.getElementById('informe-hasta').value;
 
     if (tipo === 'trimestre') {
-      const t = parseInt(document.getElementById('informe-trimestre').value);
-      const a = parseInt(document.getElementById('informe-anio-t').value);
-      const rangos = [[1,3],[4,6],[7,9],[10,12]];
-      const [m1, m2] = rangos[t - 1];
-      desdeTs = new Date(a, m1 - 1, 1).getTime();
-      hastaTs = new Date(a, m2, 0, 23, 59, 59).getTime();
-      tituloFichero = `T${t}_${a}`;
-      tituloPeriodo = `${MESES_ES[m1-1]} — ${MESES_ES[m2-1]} ${a}`;
+      const mes1 = (trimestreNum - 1) * 3 + 1;
+      const mes2 = mes1 + 2;
+      desdeTs = new Date(añoT, mes1 - 1, 1).getTime();
+      hastaTs = new Date(añoT, mes2, 0, 23, 59, 59).getTime();
+      tituloPeriodo = `T${trimestreNum} ${añoT}`;
+      tituloFichero = `T${trimestreNum}_${añoT}`;
     } else if (tipo === 'mes') {
-      const m = parseInt(document.getElementById('informe-mes').value);
-      const a = parseInt(document.getElementById('informe-anio-m').value);
-      desdeTs = new Date(a, m - 1, 1).getTime();
-      hastaTs = new Date(a, m, 0, 23, 59, 59).getTime();
-      tituloFichero = `${MESES_ES[m-1]}_${a}`;
-      tituloPeriodo = `${MESES_ES[m-1]} ${a}`;
+      desdeTs = new Date(añoM, mesNum - 1, 1).getTime();
+      hastaTs = new Date(añoM, mesNum, 0, 23, 59, 59).getTime();
+      const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+                     'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+      tituloPeriodo = `${meses[mesNum-1]} ${añoM}`;
+      tituloFichero = `${meses[mesNum-1]}_${añoM}`;
     } else if (tipo === 'anio') {
-      const a = parseInt(document.getElementById('informe-anio-a').value);
-      desdeTs = new Date(a, 0, 1).getTime();
-      hastaTs = new Date(a, 11, 31, 23, 59, 59).getTime();
-      tituloFichero = `Año_${a}`;
-      tituloPeriodo = `Año ${a}`;
+      desdeTs = new Date(añoA, 0, 1).getTime();
+      hastaTs = new Date(añoA, 11, 31, 23, 59, 59).getTime();
+      tituloPeriodo = `Año ${añoA}`;
+      tituloFichero = `Año_${añoA}`;
     } else {
-      const desde = document.getElementById('informe-desde').value;
-      const hasta  = document.getElementById('informe-hasta').value;
-      desdeTs = new Date(desde).getTime();
-      hastaTs = new Date(hasta + 'T23:59:59').getTime();
+      if (!desde || !hasta) { alert('Introduce las fechas.'); return; }
+      const pD = desde.split('-').map(Number); desdeTs = new Date(pD[0], pD[1]-1, pD[2]).getTime();
+      const pH = hasta.split('-').map(Number);  hastaTs = new Date(pH[0], pH[1]-1, pH[2], 23, 59, 59).getTime();
+      tituloPeriodo = `${desde} — ${hasta}`;
       tituloFichero = `${desde}_${hasta}`;
-      tituloPeriodo = `${desde} al ${hasta}`;
     }
 
-    cerrarModalInforme();
+    document.getElementById('modal-informe').classList.remove('visible');
 
     try {
+      await renovarTokenSiNecesario();
       const range = encodeURIComponent(`'${HISTORICO_NAME}'!A:F`);
       const url = `https://sheets.googleapis.com/v4/spreadsheets/${FACTURACION_ID}/values/${range}`;
-      const resp = await fetch(url, { headers: { Authorization: 'Bearer ' + sesion.access_token } });
-      if (!resp.ok) throw new Error('Error al leer Histórico: ' + resp.status);
+      let resp = await fetch(url, { headers: { Authorization: 'Bearer ' + sesion.access_token } });
+      if (resp.status === 401) {
+        await renovarToken();
+        resp = await fetch(url, { headers: { Authorization: 'Bearer ' + sesion.access_token } });
+      }
+      if (!resp.ok) throw new Error('Error al leer histórico: ' + resp.status);
       const data = await resp.json();
-
-      // Saltar cabecera si la hay
-      let filas = (data.values || []);
-      if (filas.length > 0 && !/^A-\d+/.test((filas[0][1]||'').trim())) filas = filas.slice(1);
+      const filas = (data.values || []).slice(1); // saltar cabecera
 
       const filtradas = filas.filter(fila => {
-        const ts = parseFechaHistorico((fila[0]||'').trim());
+        const ts = parseFechaHistorico(fila[0]);
         return ts >= desdeTs && ts <= hastaTs;
       });
 
       if (filtradas.length === 0) {
-        alert('No hay facturas en el período seleccionado.\n\nPrueba a ampliar el rango o usa "Fechas libres".');
+        alert('No hay facturas en el período seleccionado.');
         return;
       }
 
       construirInformePDF(filtradas, tituloPeriodo, tituloFichero);
-
     } catch(e) {
       alert('Error al generar informe: ' + e.message);
       console.error(e);
