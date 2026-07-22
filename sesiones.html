@@ -322,6 +322,7 @@
     </label>
     <div class="filtros-right">
       <button class="btn-doc" title="Imprimir pendientes" onclick="abrirRevisionPendientes()" style="width:auto; padding:0 14px; font-size:12px; font-weight:500; color:#3C4A50;">🖨️ Imprimir pendientes</button>
+      <button class="btn-doc" title="Imprimir sobres" onclick="abrirRevisionSobres()" style="width:auto; padding:0 14px; font-size:12px; font-weight:500; color:#3C4A50; margin-left:6px;">✉️ Imprimir sobres</button>
       <button class="btn-limpiar" onclick="limpiarFiltros()">Limpiar filtros</button>
     </div>
   </div>
@@ -418,6 +419,24 @@
   </div>
 </div>
 
+<!-- MODAL: REVISIÓN DE SOBRES PENDIENTES -->
+<div id="modal-sobres" style="display:none; position:fixed; inset:0; background:rgba(44,62,64,0.45); z-index:1000; align-items:center; justify-content:center; padding:20px;">
+  <div style="background:#fff; border-radius:16px; max-width:640px; width:100%; max-height:85vh; display:flex; flex-direction:column; box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:20px 24px; border-bottom:1px solid #F0F4F5;">
+      <div style="font-size:16px; font-weight:500; color:#A7228C;">Sobres pendientes de enviar</div>
+      <button onclick="cerrarRevisionSobres()" style="border:none;background:none;font-size:20px;cursor:pointer;color:#9BB5BC;line-height:1;">✕</button>
+    </div>
+    <div style="padding:16px 24px; overflow-y:auto; flex:1;">
+      <div id="sobres-estado" style="font-size:13px;color:#9BB5BC;margin-bottom:12px;">Buscando sesiones pendientes de sobre...</div>
+      <div id="sobres-lista"></div>
+    </div>
+    <div style="padding:16px 24px; border-top:1px solid #F0F4F5; display:flex; gap:10px;">
+      <button class="btn-send-method" style="flex:none; padding:11px 20px; background:#A7228C; color:#fff; border-color:#A7228C;" id="btn-imprimir-sobres" onclick="imprimirSobresSeleccionados()" disabled>✉️ Imprimir sobres seleccionados</button>
+      <button class="btn-send-method" style="flex:none; padding:11px 20px;" onclick="cerrarRevisionSobres()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <script>
   // ── CONFIG ──
   const SHEET_ID        = '1Zb5yWR1oQF03jU8JNDDr4ynChC66WEObkDwnvYLOkpM';
@@ -428,6 +447,7 @@
   const CLIENT_ID  = '439474376295-jjs3q4nki5pkpc9fc9qfcdmp4ldlj1vh.apps.googleusercontent.com';
   const SCOPES     = 'openid email profile https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly';
   const ENCARGOS_FOLDER_ID = '1Cz3KxAlCyKYMk4FdMyFn3MtOQ5MQ13uh'; // carpeta Drive "Encargos" (collage)
+  const REMITENTE_SOBRE = 'Emociona 5D\nC/ Vicente Aleixandre, 1\nEmprendemérita, Oficina 12\n06800 Mérida (Badajoz)';
 
   const COLORES = {
     'ecoconfirmación':  { bg: '#F0F0F0', color: '#555' },
@@ -459,7 +479,8 @@
   // ── CARGAR DATOS ──
   async function cargarSesiones() {
     try {
-      const range = encodeURIComponent(`'${SHEET_NAME}'!A:Y`);
+      // A:AC en vez de A:Y para incluir la columna "Sobre" (AC, índice 28)
+      const range = encodeURIComponent(`'${SHEET_NAME}'!A:AC`);
       const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}`;
       const resp = await fetch(url, {
         headers: { Authorization: 'Bearer ' + sesion.access_token }
@@ -468,6 +489,12 @@
 
       const data = await resp.json();
       const filas = data.values || [];
+
+      // Crear la cabecera "Sobre" en AC1 si todavía no existe (columna al final, no rompe nada existente)
+      const cabecera = filas[0] || [];
+      if ((cabecera[28] || '').trim() !== 'Sobre') {
+        actualizarCelda('AC', 1, 'Sobre').catch(() => {});
+      }
 
       todasLasFilas = filas
         .map((fila, idx) => ({ fila, sheetRow: idx + 1 }))
@@ -1022,6 +1049,165 @@
       renderPendientesLista();
       aplicarFiltros(); // refresca la tabla para que se vea la casilla "Carta" ya marcada
       estado.textContent = `Listo: ${todasLasUrls.length} foto${todasLasUrls.length !== 1 ? 's' : ''} de ${seleccionadas.length} clienta${seleccionadas.length !== 1 ? 's' : ''} enviada${todasLasUrls.length !== 1 ? 's' : ''} a la vista de impresión y marcada${seleccionadas.length !== 1 ? 's' : ''} en "Carta". Selecciona "Canon SELPHY CP1300" y tamaño Postal en el diálogo.`;
+    } catch (e) {
+      if (ventana && !ventana.closed) ventana.close();
+      estado.textContent = 'Error al imprimir: ' + e.message;
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  // ─────────────────────────────────────────────────
+  // ── SOBRES (dirección postal, 120x176mm) ─────────
+  // ─────────────────────────────────────────────────
+
+  let sobresEncontrados = []; // sesiones pendientes de "Sobre" mostradas en el modal de revisión
+
+  function escribirVentanaSobres(ventana, sobres) {
+    const paginas = sobres.map(s => `
+      <div class="sobre">
+        <div class="remite">${s.remite.replace(/\n/g, '<br>')}</div>
+        <div class="destinatario">${s.destinatario.replace(/\n/g, '<br>')}</div>
+      </div>`).join('');
+    ventana.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Imprimir sobres</title>
+        <style>
+          @page { size: 120mm 176mm; margin: 0; }
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { background: #fff; font-family: 'Segoe UI', Arial, sans-serif; }
+          .sobre { width: 120mm; height: 176mm; position: relative; page-break-after: always; }
+          .remite { position: absolute; left: 8mm; top: 8mm; font-size: 8pt; line-height: 1.4; color: #333; }
+          .destinatario { position: absolute; left: 16mm; top: 95mm; right: 8mm; font-size: 12pt; line-height: 1.5; color: #000; }
+        </style>
+      </head>
+      <body>
+        ${paginas}
+        <script>
+          window.onload = function () {
+            setTimeout(function () { window.print(); }, 400);
+          };
+        <\/script>
+      </body>
+      </html>
+    `);
+    ventana.document.close();
+  }
+
+  async function abrirRevisionSobres() {
+    const modal = document.getElementById('modal-sobres');
+    const estado = document.getElementById('sobres-estado');
+    const lista = document.getElementById('sobres-lista');
+    const btnImprimir = document.getElementById('btn-imprimir-sobres');
+
+    modal.style.display = 'flex';
+    lista.innerHTML = '';
+    btnImprimir.disabled = true;
+    estado.textContent = 'Buscando sesiones pendientes de sobre...';
+
+    // Sesiones con Carta = "Sí" y Sobre (columna AC, índice 28) todavía vacío
+    const pendientes = todasLasFilas
+      .filter(({ fila }) => (fila[9] || '').trim() === 'Sí' && !(fila[28] || '').trim())
+      .map(({ fila, sheetRow }) => ({
+        nombre: ((fila[0] || '') + ' ' + (fila[1] || '')).trim(),
+        direccion: (fila[20] || '').trim(),
+        municipio: (fila[21] || '').trim(),
+        cp: (fila[22] || '').trim(),
+        sheetRow
+      }));
+
+    sobresEncontrados = pendientes;
+
+    if (pendientes.length === 0) {
+      estado.textContent = 'No hay ninguna sesión pendiente de sobre ahora mismo (Carta marcada, pero Sobre sin marcar).';
+      renderSobresLista();
+      return;
+    }
+
+    renderSobresLista();
+    estado.textContent = `${pendientes.length} sesión${pendientes.length !== 1 ? 'es' : ''} pendiente${pendientes.length !== 1 ? 's' : ''} de sobre. Revisa las direcciones antes de imprimir.`;
+  }
+
+  function renderSobresLista() {
+    const lista = document.getElementById('sobres-lista');
+    const btnImprimir = document.getElementById('btn-imprimir-sobres');
+
+    if (sobresEncontrados.length === 0) {
+      lista.innerHTML = '';
+      btnImprimir.disabled = true;
+      return;
+    }
+
+    lista.innerHTML = sobresEncontrados.map((s, i) => {
+      const direccionCompleta = s.direccion && s.municipio && s.cp;
+      const marcar = !!direccionCompleta;
+      s._marcado = marcar;
+      const etiqueta = direccionCompleta
+        ? { texto: '✅ Dirección completa', color: '#2C7A68' }
+        : { texto: '⚠️ Falta dirección, municipio o código postal — revisar a mano', color: '#C0392B' };
+      const direccionMostrar = [s.direccion, [s.cp, s.municipio].filter(Boolean).join(' ')].filter(Boolean).join(' · ') || 'Sin dirección registrada';
+
+      return `
+        <label style="display:flex; align-items:flex-start; gap:10px; padding:10px 6px; border-bottom:1px solid #F5F8F9; cursor:pointer;">
+          <input type="checkbox" data-idx="${i}" ${marcar ? 'checked' : ''} onchange="sobresEncontrados[${i}]._marcado = this.checked" style="margin-top:4px;">
+          <div style="flex:1;">
+            <div style="font-size:14px; font-weight:500; color:#2C3E40;">${s.nombre}</div>
+            <div style="font-size:12px; color:#7A8A8E; margin-top:2px;">${direccionMostrar}</div>
+            <div style="font-size:12px; color:${etiqueta.color}; margin-top:2px;">${etiqueta.texto}</div>
+          </div>
+        </label>`;
+    }).join('');
+
+    btnImprimir.disabled = false;
+  }
+
+  function cerrarRevisionSobres() {
+    document.getElementById('modal-sobres').style.display = 'none';
+  }
+
+  async function imprimirSobresSeleccionados() {
+    const seleccionadas = sobresEncontrados.filter(s => s._marcado && s.direccion && s.municipio && s.cp);
+    const estado = document.getElementById('sobres-estado');
+    const btn = document.getElementById('btn-imprimir-sobres');
+
+    if (seleccionadas.length === 0) {
+      estado.textContent = 'No hay ninguna sesión marcada con dirección completa.';
+      return;
+    }
+
+    btn.disabled = true;
+
+    // Abrir la ventana ya, dentro del clic, para que no la bloquee el navegador
+    const ventana = window.open('', '_blank');
+
+    try {
+      if (!ventana || ventana.closed) {
+        estado.textContent = 'El navegador ha bloqueado la ventana emergente. Permite las ventanas emergentes para esta web e inténtalo de nuevo.';
+        btn.disabled = false;
+        return;
+      }
+
+      await renovarTokenSiNecesario();
+
+      const sobres = seleccionadas.map(s => ({
+        remite: REMITENTE_SOBRE,
+        destinatario: `${s.nombre}\n${s.direccion}\n${s.cp} ${s.municipio}`
+      }));
+
+      escribirVentanaSobres(ventana, sobres);
+
+      estado.textContent = 'Marcando "Sobre" en la hoja...';
+      for (const s of seleccionadas) {
+        await actualizarCelda('AC', s.sheetRow, 'Sí');
+        const entrada = todasLasFilas.find(f => f.sheetRow === s.sheetRow);
+        if (entrada) entrada.fila[28] = 'Sí';
+      }
+
+      sobresEncontrados = sobresEncontrados.filter(s => !seleccionadas.includes(s));
+      renderSobresLista();
+      estado.textContent = `Listo: ${seleccionadas.length} sobre${seleccionadas.length !== 1 ? 's' : ''} enviado${seleccionadas.length !== 1 ? 's' : ''} a la vista de impresión y marcado${seleccionadas.length !== 1 ? 's' : ''} en "Sobre". Selecciona la impresora de sobres y el tamaño 120x176mm en el diálogo.`;
     } catch (e) {
       if (ventana && !ventana.closed) ventana.close();
       estado.textContent = 'Error al imprimir: ' + e.message;
