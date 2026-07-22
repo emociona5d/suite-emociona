@@ -871,7 +871,45 @@
         : 'Se encontró la carpeta "productos" pero no contiene fotos con formato foto8K_, foto5D_ o collage_.');
     }
 
-    return imagenes;
+    return { imagenes, carpetas: coincidencias };
+  }
+
+  // El nombre de la carpeta de encargo es [NOMBRE]-[YYYYMMDD###]-[UUID]. Extrae la fecha en formato dd/mm/aaaa
+  // (mismo formato que la columna "Fecha de la cita") para poder emparejarla con la sesión correcta.
+  function extraerFechaDeCarpeta(nombreCarpeta) {
+    const partes = (nombreCarpeta || '').split('-');
+    if (partes.length < 2) return null;
+    const codigo = partes[1].replace('[', '').replace(']', '').trim();
+    if (!/^\d{8}/.test(codigo)) return null;
+    const anio = codigo.substring(0, 4);
+    const mes = codigo.substring(4, 6);
+    const dia = codigo.substring(6, 8);
+    return `${dia}/${mes}/${anio}`;
+  }
+
+  // Marca la columna "Carta" (J) con la fecha de hoy en la fila de la sesión correspondiente.
+  // Si la fecha de la carpeta del encargo coincide con la fecha de una sesión concreta de la clienta,
+  // marca esa fila; si no encuentra coincidencia exacta, marca la sesión más reciente (comportamiento anterior).
+  // Los errores aquí no deben impedir que la foto se haya impreso/compartido, así que se ignoran en silencio.
+  async function marcarCartaEnviada(carpetas) {
+    try {
+      const c = clientasMap[clientaActivaKey];
+      if (!c) return;
+
+      const hoy = new Date();
+      const hoyStr = `${String(hoy.getDate()).padStart(2, '0')}/${String(hoy.getMonth() + 1).padStart(2, '0')}/${hoy.getFullYear()}`;
+
+      const filas = new Set();
+      carpetas.forEach(carpeta => {
+        const fechaCarpeta = extraerFechaDeCarpeta(carpeta.name);
+        const sesion = fechaCarpeta ? c.sesiones.find(s => (s.fila[3] || '').trim() === fechaCarpeta) : null;
+        filas.add(sesion ? sesion.sheetRow : c.datosSheetRow);
+      });
+
+      for (const row of filas) {
+        await actualizarCelda('J', row, hoyStr);
+      }
+    } catch (e) { /* no bloquear la impresión por un fallo aquí */ }
   }
 
   async function imprimirFotosCollage() {
@@ -898,9 +936,9 @@
 
       await renovarTokenSiNecesario();
 
-      let imagenes;
+      let imagenes, carpetas;
       try {
-        imagenes = await buscarImagenesImprimibles(estado);
+        ({ imagenes, carpetas } = await buscarImagenesImprimibles(estado));
       } catch (e) {
         ventana.close();
         estado.textContent = e.message;
@@ -915,7 +953,8 @@
       }
 
       escribirVentanaImpresion(ventana, urls);
-      estado.textContent = `Listo: ${urls.length} foto${urls.length !== 1 ? 's' : ''} enviada${urls.length !== 1 ? 's' : ''} a la vista de impresión. Selecciona "Canon SELPHY CP1300" y tamaño Postal en el diálogo.`;
+      await marcarCartaEnviada(carpetas);
+      estado.textContent = `Listo: ${urls.length} foto${urls.length !== 1 ? 's' : ''} enviada${urls.length !== 1 ? 's' : ''} a la vista de impresión. Selecciona "Canon SELPHY CP1300" y tamaño Postal en el diálogo. ✓ Marcado en "Carta".`;
     } catch (e) {
       if (ventana && !ventana.closed) ventana.close();
       estado.textContent = 'Error al buscar o cargar las fotos: ' + e.message;
@@ -942,7 +981,7 @@
 
     try {
       await renovarTokenSiNecesario();
-      const imagenes = await buscarImagenesImprimibles(estado);
+      const { imagenes, carpetas } = await buscarImagenesImprimibles(estado);
 
       estado.textContent = `Descargando ${imagenes.length} foto${imagenes.length !== 1 ? 's' : ''}...`;
       const files = [];
@@ -955,7 +994,8 @@
       }
 
       await navigator.share({ files, title: 'Fotos ' + nombreClientaActiva });
-      estado.textContent = `Elige "Canon PRINT" (o la app que prefieras) en el panel para imprimir las ${files.length} foto${files.length !== 1 ? 's' : ''}.`;
+      await marcarCartaEnviada(carpetas);
+      estado.textContent = `Elige "Canon PRINT" (o la app que prefieras) en el panel para imprimir las ${files.length} foto${files.length !== 1 ? 's' : ''}. ✓ Marcado en "Carta".`;
     } catch (e) {
       estado.textContent = (e.name === 'AbortError') ? 'Cancelado.' : (e.message || 'Error al buscar, cargar o compartir las fotos.');
     } finally {
