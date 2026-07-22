@@ -887,7 +887,8 @@
     return `${dia}/${mes}/${anio}`;
   }
 
-  // Marca la columna "Carta" (J) con la fecha de hoy en la fila de la sesión correspondiente.
+  // Marca la columna "Carta" (J) con "Sí" en la fila de la sesión correspondiente
+  // (mismo formato que usan Eco OK, Editada y Whatsapp en la hoja real).
   // Si la fecha de la carpeta del encargo coincide con la fecha de una sesión concreta de la clienta,
   // marca esa fila; si no encuentra coincidencia exacta, marca la sesión más reciente (comportamiento anterior).
   // Los errores aquí no deben impedir que la foto se haya impreso/compartido, así que se ignoran en silencio.
@@ -895,9 +896,6 @@
     try {
       const c = clientasMap[clientaActivaKey];
       if (!c) return;
-
-      const hoy = new Date();
-      const hoyStr = `${String(hoy.getDate()).padStart(2, '0')}/${String(hoy.getMonth() + 1).padStart(2, '0')}/${hoy.getFullYear()}`;
 
       const filas = new Set();
       carpetas.forEach(carpeta => {
@@ -907,7 +905,7 @@
       });
 
       for (const row of filas) {
-        await actualizarCelda('J', row, hoyStr);
+        await actualizarCelda('J', row, 'Sí');
       }
     } catch (e) { /* no bloquear la impresión por un fallo aquí */ }
   }

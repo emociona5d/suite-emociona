@@ -293,6 +293,7 @@
 
 <nav>
   <a class="nav-tab" href="dashboard.html">Hoy</a>
+  <a class="nav-tab" href="agenda.html">Agenda</a>
   <a class="nav-tab active" href="sesiones.html">Sesiones</a>
   <a class="nav-tab" href="clientas.html">Clientas</a>
   <a class="nav-tab" href="facturas.html">Facturas</a>
@@ -320,6 +321,7 @@
       Solo pendientes (sin Eco OK)
     </label>
     <div class="filtros-right">
+      <button class="btn-doc" title="Imprimir pendientes" onclick="abrirRevisionPendientes()" style="width:auto; padding:0 14px; font-size:12px; font-weight:500; color:#3C4A50;">🖨️ Imprimir pendientes</button>
       <button class="btn-limpiar" onclick="limpiarFiltros()">Limpiar filtros</button>
     </div>
   </div>
@@ -398,6 +400,24 @@
   </div>
 </div>
 
+<!-- MODAL: REVISIÓN DE PENDIENTES DE CARTA -->
+<div id="modal-pendientes" style="display:none; position:fixed; inset:0; background:rgba(44,62,64,0.45); z-index:1000; align-items:center; justify-content:center; padding:20px;">
+  <div style="background:#fff; border-radius:16px; max-width:640px; width:100%; max-height:85vh; display:flex; flex-direction:column; box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:20px 24px; border-bottom:1px solid #F0F4F5;">
+      <div style="font-size:16px; font-weight:500; color:#A7228C;">Fotos pendientes de imprimir</div>
+      <button onclick="cerrarRevisionPendientes()" style="border:none;background:none;font-size:20px;cursor:pointer;color:#9BB5BC;line-height:1;">✕</button>
+    </div>
+    <div style="padding:16px 24px; overflow-y:auto; flex:1;">
+      <div id="pendientes-estado" style="font-size:13px;color:#9BB5BC;margin-bottom:12px;">Buscando sesiones pendientes de carta...</div>
+      <div id="pendientes-lista"></div>
+    </div>
+    <div style="padding:16px 24px; border-top:1px solid #F0F4F5; display:flex; gap:10px;">
+      <button class="btn-send-method" style="flex:none; padding:11px 20px; background:#A7228C; color:#fff; border-color:#A7228C;" id="btn-imprimir-seleccionadas" onclick="imprimirSeleccionadas()" disabled>🖨️ Imprimir seleccionadas</button>
+      <button class="btn-send-method" style="flex:none; padding:11px 20px;" onclick="cerrarRevisionPendientes()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <script>
   // ── CONFIG ──
   const SHEET_ID        = '1Zb5yWR1oQF03jU8JNDDr4ynChC66WEObkDwnvYLOkpM';
@@ -406,7 +426,8 @@
   const JUSTIF_NAME     = 'Justificante';
   const SHEET_NAME = 'Respuestas de formulario 2026';
   const CLIENT_ID  = '439474376295-jjs3q4nki5pkpc9fc9qfcdmp4ldlj1vh.apps.googleusercontent.com';
-  const SCOPES     = 'openid email profile https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/drive.file';
+  const SCOPES     = 'openid email profile https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly';
+  const ENCARGOS_FOLDER_ID = '1Cz3KxAlCyKYMk4FdMyFn3MtOQ5MQ13uh'; // carpeta Drive "Encargos" (collage)
 
   const COLORES = {
     'ecoconfirmación':  { bg: '#F0F0F0', color: '#555' },
@@ -719,6 +740,294 @@
   function logout() {
     sessionStorage.removeItem('emociona_session');
     window.location.href = 'index.html';
+  }
+
+  // ─────────────────────────────────────────────────
+  // ── IMPRIMIR PENDIENTES (fotos de collage) ───────
+  // ─────────────────────────────────────────────────
+
+  let pendientesEncontrados = []; // sesiones pendientes de "Carta" mostradas en el modal de revisión
+
+  function normalizarTexto(s) {
+    return (s || '').toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+  }
+
+  async function listarCarpetasEncargos() {
+    const q = encodeURIComponent(`'${ENCARGOS_FOLDER_ID}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+    const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)&pageSize=1000`;
+    const resp = await fetch(url, { headers: { Authorization: 'Bearer ' + sesion.access_token } });
+    if (!resp.ok) throw new Error('Error ' + resp.status);
+    const data = await resp.json();
+    return data.files || [];
+  }
+
+  async function listarSubcarpetas(folderId) {
+    const q = encodeURIComponent(`'${folderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+    const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)&pageSize=100`;
+    const resp = await fetch(url, { headers: { Authorization: 'Bearer ' + sesion.access_token } });
+    if (!resp.ok) throw new Error('Error ' + resp.status);
+    const data = await resp.json();
+    return data.files || [];
+  }
+
+  // Dentro de cada carpeta de encargo hay una subcarpeta "productos" con las fotos entregables
+  async function buscarSubcarpetaProductos(carpetaOrdenId) {
+    const subcarpetas = await listarSubcarpetas(carpetaOrdenId);
+    return subcarpetas.find(c => normalizarTexto(c.name) === 'productos') || null;
+  }
+
+  async function listarImagenesEnCarpeta(folderId) {
+    const q = encodeURIComponent(`'${folderId}' in parents and mimeType contains 'image/' and trashed=false`);
+    const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,mimeType)&pageSize=1000&orderBy=name`;
+    const resp = await fetch(url, { headers: { Authorization: 'Bearer ' + sesion.access_token } });
+    if (!resp.ok) throw new Error('Error ' + resp.status);
+    const data = await resp.json();
+    return data.files || [];
+  }
+
+  // Solo se imprimen los archivos entregables: foto8K_..., foto5D_..., collage_... (se excluyen vídeos y otros)
+  function esFotoImprimible(nombreArchivo) {
+    return /^(foto8k|foto5d|collage)_/i.test(nombreArchivo || '');
+  }
+
+  async function descargarImagenBlobUrl(fileId) {
+    const url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
+    const resp = await fetch(url, { headers: { Authorization: 'Bearer ' + sesion.access_token } });
+    if (!resp.ok) throw new Error('Error ' + resp.status);
+    const blob = await resp.blob();
+    return URL.createObjectURL(blob);
+  }
+
+  // El nombre de la carpeta de encargo es [NOMBRE]-[YYYYMMDD###]-[UUID]. Extrae la fecha en formato dd/mm/aaaa
+  // (mismo formato que la columna "Fecha de la cita") para poder emparejarla con la sesión correcta.
+  function extraerFechaDeCarpeta(nombreCarpeta) {
+    const partes = (nombreCarpeta || '').split('-');
+    if (partes.length < 2) return null;
+    const codigo = partes[1].replace('[', '').replace(']', '').trim();
+    if (!/^\d{8}/.test(codigo)) return null;
+    const anio = codigo.substring(0, 4);
+    const mes = codigo.substring(4, 6);
+    const dia = codigo.substring(6, 8);
+    return `${dia}/${mes}/${anio}`;
+  }
+
+  function escribirVentanaImpresion(ventana, urls) {
+    const paginas = urls.map(u => `<div class="pagina"><img src="${u}"></div>`).join('');
+    ventana.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Imprimir fotos — Selphy CP1300</title>
+        <style>
+          @page { size: 100mm 148mm; margin: 0; }
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { background: #fff; }
+          .pagina { width: 100mm; height: 148mm; padding: 4mm; page-break-after: always; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #fff; }
+          .pagina img { max-width: 100%; max-height: 100%; object-fit: contain; }
+        </style>
+      </head>
+      <body>
+        ${paginas}
+        <script>
+          window.onload = function () {
+            setTimeout(function () { window.print(); }, 400);
+          };
+        <\/script>
+      </body>
+      </html>
+    `);
+    ventana.document.close();
+  }
+
+  // Busca en la lista de carpetas de Encargos (ya cargadas) la que corresponde a esta sesión.
+  // Prioriza la fecha (viene codificada en el nombre de la carpeta y no la escribe el ecógrafo a mano,
+  // así que es más fiable) y usa el nombre como confirmación / respaldo cuando la fecha no basta.
+  function emparejarCarpetaParaSesion(sesionPendiente, todasLasCarpetas) {
+    const nombreNorm = normalizarTexto(sesionPendiente.nombre);
+    const coincideNombre = (carpeta) => {
+      const primeraParte = normalizarTexto((carpeta.name || '').split('-')[0]);
+      return primeraParte.length >= 3 && (primeraParte.includes(nombreNorm) || nombreNorm.includes(primeraParte));
+    };
+
+    const porFecha = todasLasCarpetas.filter(c => extraerFechaDeCarpeta(c.name) === sesionPendiente.fechaCita);
+    const porFechaYNombre = porFecha.filter(coincideNombre);
+
+    if (porFechaYNombre.length === 1) return { carpeta: porFechaYNombre[0], confianza: 'segura' };
+    if (porFecha.length === 1) return { carpeta: porFecha[0], confianza: 'fecha' };
+
+    // Sin coincidencia de fecha fiable: probamos solo por nombre como último recurso
+    const soloNombre = todasLasCarpetas.filter(coincideNombre);
+    if (soloNombre.length === 1) return { carpeta: soloNombre[0], confianza: 'nombre' };
+
+    return { carpeta: null, confianza: (porFecha.length > 1 || soloNombre.length > 1) ? 'ambiguo' : 'sin-carpeta' };
+  }
+
+  function etiquetaConfianza(p) {
+    if (!p.carpeta) {
+      return p.confianza === 'ambiguo'
+        ? { texto: '❓ Varias carpetas posibles, revisar a mano', color: '#C0392B', marcar: false }
+        : { texto: '❌ No se ha encontrado la carpeta en Encargos', color: '#C0392B', marcar: false };
+    }
+    if (p.imagenes && p.imagenes.length === 0) {
+      return { texto: '⚠️ Carpeta encontrada pero sin fotos "productos" todavía', color: '#B8860B', marcar: false };
+    }
+    if (p.confianza === 'segura') return { texto: '✅ Coincidencia segura (fecha y nombre)', color: '#2C7A68', marcar: true };
+    if (p.confianza === 'fecha')  return { texto: '⚠️ Coincide la fecha, revisar el nombre', color: '#B8860B', marcar: false };
+    return { texto: '⚠️ Solo coincide el nombre, revisar la fecha', color: '#B8860B', marcar: false };
+  }
+
+  async function abrirRevisionPendientes() {
+    const modal = document.getElementById('modal-pendientes');
+    const estado = document.getElementById('pendientes-estado');
+    const lista = document.getElementById('pendientes-lista');
+    const btnImprimir = document.getElementById('btn-imprimir-seleccionadas');
+
+    modal.style.display = 'flex';
+    lista.innerHTML = '';
+    btnImprimir.disabled = true;
+    estado.textContent = 'Buscando sesiones pendientes de carta...';
+    pendientesEncontrados = [];
+
+    try {
+      await renovarTokenSiNecesario();
+
+      // 1. Sesiones con Eco OK, Editada y Whatsapp en "Sí" pero Carta todavía vacío
+      const pendientes = todasLasFilas
+        .filter(({ fila }) => {
+          const ecoOk    = (fila[6] || '').trim();
+          const editada  = (fila[7] || '').trim();
+          const whatsapp = (fila[8] || '').trim();
+          const carta    = (fila[9] || '').trim();
+          return ecoOk === 'Sí' && editada === 'Sí' && whatsapp === 'Sí' && !carta;
+        })
+        .map(({ fila, sheetRow }) => ({
+          nombre: ((fila[0] || '') + ' ' + (fila[1] || '')).trim(),
+          fechaCita: (fila[3] || '').trim(),
+          servicio: (fila[10] || '').trim(),
+          sheetRow
+        }));
+
+      if (pendientes.length === 0) {
+        estado.textContent = 'No hay ninguna sesión pendiente de carta ahora mismo (Eco OK, Editada y Whatsapp marcados, pero Carta sin marcar).';
+        return;
+      }
+
+      estado.textContent = `${pendientes.length} sesión${pendientes.length !== 1 ? 'es' : ''} pendiente${pendientes.length !== 1 ? 's' : ''}. Buscando carpetas en Encargos...`;
+
+      // 2. Cargar todas las carpetas de Encargos una sola vez
+      const carpetas = await listarCarpetasEncargos();
+
+      // 3. Emparejar cada sesión con su carpeta (fecha + nombre)
+      pendientes.forEach(p => {
+        const { carpeta, confianza } = emparejarCarpetaParaSesion(p, carpetas);
+        p.carpeta = carpeta;
+        p.confianza = confianza;
+      });
+
+      // 4. Para las que tienen carpeta, comprobar fotos dentro de "productos"
+      estado.textContent = 'Comprobando fotos en cada carpeta...';
+      for (const p of pendientes) {
+        if (!p.carpeta) { p.imagenes = []; continue; }
+        const productos = await buscarSubcarpetaProductos(p.carpeta.id);
+        if (!productos) { p.imagenes = []; continue; }
+        const archivos = await listarImagenesEnCarpeta(productos.id);
+        p.imagenes = archivos.filter(a => esFotoImprimible(a.name));
+      }
+
+      pendientesEncontrados = pendientes;
+      renderPendientesLista();
+      estado.textContent = `${pendientes.length} sesión${pendientes.length !== 1 ? 'es' : ''} pendiente${pendientes.length !== 1 ? 's' : ''} de carta. Revisa las marcadas antes de imprimir.`;
+    } catch (e) {
+      estado.textContent = 'Error al buscar pendientes: ' + e.message;
+    }
+  }
+
+  function renderPendientesLista() {
+    const lista = document.getElementById('pendientes-lista');
+    const btnImprimir = document.getElementById('btn-imprimir-seleccionadas');
+
+    if (pendientesEncontrados.length === 0) {
+      lista.innerHTML = '';
+      btnImprimir.disabled = true;
+      return;
+    }
+
+    lista.innerHTML = pendientesEncontrados.map((p, i) => {
+      const et = etiquetaConfianza(p);
+      p._marcado = et.marcar;
+      const numFotos = p.imagenes ? p.imagenes.length : 0;
+      return `
+        <label style="display:flex; align-items:flex-start; gap:10px; padding:10px 6px; border-bottom:1px solid #F5F8F9; cursor:pointer;">
+          <input type="checkbox" data-idx="${i}" ${et.marcar ? 'checked' : ''} onchange="pendientesEncontrados[${i}]._marcado = this.checked" style="margin-top:4px;">
+          <div style="flex:1;">
+            <div style="font-size:14px; font-weight:500; color:#2C3E40;">${p.nombre} <span style="font-weight:400; color:#9BB5BC; font-size:12px;">· ${p.fechaCita || 'sin fecha'} · ${p.servicio || 'sin servicio'}</span></div>
+            <div style="font-size:12px; color:${et.color}; margin-top:2px;">${et.texto}${p.carpeta ? ' · ' + numFotos + ' foto' + (numFotos !== 1 ? 's' : '') : ''}</div>
+          </div>
+        </label>`;
+    }).join('');
+
+    btnImprimir.disabled = false;
+  }
+
+  function cerrarRevisionPendientes() {
+    document.getElementById('modal-pendientes').style.display = 'none';
+  }
+
+  async function imprimirSeleccionadas() {
+    const seleccionadas = pendientesEncontrados.filter(p => p._marcado && p.carpeta && p.imagenes && p.imagenes.length > 0);
+    const estado = document.getElementById('pendientes-estado');
+    const btn = document.getElementById('btn-imprimir-seleccionadas');
+
+    if (seleccionadas.length === 0) {
+      estado.textContent = 'No hay ninguna sesión marcada con fotos disponibles.';
+      return;
+    }
+
+    btn.disabled = true;
+
+    // Abrir la ventana ya, dentro del clic, para que no la bloquee el navegador
+    const ventana = window.open('', '_blank');
+    if (ventana) {
+      ventana.document.write('<!DOCTYPE html><html><head><title>Preparando fotos…</title></head><body style="font-family:sans-serif;padding:40px;text-align:center;color:#888;">Descargando fotos de ' + seleccionadas.length + ' clienta(s)…</body></html>');
+      ventana.document.close();
+    }
+
+    try {
+      if (!ventana || ventana.closed) {
+        estado.textContent = 'El navegador ha bloqueado la ventana emergente. Permite las ventanas emergentes para esta web e inténtalo de nuevo.';
+        btn.disabled = false;
+        return;
+      }
+
+      await renovarTokenSiNecesario();
+
+      let todasLasUrls = [];
+      for (const p of seleccionadas) {
+        estado.textContent = `Descargando fotos de ${p.nombre}...`;
+        for (const img of p.imagenes) {
+          todasLasUrls.push(await descargarImagenBlobUrl(img.id));
+        }
+      }
+
+      escribirVentanaImpresion(ventana, todasLasUrls);
+
+      estado.textContent = 'Marcando "Carta" en la hoja...';
+      for (const p of seleccionadas) {
+        await actualizarCelda('J', p.sheetRow, 'Sí');
+        const entrada = todasLasFilas.find(f => f.sheetRow === p.sheetRow);
+        if (entrada) entrada.fila[9] = 'Sí';
+      }
+
+      pendientesEncontrados = pendientesEncontrados.filter(p => !seleccionadas.includes(p));
+      renderPendientesLista();
+      aplicarFiltros(); // refresca la tabla para que se vea la casilla "Carta" ya marcada
+      estado.textContent = `Listo: ${todasLasUrls.length} foto${todasLasUrls.length !== 1 ? 's' : ''} de ${seleccionadas.length} clienta${seleccionadas.length !== 1 ? 's' : ''} enviada${todasLasUrls.length !== 1 ? 's' : ''} a la vista de impresión y marcada${seleccionadas.length !== 1 ? 's' : ''} en "Carta". Selecciona "Canon SELPHY CP1300" y tamaño Postal en el diálogo.`;
+    } catch (e) {
+      if (ventana && !ventana.closed) ventana.close();
+      estado.textContent = 'Error al imprimir: ' + e.message;
+    } finally {
+      btn.disabled = false;
+    }
   }
 
   // ─────────────────────────────────────────────────
