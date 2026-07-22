@@ -569,6 +569,7 @@
       <div class="seccion">
         <div class="seccion-titulo">Fotos de collage (Encargos)</div>
         <button class="btn-guardar-datos" id="btn-imprimir-fotos" onclick="imprimirFotosCollage()">🖨️ Imprimir fotos (8K / 5D / collage)</button>
+        <button class="btn-guardar-datos" id="btn-compartir-fotos" onclick="compartirFotosCollage()" style="display:none; margin-left:8px; background:#5BAA96;">📲 Compartir con Canon PRINT</button>
         <div id="estado-fotos" style="margin-top:10px;font-size:13px;color:#9BB5BC;"></div>
       </div>
 
@@ -652,6 +653,12 @@
         <div class="seccion-titulo">Historial de sesiones</div>
         <div class="historial-lista" id="historial-lista"></div>
       </div>`;
+
+    // Mostrar el botón "Compartir con Canon PRINT" solo si el dispositivo lo soporta (normalmente móviles)
+    const btnCompartir = document.getElementById('btn-compartir-fotos');
+    if (btnCompartir) {
+      btnCompartir.style.display = (navigator.share && navigator.canShare) ? 'inline-block' : 'none';
+    }
 
     // Renderizar historial
     const historialEl = document.getElementById('historial-lista');
@@ -832,6 +839,41 @@
     return URL.createObjectURL(blob);
   }
 
+  // Busca en Drive las fotos imprimibles (foto8K_/foto5D_/collage_) del encargo de la clienta activa.
+  // Lanza un Error con un mensaje ya listo para mostrar si no encuentra nada.
+  async function buscarImagenesImprimibles(estado) {
+    const carpetas = await listarCarpetasEncargos();
+    const nombreNorm = normalizarTexto(nombreClientaActiva);
+
+    const coincidencias = carpetas.filter(c => {
+      const primeraParte = normalizarTexto((c.name || '').split('-')[0]);
+      if (!primeraParte || primeraParte.length < 3) return false;
+      return primeraParte.includes(nombreNorm) || nombreNorm.includes(primeraParte);
+    });
+
+    if (coincidencias.length === 0) {
+      throw new Error('No se ha encontrado ningún encargo de collage pendiente para esta clienta en la carpeta Encargos. (Se borran automáticamente a los 10 días de creados)');
+    }
+
+    if (estado) estado.textContent = 'Encargo encontrado. Buscando carpeta "productos"...';
+    let imagenes = [];
+    let algunaCarpetaSinProductos = false;
+    for (const carpeta of coincidencias) {
+      const productos = await buscarSubcarpetaProductos(carpeta.id);
+      if (!productos) { algunaCarpetaSinProductos = true; continue; }
+      const archivos = await listarImagenesEnCarpeta(productos.id);
+      imagenes.push(...archivos.filter(a => esFotoImprimible(a.name)));
+    }
+
+    if (imagenes.length === 0) {
+      throw new Error(algunaCarpetaSinProductos
+        ? 'Se encontró el encargo pero no tiene carpeta "productos" con fotos todavía.'
+        : 'Se encontró la carpeta "productos" pero no contiene fotos con formato foto8K_, foto5D_ o collage_.');
+    }
+
+    return imagenes;
+  }
+
   async function imprimirFotosCollage() {
     if (!nombreClientaActiva) return;
     const estado = document.getElementById('estado-fotos');
@@ -839,38 +881,29 @@
     btn.disabled = true;
     estado.textContent = 'Buscando el encargo en Drive...';
 
+    // En móvil hay que abrir la ventana YA, dentro del mismo clic, o el navegador la bloquea.
+    // Se rellena más tarde, cuando las fotos estén listas.
+    const ventana = window.open('', '_blank');
+    if (ventana) {
+      ventana.document.write('<!DOCTYPE html><html><head><title>Preparando fotos…</title></head><body style="font-family:sans-serif;padding:40px;text-align:center;color:#888;">Buscando y descargando las fotos…</body></html>');
+      ventana.document.close();
+    }
+
     try {
-      await renovarTokenSiNecesario();
-
-      const carpetas = await listarCarpetasEncargos();
-      const nombreNorm = normalizarTexto(nombreClientaActiva);
-
-      const coincidencias = carpetas.filter(c => {
-        const primeraParte = normalizarTexto((c.name || '').split('-')[0]);
-        if (!primeraParte || primeraParte.length < 3) return false;
-        return primeraParte.includes(nombreNorm) || nombreNorm.includes(primeraParte);
-      });
-
-      if (coincidencias.length === 0) {
-        estado.textContent = 'No se ha encontrado ningún encargo de collage pendiente para esta clienta en la carpeta Encargos. (Se borran automáticamente a los 10 días de creados)';
+      if (!ventana || ventana.closed) {
+        estado.textContent = 'El navegador ha bloqueado la ventana emergente. Permite las ventanas emergentes para esta web (suele salir un aviso arriba) e inténtalo de nuevo.';
         btn.disabled = false;
         return;
       }
 
-      estado.textContent = 'Encargo encontrado. Buscando carpeta "productos"...';
-      let imagenes = [];
-      let algunaCarpetaSinProductos = false;
-      for (const carpeta of coincidencias) {
-        const productos = await buscarSubcarpetaProductos(carpeta.id);
-        if (!productos) { algunaCarpetaSinProductos = true; continue; }
-        const archivos = await listarImagenesEnCarpeta(productos.id);
-        imagenes.push(...archivos.filter(a => esFotoImprimible(a.name)));
-      }
+      await renovarTokenSiNecesario();
 
-      if (imagenes.length === 0) {
-        estado.textContent = algunaCarpetaSinProductos
-          ? 'Se encontró el encargo pero no tiene carpeta "productos" con fotos todavía.'
-          : 'Se encontró la carpeta "productos" pero no contiene fotos con formato foto8K_, foto5D_ o collage_.';
+      let imagenes;
+      try {
+        imagenes = await buscarImagenesImprimibles(estado);
+      } catch (e) {
+        ventana.close();
+        estado.textContent = e.message;
         btn.disabled = false;
         return;
       }
@@ -881,17 +914,56 @@
         urls.push(await descargarImagenBlobUrl(img.id));
       }
 
-      abrirVentanaImpresion(urls);
+      escribirVentanaImpresion(ventana, urls);
       estado.textContent = `Listo: ${urls.length} foto${urls.length !== 1 ? 's' : ''} enviada${urls.length !== 1 ? 's' : ''} a la vista de impresión. Selecciona "Canon SELPHY CP1300" y tamaño Postal en el diálogo.`;
     } catch (e) {
+      if (ventana && !ventana.closed) ventana.close();
       estado.textContent = 'Error al buscar o cargar las fotos: ' + e.message;
     } finally {
       btn.disabled = false;
     }
   }
 
-  function abrirVentanaImpresion(urls) {
-    const ventana = window.open('', '_blank');
+  async function descargarImagenFile(fileId, nombreArchivo, mimeType) {
+    const url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
+    const resp = await fetch(url, { headers: { Authorization: 'Bearer ' + sesion.access_token } });
+    if (!resp.ok) throw new Error('Error ' + resp.status);
+    const blob = await resp.blob();
+    return new File([blob], nombreArchivo || 'foto.jpg', { type: mimeType || blob.type || 'image/jpeg' });
+  }
+
+  // Descarga las fotos y abre el panel nativo de "Compartir" del móvil (Canon PRINT, WhatsApp, etc.)
+  async function compartirFotosCollage() {
+    if (!nombreClientaActiva) return;
+    const estado = document.getElementById('estado-fotos');
+    const btn = document.getElementById('btn-compartir-fotos');
+    btn.disabled = true;
+    estado.textContent = 'Buscando el encargo en Drive...';
+
+    try {
+      await renovarTokenSiNecesario();
+      const imagenes = await buscarImagenesImprimibles(estado);
+
+      estado.textContent = `Descargando ${imagenes.length} foto${imagenes.length !== 1 ? 's' : ''}...`;
+      const files = [];
+      for (const img of imagenes) {
+        files.push(await descargarImagenFile(img.id, img.name, img.mimeType));
+      }
+
+      if (!navigator.canShare || !navigator.canShare({ files })) {
+        throw new Error('Este dispositivo no admite compartir fotos directamente. Usa el botón "Imprimir fotos" en su lugar.');
+      }
+
+      await navigator.share({ files, title: 'Fotos ' + nombreClientaActiva });
+      estado.textContent = `Elige "Canon PRINT" (o la app que prefieras) en el panel para imprimir las ${files.length} foto${files.length !== 1 ? 's' : ''}.`;
+    } catch (e) {
+      estado.textContent = (e.name === 'AbortError') ? 'Cancelado.' : (e.message || 'Error al buscar, cargar o compartir las fotos.');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function escribirVentanaImpresion(ventana, urls) {
     const paginas = urls.map(u => `<div class="pagina"><img src="${u}"></div>`).join('');
     ventana.document.write(`
       <!DOCTYPE html>
