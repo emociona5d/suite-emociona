@@ -328,6 +328,7 @@
 
 <nav>
   <a class="nav-tab" href="dashboard.html">Hoy</a>
+  <a class="nav-tab" href="agenda.html">Agenda</a>
   <a class="nav-tab" href="sesiones.html">Sesiones</a>
   <a class="nav-tab active" href="clientas.html">Clientas</a>
   <a class="nav-tab" href="facturas.html">Facturas</a>
@@ -366,7 +367,8 @@
   const SHEET_ID   = '1Zb5yWR1oQF03jU8JNDDr4ynChC66WEObkDwnvYLOkpM';
   const SHEET_NAME = 'Respuestas de formulario 2026';
   const CLIENT_ID  = '439474376295-jjs3q4nki5pkpc9fc9qfcdmp4ldlj1vh.apps.googleusercontent.com';
-  const SCOPES     = 'openid email profile https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/drive.file';
+  const SCOPES     = 'openid email profile https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly';
+  const ENCARGOS_FOLDER_ID = '1Cz3KxAlCyKYMk4FdMyFn3MtOQ5MQ13uh'; // carpeta Drive "Encargos" (collage)
 
   const COLORES = {
     'ecoconfirmación':  { bg: '#F0F0F0', color: '#555' },
@@ -393,6 +395,7 @@
   let clientasMap = {}; // clave: telefono o nombre → { datos, sesiones[] }
   let clientasOrdenadas = []; // array de claves ordenado
   let clientaActivaKey = null;
+  let nombreClientaActiva = null; // nombre completo de la clienta abierta, para buscar su carpeta de Encargos
 
   // ── CARGAR ──
   async function cargar() {
@@ -555,10 +558,19 @@
 
     const autSi = autRedes.toLowerCase() === 'sí' || autRedes.toLowerCase() === 'si' || autRedes === '1' || autRedes.toLowerCase() === 'true';
 
+    nombreClientaActiva = nombre;
+
     const panel = document.getElementById('panel-ficha');
     panel.innerHTML = `
       <div class="ficha-nombre">${nombre}</div>
       <div class="ficha-sub">${c.sesiones.length} sesión${c.sesiones.length !== 1 ? 'es' : ''} · Datos de la sesión más reciente</div>
+
+      <!-- FOTOS COLLAGE -->
+      <div class="seccion">
+        <div class="seccion-titulo">Fotos de collage (Encargos)</div>
+        <button class="btn-guardar-datos" id="btn-imprimir-fotos" onclick="imprimirFotosCollage()">🖨️ Imprimir fotos (8K / 5D / collage)</button>
+        <div id="estado-fotos" style="margin-top:10px;font-size:13px;color:#9BB5BC;"></div>
+      </div>
 
       <!-- DATOS PERSONALES -->
       <div class="seccion">
@@ -766,6 +778,145 @@
       });
     }
     if (!resp.ok) throw new Error('Error ' + resp.status);
+  }
+
+  // ── IMPRIMIR FOTOS DE COLLAGE (carpeta Drive "Encargos") ──
+
+  function normalizarTexto(s) {
+    return (s || '').toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+  }
+
+  async function listarCarpetasEncargos() {
+    const q = encodeURIComponent(`'${ENCARGOS_FOLDER_ID}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+    const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)&pageSize=1000`;
+    const resp = await fetch(url, { headers: { Authorization: 'Bearer ' + sesion.access_token } });
+    if (!resp.ok) throw new Error('Error ' + resp.status);
+    const data = await resp.json();
+    return data.files || [];
+  }
+
+  async function listarSubcarpetas(folderId) {
+    const q = encodeURIComponent(`'${folderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+    const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)&pageSize=100`;
+    const resp = await fetch(url, { headers: { Authorization: 'Bearer ' + sesion.access_token } });
+    if (!resp.ok) throw new Error('Error ' + resp.status);
+    const data = await resp.json();
+    return data.files || [];
+  }
+
+  // Dentro de cada carpeta de encargo hay una subcarpeta "productos" con las fotos entregables
+  async function buscarSubcarpetaProductos(carpetaOrdenId) {
+    const subcarpetas = await listarSubcarpetas(carpetaOrdenId);
+    return subcarpetas.find(c => normalizarTexto(c.name) === 'productos') || null;
+  }
+
+  async function listarImagenesEnCarpeta(folderId) {
+    const q = encodeURIComponent(`'${folderId}' in parents and mimeType contains 'image/' and trashed=false`);
+    const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,mimeType)&pageSize=1000&orderBy=name`;
+    const resp = await fetch(url, { headers: { Authorization: 'Bearer ' + sesion.access_token } });
+    if (!resp.ok) throw new Error('Error ' + resp.status);
+    const data = await resp.json();
+    return data.files || [];
+  }
+
+  // Solo se imprimen los archivos entregables: foto8K_..., foto5D_..., collage_... (se excluyen vídeos y otros)
+  function esFotoImprimible(nombreArchivo) {
+    return /^(foto8k|foto5d|collage)_/i.test(nombreArchivo || '');
+  }
+
+  async function descargarImagenBlobUrl(fileId) {
+    const url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
+    const resp = await fetch(url, { headers: { Authorization: 'Bearer ' + sesion.access_token } });
+    if (!resp.ok) throw new Error('Error ' + resp.status);
+    const blob = await resp.blob();
+    return URL.createObjectURL(blob);
+  }
+
+  async function imprimirFotosCollage() {
+    if (!nombreClientaActiva) return;
+    const estado = document.getElementById('estado-fotos');
+    const btn = document.getElementById('btn-imprimir-fotos');
+    btn.disabled = true;
+    estado.textContent = 'Buscando el encargo en Drive...';
+
+    try {
+      await renovarTokenSiNecesario();
+
+      const carpetas = await listarCarpetasEncargos();
+      const nombreNorm = normalizarTexto(nombreClientaActiva);
+
+      const coincidencias = carpetas.filter(c => {
+        const primeraParte = normalizarTexto((c.name || '').split('-')[0]);
+        if (!primeraParte || primeraParte.length < 3) return false;
+        return primeraParte.includes(nombreNorm) || nombreNorm.includes(primeraParte);
+      });
+
+      if (coincidencias.length === 0) {
+        estado.textContent = 'No se ha encontrado ningún encargo de collage pendiente para esta clienta en la carpeta Encargos. (Se borran automáticamente a los 10 días de creados)';
+        btn.disabled = false;
+        return;
+      }
+
+      estado.textContent = 'Encargo encontrado. Buscando carpeta "productos"...';
+      let imagenes = [];
+      let algunaCarpetaSinProductos = false;
+      for (const carpeta of coincidencias) {
+        const productos = await buscarSubcarpetaProductos(carpeta.id);
+        if (!productos) { algunaCarpetaSinProductos = true; continue; }
+        const archivos = await listarImagenesEnCarpeta(productos.id);
+        imagenes.push(...archivos.filter(a => esFotoImprimible(a.name)));
+      }
+
+      if (imagenes.length === 0) {
+        estado.textContent = algunaCarpetaSinProductos
+          ? 'Se encontró el encargo pero no tiene carpeta "productos" con fotos todavía.'
+          : 'Se encontró la carpeta "productos" pero no contiene fotos con formato foto8K_, foto5D_ o collage_.';
+        btn.disabled = false;
+        return;
+      }
+
+      estado.textContent = `Descargando ${imagenes.length} foto${imagenes.length !== 1 ? 's' : ''}...`;
+      const urls = [];
+      for (const img of imagenes) {
+        urls.push(await descargarImagenBlobUrl(img.id));
+      }
+
+      abrirVentanaImpresion(urls);
+      estado.textContent = `Listo: ${urls.length} foto${urls.length !== 1 ? 's' : ''} enviada${urls.length !== 1 ? 's' : ''} a la vista de impresión. Selecciona "Canon SELPHY CP1300" y tamaño Postal en el diálogo.`;
+    } catch (e) {
+      estado.textContent = 'Error al buscar o cargar las fotos: ' + e.message;
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function abrirVentanaImpresion(urls) {
+    const ventana = window.open('', '_blank');
+    const paginas = urls.map(u => `<div class="pagina"><img src="${u}"></div>`).join('');
+    ventana.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Imprimir fotos — Selphy CP1300</title>
+        <style>
+          @page { size: 100mm 148mm; margin: 0; }
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { background: #fff; }
+          .pagina { width: 100mm; height: 148mm; page-break-after: always; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+          .pagina img { width: 100%; height: 100%; object-fit: cover; }
+        </style>
+      </head>
+      <body>
+        ${paginas}
+        <script>
+          window.onload = function () {
+            setTimeout(function () { window.print(); }, 400);
+          };
+        <\/script>
+      </body>
+      </html>
+    `);
+    ventana.document.close();
   }
 
   function volverALista() {
