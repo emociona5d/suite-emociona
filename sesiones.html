@@ -1080,12 +1080,15 @@
       <head>
         <title>Imprimir sobres</title>
         <style>
-          @page { size: 120mm 176mm; margin: 0; }
+          /* El papel sigue siendo 120x176mm (el mismo tamaño personalizado ya guardado
+             en la impresora), pero "landscape" hace que el contenido se imprima girado,
+             como se sostiene el sobre normalmente al escribir en horizontal. */
+          @page { size: 120mm 176mm landscape; margin: 0; }
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body { background: #fff; font-family: 'Segoe UI', Arial, sans-serif; }
-          .sobre { width: 120mm; height: 176mm; position: relative; page-break-after: always; }
-          .remite { position: absolute; left: 8mm; top: 8mm; font-size: 8pt; line-height: 1.4; color: #333; }
-          .destinatario { position: absolute; left: 16mm; top: 95mm; right: 8mm; font-size: 12pt; line-height: 1.5; color: #000; }
+          .sobre { width: 176mm; height: 120mm; position: relative; page-break-after: always; }
+          .remite { position: absolute; left: 10mm; top: 10mm; max-width: 90mm; font-size: 8pt; line-height: 1.4; color: #333; }
+          .destinatario { position: absolute; left: 70mm; top: 55mm; right: 10mm; font-size: 12pt; line-height: 1.5; color: #000; }
         </style>
       </head>
       <body>
