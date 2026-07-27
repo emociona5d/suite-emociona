@@ -672,6 +672,7 @@
         <td class="td-docs">
           <button class="btn-doc" title="Ticket de venta" onclick="abrirModalTicket(${idx})">🧾</button>
           <button class="btn-doc justif" title="Justificante de asistencia" onclick="abrirModalJustif(${idx})">📋</button>
+          <button class="btn-doc" title="Imprimir fotos" onclick="imprimirFotoIndividual(${idx})">🖨️</button>
           <button class="btn-doc" title="Imprimir sobre" onclick="imprimirSobreIndividual(${idx})">✉️</button>
         </td>`;
       tbody.appendChild(tr);
@@ -1228,6 +1229,73 @@
       estado.textContent = 'Error al imprimir: ' + e.message;
     } finally {
       btn.disabled = false;
+    }
+  }
+
+  // Imprime las fotos de collage de una sola sesión, desde el botón 🖨️ de su fila.
+  // Reutiliza el mismo emparejador fecha+nombre que usa el modo masivo "Imprimir pendientes".
+  async function imprimirFotoIndividual(idx) {
+    const { fila, sheetRow } = filasRender[idx];
+    const nombre    = ((fila[0] || '') + ' ' + (fila[1] || '')).trim();
+    const fechaCita = (fila[3] || '').trim();
+
+    // Abrir la ventana ya, dentro del clic, para que no la bloquee el navegador
+    const ventana = window.open('', '_blank');
+    if (!ventana || ventana.closed) {
+      alert('El navegador ha bloqueado la ventana emergente. Permite las ventanas emergentes para esta web e inténtalo de nuevo.');
+      return;
+    }
+    ventana.document.write('<!DOCTYPE html><html><head><title>Preparando fotos…</title></head><body style="font-family:sans-serif;padding:40px;text-align:center;color:#888;">Buscando fotos de ' + nombre + '…</body></html>');
+    ventana.document.close();
+
+    try {
+      await renovarTokenSiNecesario();
+
+      const carpetas = await listarCarpetasEncargos();
+      const { carpeta, confianza } = emparejarCarpetaParaSesion({ nombre, fechaCita }, carpetas);
+
+      if (!carpeta) {
+        ventana.close();
+        alert(confianza === 'ambiguo'
+          ? `Hay varias carpetas posibles para ${nombre} en Encargos, revísalo a mano en Drive.`
+          : `No se ha encontrado la carpeta de ${nombre} en Encargos.`);
+        return;
+      }
+
+      const productos = await buscarSubcarpetaProductos(carpeta.id);
+      if (!productos) {
+        ventana.close();
+        alert(`Se ha encontrado la carpeta de ${nombre} pero todavía no tiene la subcarpeta "productos" con las fotos.`);
+        return;
+      }
+
+      const archivos = await listarImagenesEnCarpeta(productos.id);
+      const imagenes = archivos.filter(a => esFotoImprimible(a.name));
+
+      if (imagenes.length === 0) {
+        ventana.close();
+        alert(`No hay fotos imprimibles todavía (foto8K_, foto5D_, collage_) en la carpeta "productos" de ${nombre}.`);
+        return;
+      }
+
+      const urls = [];
+      for (const img of imagenes) {
+        urls.push(await descargarImagenBlobUrl(img.id));
+      }
+
+      escribirVentanaImpresion(ventana, urls);
+
+      // Solo marca "Carta" si todavía no lo estaba, para no perder el rastro
+      // de que ya se había enviado si esto es una reimpresión.
+      const yaMarcado = (fila[9] || '').trim() === 'Sí';
+      if (!yaMarcado) {
+        await actualizarCelda('J', sheetRow, 'Sí');
+        fila[9] = 'Sí';
+        aplicarFiltros(); // refresca la casilla "Carta" visible en la tabla
+      }
+    } catch (e) {
+      if (ventana && !ventana.closed) ventana.close();
+      alert('Error al imprimir las fotos: ' + e.message);
     }
   }
 

@@ -369,6 +369,7 @@
   const CLIENT_ID  = '439474376295-jjs3q4nki5pkpc9fc9qfcdmp4ldlj1vh.apps.googleusercontent.com';
   const SCOPES     = 'openid email profile https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly';
   const ENCARGOS_FOLDER_ID = '1Cz3KxAlCyKYMk4FdMyFn3MtOQ5MQ13uh'; // carpeta Drive "Encargos" (collage)
+  const REMITENTE_SOBRE = 'Emociona 5D\nC/ Vicente Aleixandre, 1\nEmprendemérita, Oficina 12\n06800 Mérida (Badajoz)';
 
   const COLORES = {
     'ecoconfirmación':  { bg: '#F0F0F0', color: '#555' },
@@ -400,13 +401,22 @@
   // ── CARGAR ──
   async function cargar() {
     try {
-      const range = encodeURIComponent(`'${SHEET_NAME}'!A:Y`);
+      // A:AC en vez de A:Y para incluir la columna "Sobre" (AC, índice 28)
+      const range = encodeURIComponent(`'${SHEET_NAME}'!A:AC`);
       const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}`;
       const resp = await fetch(url, { headers: { Authorization: 'Bearer ' + sesion.access_token } });
       if (!resp.ok) throw new Error('Error ' + resp.status);
 
       const data = await resp.json();
-      const filas = (data.values || []).slice(1).filter(f => f[0]);
+      const todasFilas = data.values || [];
+
+      // Crear la cabecera "Sobre" en AC1 si todavía no existe (columna al final, no rompe nada existente)
+      const cabecera = todasFilas[0] || [];
+      if ((cabecera[28] || '').trim() !== 'Sobre') {
+        actualizarCelda('AC', 1, 'Sobre').catch(() => {});
+      }
+
+      const filas = todasFilas.slice(1).filter(f => f[0]);
 
       // Agrupar por teléfono (Q = idx 16); si no hay, por nombre+apellido
       clientasMap = {};
@@ -571,6 +581,13 @@
         <button class="btn-guardar-datos" id="btn-imprimir-fotos" onclick="imprimirFotosCollage()">🖨️ Imprimir fotos (8K / 5D / collage)</button>
         <button class="btn-guardar-datos" id="btn-compartir-fotos" onclick="compartirFotosCollage()" style="display:none; margin-left:8px; background:#5BAA96;">📲 Compartir con Canon PRINT</button>
         <div id="estado-fotos" style="margin-top:10px;font-size:13px;color:#9BB5BC;"></div>
+      </div>
+
+      <!-- SOBRE POSTAL -->
+      <div class="seccion">
+        <div class="seccion-titulo">Sobre postal</div>
+        <button class="btn-guardar-datos" id="btn-imprimir-sobre" onclick="imprimirSobreClienta()">✉️ Imprimir sobre</button>
+        <div id="estado-sobre" style="margin-top:10px;font-size:13px;color:#9BB5BC;"></div>
       </div>
 
       <!-- DATOS PERSONALES -->
@@ -1027,6 +1044,97 @@
       </html>
     `);
     ventana.document.close();
+  }
+
+  function escribirVentanaSobres(ventana, sobres) {
+    const paginas = sobres.map(s => `
+      <div class="sobre">
+        <div class="remite">${s.remite.replace(/\n/g, '<br>')}</div>
+        <div class="destinatario">${s.destinatario.replace(/\n/g, '<br>')}</div>
+      </div>`).join('');
+    ventana.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Imprimir sobres</title>
+        <style>
+          /* El papel sigue siendo 120x176mm (el mismo tamaño personalizado ya guardado
+             en la impresora), pero "landscape" hace que el contenido se imprima girado,
+             como se sostiene el sobre normalmente al escribir en horizontal. */
+          @page { size: 120mm 176mm landscape; margin: 0; }
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { background: #fff; font-family: 'Segoe UI', Arial, sans-serif; }
+          .sobre { width: 176mm; height: 120mm; position: relative; page-break-after: always; }
+          .remite { position: absolute; left: 10mm; top: 10mm; max-width: 90mm; font-size: 8pt; line-height: 1.4; color: #333; }
+          .destinatario { position: absolute; left: 70mm; top: 55mm; right: 10mm; font-size: 12pt; line-height: 1.5; color: #000; }
+        </style>
+      </head>
+      <body>
+        ${paginas}
+        <script>
+          window.onload = function () {
+            setTimeout(function () { window.print(); }, 400);
+          };
+        <\/script>
+      </body>
+      </html>
+    `);
+    ventana.document.close();
+  }
+
+  // Imprime el sobre de la clienta actualmente abierta en la ficha.
+  async function imprimirSobreClienta() {
+    if (!clientaActivaKey) return;
+    const c = clientasMap[clientaActivaKey];
+    const f = c.datosFila;
+    const row = c.datosSheetRow;
+    const estado = document.getElementById('estado-sobre');
+    const btn = document.getElementById('btn-imprimir-sobre');
+
+    const nombre    = nombreClientaActiva;
+    const direccion = (f[20] || '').trim();
+    const municipio = (f[21] || '').trim();
+    const cp        = (f[22] || '').trim();
+
+    if (!direccion || !municipio || !cp) {
+      estado.textContent = 'Falta dirección, municipio o código postal. Complétalos en "Datos personales", guarda los cambios, y vuelve a intentarlo.';
+      return;
+    }
+
+    btn.disabled = true;
+    estado.textContent = 'Preparando el sobre...';
+
+    // Abrir la ventana ya, dentro del clic, para que no la bloquee el navegador
+    const ventana = window.open('', '_blank');
+    if (!ventana || ventana.closed) {
+      estado.textContent = 'El navegador ha bloqueado la ventana emergente. Permite las ventanas emergentes para esta web e inténtalo de nuevo.';
+      btn.disabled = false;
+      return;
+    }
+
+    try {
+      await renovarTokenSiNecesario();
+
+      const sobre = {
+        remite: REMITENTE_SOBRE,
+        destinatario: `${nombre}\n${direccion}\n${cp} ${municipio}`
+      };
+      escribirVentanaSobres(ventana, [sobre]);
+
+      // Solo marca "Sobre" si todavía no lo estaba, para no perder el rastro
+      // de que ya se había enviado si esto es una reimpresión.
+      const yaMarcado = (f[28] || '').trim() === 'Sí';
+      if (!yaMarcado) {
+        await actualizarCelda('AC', row, 'Sí');
+        f[28] = 'Sí';
+      }
+      estado.textContent = 'Sobre enviado a la vista de impresión. Selecciona la impresora de sobres en el diálogo.';
+    } catch (e) {
+      if (ventana && !ventana.closed) ventana.close();
+      estado.textContent = 'Error al imprimir el sobre: ' + e.message;
+    } finally {
+      btn.disabled = false;
+    }
   }
 
   function volverALista() {
