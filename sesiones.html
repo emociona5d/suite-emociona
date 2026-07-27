@@ -1067,6 +1067,133 @@
   // ── SOBRES (dirección postal, 120x176mm) ─────────
   // ─────────────────────────────────────────────────
 
+  // Provincia a partir de los dos primeros dígitos del código postal (dato oficial fijo, siempre correcto).
+  const PROVINCIA_POR_CP = {
+    '01':'Álava', '02':'Albacete', '03':'Alicante', '04':'Almería', '05':'Ávila',
+    '06':'Badajoz', '07':'Baleares', '08':'Barcelona', '09':'Burgos', '10':'Cáceres',
+    '11':'Cádiz', '12':'Castellón', '13':'Ciudad Real', '14':'Córdoba', '15':'A Coruña',
+    '16':'Cuenca', '17':'Girona', '18':'Granada', '19':'Guadalajara', '20':'Gipuzkoa',
+    '21':'Huelva', '22':'Huesca', '23':'Jaén', '24':'León', '25':'Lleida',
+    '26':'La Rioja', '27':'Lugo', '28':'Madrid', '29':'Málaga', '30':'Murcia',
+    '31':'Navarra', '32':'Ourense', '33':'Asturias', '34':'Palencia', '35':'Las Palmas',
+    '36':'Pontevedra', '37':'Salamanca', '38':'Santa Cruz de Tenerife', '39':'Cantabria', '40':'Segovia',
+    '41':'Sevilla', '42':'Soria', '43':'Tarragona', '44':'Teruel', '45':'Toledo',
+    '46':'Valencia', '47':'Valladolid', '48':'Bizkaia', '49':'Zamora', '50':'Zaragoza',
+    '51':'Ceuta', '52':'Melilla'
+  };
+
+  function provinciaDesdeCP(cp) {
+    const prefijo = (cp || '').trim().substring(0, 2);
+    return PROVINCIA_POR_CP[prefijo] || '';
+  }
+
+  // Normaliza un nombre de municipio moviendo el artículo final tipo ", La"/", El" al principio
+  // (el INE los guarda así: "Albuera, La"), para poder comparar con cómo se escriben normalmente.
+  function normalizarMunicipio(nombre) {
+    const m = (nombre || '').trim().match(/^(.*),\s*(La|El|Los|Las)$/i);
+    return normalizarTexto(m ? `${m[2]} ${m[1]}` : nombre);
+  }
+
+  // Municipios de Badajoz y Cáceres (INE), para avisar si el municipio no encaja con la
+  // provincia que indica el código postal. Solo se cubren estas dos provincias porque son,
+  // con diferencia, el origen de la inmensa mayoría de clientas; para el resto de España
+  // se confía directamente en el código postal, sin verificar.
+  const MUNICIPIOS_BADAJOZ = [
+    'Acedera', 'Aceuchal', 'Ahillones', 'Alange', 'Albuera, La', 'Alburquerque', 'Alconchel',
+    'Alconera', 'Aljucén', 'Almendral', 'Almendralejo', 'Arroyo de San Serván', 'Atalaya',
+    'Azuaga', 'Badajoz', 'Barcarrota', 'Baterno', 'Benquerencia de la Serena', 'Berlanga',
+    'Bienvenida', 'Bodonal de la Sierra', 'Burguillos del Cerro', 'Cabeza del Buey',
+    'Cabeza la Vaca', 'Calamonte', 'Calera de León', 'Calzadilla de los Barros', 'Campanario',
+    'Campillo de Llerena', 'Capilla', 'Carmonita', 'Carrascalejo, El', 'Casas de Don Pedro',
+    'Casas de Reina', 'Castilblanco', 'Castuera', 'Cheles', 'Codosera, La', 'Cordobilla de Lácara',
+    'Coronada, La', 'Corte de Peleas', 'Cristina', 'Don Benito', 'Don Álvaro', 'Entrín Bajo',
+    'Esparragalejo', 'Esparragosa de Lares', 'Esparragosa de la Serena', 'Feria',
+    'Fregenal de la Sierra', 'Fuenlabrada de los Montes', 'Fuente de Cantos', 'Fuente del Arco',
+    'Fuente del Maestre', 'Fuentes de León', 'Garbayuela', 'Garlitos', 'Garrovilla, La',
+    'Granja de Torrehermosa', 'Guadiana', 'Guareña', 'Haba, La', 'Helechosa de los Montes',
+    'Herrera del Duque', 'Higuera de Llerena', 'Higuera de Vargas', 'Higuera de la Serena',
+    'Higuera la Real', 'Hinojosa del Valle', 'Hornachos', 'Jerez de los Caballeros', 'Lapa, La',
+    'Llera', 'Llerena', 'Lobón', 'Magacela', 'Maguilla', 'Malcocinado', 'Malpartida de la Serena',
+    'Manchita', 'Medellín', 'Medina de las Torres', 'Mengabril', 'Mirandilla', 'Monesterio',
+    'Montemolín', 'Monterrubio de la Serena', 'Montijo', 'Morera, La', 'Mérida',
+    'Nava de Santiago, La', 'Navalvillar de Pela', 'Nogales', 'Oliva de Mérida',
+    'Oliva de la Frontera', 'Olivenza', 'Orellana de la Sierra', 'Orellana la Vieja', 'Palomas',
+    'Parra, La', 'Peraleda del Zaucejo', 'Peñalsordo', 'Puebla de Alcocer', 'Puebla de Obando',
+    'Puebla de Sancho Pérez', 'Puebla de la Calzada', 'Puebla de la Reina', 'Puebla del Maestre',
+    'Puebla del Prior', 'Pueblonuevo del Guadiana', 'Quintana de la Serena', 'Reina', 'Rena',
+    'Retamal de Llerena', 'Ribera del Fresno', 'Risco', 'Roca de la Sierra, La', 'Salvaleón',
+    'Salvatierra de los Barros', 'San Pedro de Mérida', 'San Vicente de Alcántara',
+    'Sancti-Spíritus', 'Santa Amalia', 'Santa Marta', 'Santos de Maimona, Los', 'Segura de León',
+    'Siruela', 'Solana de los Barros', 'Talarrubias', 'Talavera la Real', 'Tamurejo',
+    'Torre de Miguel Sesmero', 'Torremayor', 'Torremejía', 'Trasierra', 'Trujillanos', 'Táliga',
+    'Usagre', 'Valdecaballeros', 'Valdelacalzada', 'Valdetorres', 'Valencia de las Torres',
+    'Valencia del Mombuey', 'Valencia del Ventoso', 'Valle de Matamoros', 'Valle de Santa Ana',
+    'Valle de la Serena', 'Valverde de Burguillos', 'Valverde de Leganés', 'Valverde de Llerena',
+    'Valverde de Mérida', 'Villafranca de los Barros', 'Villagarcía de la Torre', 'Villagonzalo',
+    'Villalba de los Barros', 'Villanueva de la Serena', 'Villanueva del Fresno', 'Villar de Rena',
+    'Villar del Rey', 'Villarta de los Montes', 'Zafra', 'Zahínos', 'Zalamea de la Serena',
+    'Zarza, La', 'Zarza-Capilla'
+  ].map(normalizarMunicipio);
+
+  const MUNICIPIOS_CACERES = [
+    'Abadía', 'Abertura', 'Acebo', 'Acehúche', 'Aceituna', 'Ahigal', 'Alagón del Río', 'Albalá',
+    'Alcollarín', 'Alcuéscar', 'Alcántara', 'Aldea del Cano', 'Aldea del Obispo, La',
+    'Aldeacentenera', 'Aldeanueva de la Vera', 'Aldeanueva del Camino', 'Aldehuela del Jerte',
+    'Aliseda', 'Almaraz', 'Almoharín', 'Alía', 'Arroyo de la Luz', 'Arroyomolinos',
+    'Arroyomolinos de la Vera', 'Barrado', 'Baños de Montemayor', 'Belvís de Monroy',
+    'Benquerencia', 'Berrocalejo', 'Berzocana', 'Bohonal de Ibor', 'Botija', 'Brozas',
+    'Cabañas del Castillo', 'Cabezabellosa', 'Cabezuela del Valle', 'Cabrero', 'Cachorrilla',
+    'Cadalso', 'Calzadilla', 'Caminomorisco', 'Campillo de Deleitosa', 'Campo Lugar', 'Carbajo',
+    'Carcaboso', 'Carrascalejo', 'Casar de Cáceres', 'Casar de Palomero', 'Casares de las Hurdes',
+    'Casas de Don Antonio', 'Casas de Don Gómez', 'Casas de Millán', 'Casas de Miravete',
+    'Casas del Castañar', 'Casas del Monte', 'Casatejada', 'Casillas de Coria', 'Castañar de Ibor',
+    'Cañamero', 'Cañaveral', 'Ceclavín', 'Cedillo', 'Cerezo', 'Cilleros', 'Collado de la Vera',
+    'Conquista de la Sierra', 'Coria', 'Cuacos de Yuste', 'Cumbre, La', 'Cáceres', 'Deleitosa',
+    'Descargamaría', 'Eljas', 'Escurial', 'Fresnedoso de Ibor', 'Galisteo', 'Garciaz',
+    'Garganta la Olla', 'Garganta, La', 'Gargantilla', 'Gargüera', 'Garrovillas de Alconétar',
+    'Garvín', 'Gata', 'Gordo, El', 'Granja, La', 'Guadalupe', 'Guijo de Coria',
+    'Guijo de Galisteo', 'Guijo de Granadilla', 'Guijo de Santa Bárbara', 'Herguijuela',
+    'Hernán-Pérez', 'Herrera de Alcántara', 'Herreruela', 'Hervás', 'Higuera de Albalat',
+    'Hinojal', 'Holguera', 'Hoyos', 'Huélaga', 'Ibahernando', 'Jaraicejo', 'Jarandilla de la Vera',
+    'Jaraíz de la Vera', 'Jarilla', 'Jerte', 'Ladrillar', 'Logrosán', 'Losar de la Vera',
+    'Madrigal de la Vera', 'Madrigalejo', 'Madroñera', 'Majadas', 'Malpartida de Cáceres',
+    'Malpartida de Plasencia', 'Marchagaz', 'Mata de Alcántara', 'Membrío', 'Mesas de Ibor',
+    'Miajadas', 'Millanes', 'Mirabel', 'Mohedas de Granadilla', 'Monroy', 'Montehermoso',
+    'Montánchez', 'Moraleja', 'Morcillo', 'Navaconcejo', 'Navalmoral de la Mata',
+    'Navalvillar de Ibor', 'Navas del Madroño', 'Navezuelas', 'Nuñomoral', 'Oliva de Plasencia',
+    'Palomero', 'Pasarón de la Vera', 'Pedroso de Acim', 'Peraleda de San Román',
+    'Peraleda de la Mata', 'Perales del Puerto', 'Pescueza', 'Pesga, La', 'Piedras Albas',
+    'Pinofranqueado', 'Piornal', 'Plasencia', 'Plasenzuela', 'Portaje', 'Portezuelo',
+    'Pozuelo de Zarzón', 'Pueblonuevo de Miramontes', 'Puerto de Santa Cruz', 'Rebollar',
+    'Riolobos', 'Robledillo de Gata', 'Robledillo de Trujillo', 'Robledillo de la Vera',
+    'Robledollano', 'Romangordo', 'Rosalejo', 'Ruanes', 'Salorino', 'Salvatierra de Santiago',
+    'San Martín de Trevejo', 'Santa Ana', 'Santa Cruz de Paniagua', 'Santa Cruz de la Sierra',
+    'Santa Marta de Magasca', 'Santiago de Alcántara', 'Santiago del Campo', 'Santibáñez el Alto',
+    'Santibáñez el Bajo', 'Saucedilla', 'Segura de Toro', 'Serradilla', 'Serrejón',
+    'Sierra de Fuentes', 'Talaveruela de la Vera', 'Talaván', 'Talayuela', 'Tejeda de Tiétar',
+    'Tiétar', 'Toril', 'Tornavacas', 'Torno, El', 'Torre de Don Miguel', 'Torre de Santa María',
+    'Torrecilla de los Ángeles', 'Torrecillas de la Tiesa', 'Torrejoncillo', 'Torrejón el Rubio',
+    'Torremenga', 'Torremocha', 'Torreorgaz', 'Torrequemada', 'Trujillo', 'Valdastillas',
+    'Valdecañas de Tajo', 'Valdefuentes', 'Valdehúncar', 'Valdelacasa de Tajo', 'Valdemorales',
+    'Valdeobispo', 'Valencia de Alcántara', 'Valverde de la Vera', 'Valverde del Fresno',
+    'Vegaviana', 'Viandar de la Vera', 'Villa del Campo', 'Villa del Rey', 'Villamesías',
+    'Villamiel', 'Villanueva de la Sierra', 'Villanueva de la Vera', 'Villar de Plasencia',
+    'Villar del Pedroso', 'Villasbuenas de Gata', 'Zarza de Granadilla', 'Zarza de Montánchez',
+    'Zarza la Mayor', 'Zorita'
+  ].map(normalizarMunicipio);
+
+  // Aviso (no bloqueante) si el municipio no parece encajar con la provincia deducida del CP.
+  // Solo verifica Badajoz/Cáceres; para el resto de España devuelve null (se confía en el CP).
+  function avisoProvinciaMunicipio(municipio, cp) {
+    const provincia = provinciaDesdeCP(cp);
+    if (provincia !== 'Badajoz' && provincia !== 'Cáceres') return null;
+    const lista = provincia === 'Badajoz' ? MUNICIPIOS_BADAJOZ : MUNICIPIOS_CACERES;
+    const muniNorm = normalizarMunicipio(municipio);
+    if (!muniNorm) return null;
+    const encontrado = lista.some(m => m === muniNorm || m.startsWith(muniNorm) || muniNorm.startsWith(m));
+    return encontrado ? null : `El municipio "${municipio}" no parece estar en la provincia de ${provincia} según el código postal (${cp}). Revísalo antes de enviar.`;
+  }
+
   let sobresEncontrados = []; // sesiones pendientes de "Sobre" mostradas en el modal de revisión
 
   function escribirVentanaSobres(ventana, sobres) {
@@ -1164,6 +1291,8 @@
         ? { texto: '✅ Dirección completa', color: '#2C7A68' }
         : { texto: '⚠️ Falta dirección, municipio o código postal — revisar a mano', color: '#C0392B' };
       const direccionMostrar = [s.direccion, [s.cp, s.municipio].filter(Boolean).join(' ')].filter(Boolean).join(' · ') || 'Sin dirección registrada';
+      const avisoProvincia = direccionCompleta ? avisoProvinciaMunicipio(s.municipio, s.cp) : null;
+      s._avisoProvincia = avisoProvincia;
 
       return `
         <label style="display:flex; align-items:flex-start; gap:10px; padding:10px 6px; border-bottom:1px solid #F5F8F9; cursor:pointer;">
@@ -1172,6 +1301,7 @@
             <div style="font-size:14px; font-weight:500; color:#2C3E40;">${s.nombre}</div>
             <div style="font-size:12px; color:#7A8A8E; margin-top:2px;">${direccionMostrar}</div>
             <div style="font-size:12px; color:${etiqueta.color}; margin-top:2px;">${etiqueta.texto}</div>
+            ${avisoProvincia ? `<div style="font-size:12px; color:#C0821F; margin-top:2px;">⚠️ ${avisoProvincia}</div>` : ''}
           </div>
         </label>`;
     }).join('');
@@ -1193,6 +1323,13 @@
       return;
     }
 
+    const conAviso = seleccionadas.filter(s => s._avisoProvincia);
+    if (conAviso.length > 0) {
+      const detalle = conAviso.map(s => `• ${s.nombre}: ${s._avisoProvincia}`).join('\n');
+      const seguir = confirm(`Aviso en ${conAviso.length} sobre${conAviso.length !== 1 ? 's' : ''}:\n\n${detalle}\n\n¿Quieres imprimir de todas formas?`);
+      if (!seguir) return;
+    }
+
     btn.disabled = true;
 
     // Abrir la ventana ya, dentro del clic, para que no la bloquee el navegador
@@ -1207,10 +1344,13 @@
 
       await renovarTokenSiNecesario();
 
-      const sobres = seleccionadas.map(s => ({
-        remite: REMITENTE_SOBRE,
-        destinatario: `${s.nombre}\n${s.direccion}\n${s.cp} ${s.municipio}`
-      }));
+      const sobres = seleccionadas.map(s => {
+        const provincia = provinciaDesdeCP(s.cp);
+        return {
+          remite: REMITENTE_SOBRE,
+          destinatario: `${s.nombre}\n${s.direccion}\n${s.cp} ${s.municipio}${provincia ? '\n' + provincia : ''}`
+        };
+      });
 
       escribirVentanaSobres(ventana, sobres);
 
@@ -1314,6 +1454,12 @@
       return;
     }
 
+    const aviso = avisoProvinciaMunicipio(municipio, cp);
+    if (aviso) {
+      const seguir = confirm(`Aviso: ${aviso}\n\n¿Quieres imprimir el sobre de todas formas?`);
+      if (!seguir) return;
+    }
+
     // Abrir la ventana ya, dentro del clic, para que no la bloquee el navegador
     const ventana = window.open('', '_blank');
     if (!ventana || ventana.closed) {
@@ -1324,9 +1470,10 @@
     try {
       await renovarTokenSiNecesario();
 
+      const provincia = provinciaDesdeCP(cp);
       const sobre = {
         remite: REMITENTE_SOBRE,
-        destinatario: `${nombre}\n${direccion}\n${cp} ${municipio}`
+        destinatario: `${nombre}\n${direccion}\n${cp} ${municipio}${provincia ? '\n' + provincia : ''}`
       };
       escribirVentanaSobres(ventana, [sobre]);
 
