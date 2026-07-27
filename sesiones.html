@@ -448,6 +448,10 @@
   const SCOPES     = 'openid email profile https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly';
   const ENCARGOS_FOLDER_ID = '1Cz3KxAlCyKYMk4FdMyFn3MtOQ5MQ13uh'; // carpeta Drive "Encargos" (collage)
   const REMITENTE_SOBRE = 'Emociona 5D\nC/ Vicente Aleixandre, 1\nEmprendemérita, Oficina 12\n06800 Mérida (Badajoz)';
+  // Fecha a partir de la cual se empieza a controlar el envío de sobres.
+  // Las sesiones anteriores a esta fecha nunca aparecen como "pendientes de sobre",
+  // aunque tengan Carta = Sí, para no arrastrar todo el historial antiguo.
+  const SOBRES_DESDE = '27/07/2026';
 
   const COLORES = {
     'ecoconfirmación':  { bg: '#F0F0F0', color: '#555' },
@@ -668,6 +672,7 @@
         <td class="td-docs">
           <button class="btn-doc" title="Ticket de venta" onclick="abrirModalTicket(${idx})">🧾</button>
           <button class="btn-doc justif" title="Justificante de asistencia" onclick="abrirModalJustif(${idx})">📋</button>
+          <button class="btn-doc" title="Imprimir sobre" onclick="imprimirSobreIndividual(${idx})">✉️</button>
         </td>`;
       tbody.appendChild(tr);
     });
@@ -1107,9 +1112,16 @@
     btnImprimir.disabled = true;
     estado.textContent = 'Buscando sesiones pendientes de sobre...';
 
-    // Sesiones con Carta = "Sí" y Sobre (columna AC, índice 28) todavía vacío
+    // Sesiones con Carta = "Sí" y Sobre (columna AC, índice 28) todavía vacío,
+    // pero solo desde SOBRES_DESDE en adelante (para no arrastrar el historial antiguo)
+    const fechaCorte = parseFecha(SOBRES_DESDE);
     const pendientes = todasLasFilas
-      .filter(({ fila }) => (fila[9] || '').trim() === 'Sí' && !(fila[28] || '').trim())
+      .filter(({ fila }) => {
+        const carta = (fila[9] || '').trim() === 'Sí';
+        const sinSobre = !(fila[28] || '').trim();
+        const esReciente = parseFecha(fila[3]) >= fechaCorte;
+        return carta && sinSobre && esReciente;
+      })
       .map(({ fila, sheetRow }) => ({
         nombre: ((fila[0] || '') + ' ' + (fila[1] || '')).trim(),
         direccion: (fila[20] || '').trim(),
@@ -1213,6 +1225,50 @@
       estado.textContent = 'Error al imprimir: ' + e.message;
     } finally {
       btn.disabled = false;
+    }
+  }
+
+  // Imprime el sobre de una sola clienta, desde el botón ✉️ de su fila.
+  // Sirve tanto para el caso normal (una única clienta pendiente) como para repetir
+  // un sobre ya enviado antes (por ejemplo si se ha perdido o hay que reimprimirlo).
+  async function imprimirSobreIndividual(idx) {
+    const { fila, sheetRow } = filasRender[idx];
+    const nombre    = ((fila[0] || '') + ' ' + (fila[1] || '')).trim();
+    const direccion = (fila[20] || '').trim();
+    const municipio = (fila[21] || '').trim();
+    const cp        = (fila[22] || '').trim();
+
+    if (!direccion || !municipio || !cp) {
+      alert(`Falta dirección, municipio o código postal de ${nombre || 'esta clienta'}. Revísalo en su ficha antes de imprimir el sobre.`);
+      return;
+    }
+
+    // Abrir la ventana ya, dentro del clic, para que no la bloquee el navegador
+    const ventana = window.open('', '_blank');
+    if (!ventana || ventana.closed) {
+      alert('El navegador ha bloqueado la ventana emergente. Permite las ventanas emergentes para esta web e inténtalo de nuevo.');
+      return;
+    }
+
+    try {
+      await renovarTokenSiNecesario();
+
+      const sobre = {
+        remite: REMITENTE_SOBRE,
+        destinatario: `${nombre}\n${direccion}\n${cp} ${municipio}`
+      };
+      escribirVentanaSobres(ventana, [sobre]);
+
+      // Solo marca "Sobre" si todavía no lo estaba, para no perder el rastro
+      // de que ya se había enviado si esto es una reimpresión.
+      const yaMarcado = (fila[28] || '').trim() === 'Sí';
+      if (!yaMarcado) {
+        await actualizarCelda('AC', sheetRow, 'Sí');
+        fila[28] = 'Sí';
+      }
+    } catch (e) {
+      if (ventana && !ventana.closed) ventana.close();
+      alert('Error al imprimir el sobre: ' + e.message);
     }
   }
 
