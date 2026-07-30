@@ -1087,6 +1087,15 @@
     return PROVINCIA_POR_CP[prefijo] || '';
   }
 
+  // Google Sheets suele guardar el código postal como número y le quita el 0 inicial
+  // (p. ej. 06400 → 6400). Todos los CP españoles tienen 5 cifras, así que si llega
+  // con menos, se rellena con ceros por la izquierda antes de usarlo.
+  function formatearCP(cp) {
+    const digitos = (cp || '').toString().trim().replace(/\D/g, '');
+    if (!digitos) return '';
+    return digitos.padStart(5, '0');
+  }
+
   // Normaliza un nombre de municipio moviendo el artículo final tipo ", La"/", El" al principio
   // (el INE los guarda así: "Albuera, La"), para poder comparar con cómo se escriben normalmente.
   function normalizarMunicipio(nombre) {
@@ -1257,7 +1266,7 @@
         nombre: ((fila[0] || '') + ' ' + (fila[1] || '')).trim(),
         direccion: (fila[20] || '').trim(),
         municipio: (fila[21] || '').trim(),
-        cp: (fila[22] || '').trim(),
+        cp: formatearCP(fila[22]),
         sheetRow
       }));
 
@@ -1447,7 +1456,7 @@
     const nombre    = ((fila[0] || '') + ' ' + (fila[1] || '')).trim();
     const direccion = (fila[20] || '').trim();
     const municipio = (fila[21] || '').trim();
-    const cp        = (fila[22] || '').trim();
+    const cp        = formatearCP(fila[22]);
 
     if (!direccion || !municipio || !cp) {
       alert(`Falta dirección, municipio o código postal de ${nombre || 'esta clienta'}. Revísalo en su ficha antes de imprimir el sobre.`);

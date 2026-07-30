@@ -391,6 +391,15 @@
     return PROVINCIA_POR_CP[prefijo] || '';
   }
 
+  // Google Sheets suele guardar el código postal como número y le quita el 0 inicial
+  // (p. ej. 06400 → 6400). Todos los CP españoles tienen 5 cifras, así que si llega
+  // con menos, se rellena con ceros por la izquierda antes de usarlo.
+  function formatearCP(cp) {
+    const digitos = (cp || '').toString().trim().replace(/\D/g, '');
+    if (!digitos) return '';
+    return digitos.padStart(5, '0');
+  }
+
   // Normaliza un nombre de municipio moviendo el artículo final tipo ", La"/", El" al principio
   // (el INE los guarda así: "Albuera, La"), para poder comparar con cómo se escriben normalmente.
   function normalizarMunicipio(nombre) {
@@ -689,7 +698,7 @@
     const email    = (f[17]||'').trim();
     const dir      = (f[20]||'').trim();
     const muni     = (f[21]||'').trim();
-    const cp       = (f[22]||'').trim();
+    const cp       = formatearCP(f[22]);
     const autRedes = (f[14]||'').trim();
     const publicar = (f[15]||'').trim();
 
@@ -837,7 +846,16 @@
     try {
       const inputs = document.querySelectorAll('.dato-input[data-col]');
       for (const input of inputs) {
-        await actualizarCelda(input.dataset.col, input.dataset.row, input.value.trim());
+        let valor = input.value.trim();
+        // El código postal (columna W) se guarda con un apóstrofo delante para forzar
+        // que Sheets lo trate como texto y no le quite el 0 inicial (06400 → 6400).
+        if (input.dataset.col === 'W' && /^\d+$/.test(valor)) {
+          valor = valor.padStart(5, '0');
+          input.value = valor;
+          await actualizarCelda(input.dataset.col, input.dataset.row, "'" + valor);
+        } else {
+          await actualizarCelda(input.dataset.col, input.dataset.row, valor);
+        }
       }
       btn.textContent = 'Guardar cambios';
       btn.disabled = false;
@@ -1221,7 +1239,7 @@
     const nombre    = nombreClientaActiva;
     const direccion = (f[20] || '').trim();
     const municipio = (f[21] || '').trim();
-    const cp        = (f[22] || '').trim();
+    const cp        = formatearCP(f[22]);
 
     if (!direccion || !municipio || !cp) {
       estado.textContent = 'Falta dirección, municipio o código postal. Complétalos en "Datos personales", guarda los cambios, y vuelve a intentarlo.';
