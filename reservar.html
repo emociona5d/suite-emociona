@@ -516,14 +516,28 @@
         return;
       }
       cont.innerHTML = `<div class="huecos-grid">${huecos.map(h =>
-        `<button class="hueco-btn" onclick="confirmarReprogramacion('${token}','${fecha}','${h}')">${h}</button>`
+        `<button class="hueco-btn" onclick="seleccionarHoraReprogramar('${token}','${servicio}','${fecha}','${h}')">${h}</button>`
       ).join('')}</div>`;
     } catch (e) {
       cont.innerHTML = '<div class="msg-error">Error al comprobar disponibilidad.</div>';
     }
   }
 
+  function seleccionarHoraReprogramar(token, servicio, fecha, hora) {
+    const cont = document.getElementById('rp-huecos');
+    cont.innerHTML = `
+      <div class="resumen-reserva">
+        <strong>${servicio}</strong><br>
+        ${formatoFechaLarga(fecha)} — ${hora}
+      </div>
+      <button class="btn-principal" id="btn-confirmar-repro" onclick="confirmarReprogramacion('${token}','${fecha}','${hora}')">Confirmar cambio</button>
+      <button class="btn-secundario" onclick="cargarHuecosReprogramar('${token}','${servicio}')">← Elegir otra hora</button>
+    `;
+  }
+
   async function confirmarReprogramacion(token, fecha, hora) {
+    const btn = document.getElementById('btn-confirmar-repro');
+    if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
     try {
       const resp = await fetch(EP_GESTIONAR, {
         method: 'POST',
@@ -535,8 +549,12 @@
         cargarGestionReserva(token);
       } else {
         alert('No se pudo cambiar la cita. Puede que ese hueco ya no esté libre.');
+        if (btn) { btn.disabled = false; btn.textContent = 'Confirmar cambio'; }
       }
-    } catch (e) { alert('Error de conexión. Inténtalo de nuevo.'); }
+    } catch (e) {
+      alert('Error de conexión. Inténtalo de nuevo.');
+      if (btn) { btn.disabled = false; btn.textContent = 'Confirmar cambio'; }
+    }
   }
 </script>
 
