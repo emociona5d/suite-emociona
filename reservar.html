@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reserva tu sesión — Emociona 5D</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #FDF8F4;
+    min-height: 100vh;
+    color: #2C3E40;
+  }
+
+  header {
+    background: white;
+    padding: 18px 20px;
+    text-align: center;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+  }
+  .brand-logo { height: 52px; max-width: 220px; object-fit: contain; }
+
+  .main {
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 28px 18px 60px;
+  }
+
+  .intro {
+    text-align: center;
+    margin-bottom: 28px;
+  }
+  .intro-title { font-size: 22px; font-weight: 300; color: #A7228C; margin-bottom: 6px; }
+  .intro-text { font-size: 14px; color: #7A8A8E; line-height: 1.6; }
+
+  /* ── PASOS ── */
+  .pasos { display: flex; justify-content: center; gap: 6px; margin-bottom: 26px; }
+  .paso-dot { width: 8px; height: 8px; border-radius: 50%; background: #E0E8EA; transition: all 0.2s; }
+  .paso-dot.activo { background: #A7228C; width: 22px; border-radius: 4px; }
+  .paso-dot.hecho { background: #5BAA96; }
+
+  .card {
+    background: white;
+    border-radius: 16px;
+    padding: 24px 22px;
+    box-shadow: 0 2px 14px rgba(0,0,0,0.06);
+  }
+
+  .card-titulo { font-size: 17px; color: #A7228C; font-weight: 500; margin-bottom: 18px; }
+
+  /* ── SERVICIOS ── */
+  .servicio-lista { display: flex; flex-direction: column; gap: 10px; }
+  .servicio-opt {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 16px; border: 1.5px solid #E0E8EA; border-radius: 12px;
+    cursor: pointer; transition: all 0.18s; background: white;
+  }
+  .servicio-opt:hover { border-color: #E8C8E3; background: #FBF5FA; }
+  .servicio-opt.seleccionado { border-color: #A7228C; background: #FBF0F8; }
+  .servicio-nombre { font-size: 15px; font-weight: 500; color: #2C3E40; }
+  .servicio-duracion { font-size: 12px; color: #9BB5BC; margin-top: 2px; }
+  .servicio-flecha { color: #C8B8CE; font-size: 18px; }
+
+  /* ── FECHA / HORAS ── */
+  .campo-label { font-size: 12px; color: #6A7A80; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; display: block; }
+  input[type="date"] {
+    font-family: inherit; font-size: 15px; padding: 11px 12px;
+    border: 1.5px solid #E0E8EA; border-radius: 10px; color: #2C3E40;
+    width: 100%; outline: none; margin-bottom: 20px;
+  }
+  input[type="date"]:focus { border-color: #5BAA96; }
+
+  .huecos-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 4px; }
+  .hueco-btn {
+    padding: 11px 6px; border: 1.5px solid #E0E8EA; border-radius: 10px;
+    background: white; font-size: 14px; color: #2C3E40; cursor: pointer;
+    font-family: inherit; transition: all 0.18s; text-align: center;
+  }
+  .hueco-btn:hover { border-color: #5BAA96; }
+  .hueco-btn.seleccionado { background: #A7228C; border-color: #A7228C; color: white; }
+  .huecos-vacio { text-align: center; color: #9BB5BC; font-size: 14px; padding: 20px 10px; }
+
+  /* ── FORMULARIO DATOS ── */
+  .campo-grupo { margin-bottom: 16px; }
+  .campo-input {
+    font-family: inherit; font-size: 15px; padding: 11px 12px;
+    border: 1.5px solid #E0E8EA; border-radius: 10px; color: #2C3E40;
+    width: 100%; outline: none; transition: border-color 0.2s;
+  }
+  .campo-input:focus { border-color: #5BAA96; }
+  .campo-input.error { border-color: #E05A4E; }
+
+  .resumen-reserva {
+    background: #FBF5FA; border-radius: 12px; padding: 14px 16px;
+    margin-bottom: 20px; font-size: 14px; color: #5A3A50; line-height: 1.7;
+  }
+  .resumen-reserva strong { color: #A7228C; }
+
+  /* ── BOTONES ── */
+  .btn-principal {
+    width: 100%; padding: 14px; border: none; border-radius: 10px;
+    background: #A7228C; color: white; font-size: 15px; font-weight: 500;
+    cursor: pointer; font-family: inherit; transition: all 0.2s; margin-top: 6px;
+  }
+  .btn-principal:hover { background: #8A1A74; }
+  .btn-principal:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-secundario {
+    width: 100%; padding: 12px; border: 1.5px solid #E0E8EA; border-radius: 10px;
+    background: white; color: #7A8A8E; font-size: 14px; cursor: pointer;
+    font-family: inherit; margin-top: 10px; transition: all 0.2s;
+  }
+  .btn-secundario:hover { background: #F5F8F9; }
+
+  .msg-error { font-size: 13px; color: #C0392B; margin-top: 10px; text-align: center; }
+  .msg-cargando { text-align: center; color: #9BB5BC; font-size: 14px; padding: 30px 0; }
+
+  /* ── CONFIRMACIÓN ── */
+  .confirmacion { text-align: center; padding: 10px 0; }
+  .confirmacion-icono { font-size: 44px; margin-bottom: 14px; }
+  .confirmacion-titulo { font-size: 19px; color: #A7228C; margin-bottom: 10px; }
+  .confirmacion-detalle { font-size: 14px; color: #5A6A70; line-height: 1.7; margin-bottom: 20px; }
+  .confirmacion-nota { font-size: 12.5px; color: #9BB5BC; line-height: 1.6; }
+
+  /* ── GESTIONAR RESERVA (token) ── */
+  .estado-badge {
+    display: inline-block; font-size: 11px; padding: 3px 10px; border-radius: 10px;
+    font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase; margin-bottom: 14px;
+  }
+  .estado-badge.activa { background: #E8F5F2; color: #2C7A68; }
+  .estado-badge.cancelada { background: #FDECEA; color: #C0392B; }
+
+  .aviso-plazo {
+    background: #FFF8E1; border-radius: 10px; padding: 12px 14px;
+    font-size: 13px; color: #8A6D00; margin-top: 14px; line-height: 1.6;
+  }
+
+  .footer-nota { text-align: center; font-size: 12px; color: #C8D4D8; margin-top: 30px; }
+
+  @media (max-width: 420px) {
+    .huecos-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <img class="brand-logo" src="logo.jpg" alt="Emociona 5D">
+</header>
+
+<div class="main">
+
+  <div class="pasos" id="pasos-indicador"></div>
+
+  <div id="contenido">
+    <div class="msg-cargando">Cargando...</div>
+  </div>
+
+  <div class="footer-nota">Emociona 5D — Ecografía emocional 5D y 8K</div>
+</div>
+
+<script>
+  // ══════════════════════════════════════════════════════════
+  // CONFIG — sustituir por las URLs reales de los webhooks n8n
+  // ══════════════════════════════════════════════════════════
+  const N8N_BASE          = 'https://emociona5d.app.n8n.cloud/webhook/agenda';
+  const EP_DISPONIBILIDAD = N8N_BASE + '/disponibilidad';
+  const EP_CREAR_RESERVA  = N8N_BASE + '/crear-reserva';
+  const EP_GESTIONAR      = N8N_BASE + '/gestionar-reserva';
+
+  const CENTRO_DEFECTO = 'Merida';
+
+  // duracion = tiempo real de la sesión (lo que ve la clienta). El buffer entre citas
+  // (10 o 15 min según servicio) lo aplica el webhook de disponibilidad, no se muestra aquí.
+  const SERVICIOS = [
+    { id: 'Ecoconfirmación',   duracion: 20 },
+    { id: 'Ecosexo',           duracion: 20 },
+    { id: 'Ecosexo Emociona',  duracion: 30 },
+    { id: 'Ecobasic',          duracion: 30 },
+    { id: 'Ecobasic Plus',     duracion: 30 },
+    { id: 'Ecoemociona',       duracion: 50 }
+  ];
+
+  const ANTELACION_MIN_HORAS = 48; // para cancelar/reprogramar
+
+  // ── ESTADO ──
+  const params = new URLSearchParams(window.location.search);
+  const tokenURL = params.get('token');
+  const centro = params.get('centro') || CENTRO_DEFECTO;
+  const servicioPreseleccionado = params.get('servicio');
+
+  let estado = {
+    paso: 1,
+    servicio: null,
+    fecha: null,
+    hora: null,
+    nombre: '', apellidos: '', telefono: '', email: ''
+  };
+
+  const contenido = document.getElementById('contenido');
+  const pasosIndicador = document.getElementById('pasos-indicador');
+
+  function renderPasos(actual, total) {
+    if (!total) { pasosIndicador.innerHTML = ''; return; }
+    let html = '';
+    for (let i = 1; i <= total; i++) {
+      html += `<div class="paso-dot ${i === actual ? 'activo' : (i < actual ? 'hecho' : '')}"></div>`;
+    }
+    pasosIndicador.innerHTML = html;
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // ARRANQUE
+  // ══════════════════════════════════════════════════════════
+  if (tokenURL) {
+    renderPasos(0, 0);
+    cargarGestionReserva(tokenURL);
+  } else {
+    if (servicioPreseleccionado) {
+      const encontrado = SERVICIOS.find(s => s.id.toLowerCase() === servicioPreseleccionado.toLowerCase());
+      if (encontrado) { estado.servicio = encontrado.id; estado.paso = 2; }
+    }
+    renderPaso();
+  }
+
+  function renderPaso() {
+    if (estado.paso === 1) return renderPasoServicio();
+    if (estado.paso === 2) return renderPasoFechaHora();
+    if (estado.paso === 3) return renderPasoDatos();
+    if (estado.paso === 4) return renderPasoConfirmacion();
+  }
+
+  // ── PASO 1 — SERVICIO ──
+  function renderPasoServicio() {
+    renderPasos(1, 3);
+    contenido.innerHTML = `
+      <div class="intro">
+        <div class="intro-title">Reserva tu sesión</div>
+        <div class="intro-text">Elige el servicio que quieres reservar 💫</div>
+      </div>
+      <div class="card">
+        <div class="servicio-lista">
+          ${SERVICIOS.map(s => `
+            <div class="servicio-opt" data-servicio="${s.id}" onclick="elegirServicio('${s.id}')">
+              <div>
+                <div class="servicio-nombre">${s.id}</div>
+                <div class="servicio-duracion">${s.duracion} min</div>
+              </div>
+              <div class="servicio-flecha">›</div>
+            </div>`).join('')}
+        </div>
+      </div>`;
+  }
+
+  function elegirServicio(id) {
+    estado.servicio = id;
+    estado.paso = 2;
+    renderPaso();
+  }
+
+  // ── PASO 2 — FECHA Y HORA ──
+  function renderPasoFechaHora() {
+    renderPasos(2, 3);
+    const manana = new Date();
+    manana.setDate(manana.getDate() + 1);
+    const maxFecha = new Date();
+    maxFecha.setDate(maxFecha.getDate() + 60);
+
+    contenido.innerHTML = `
+      <div class="intro">
+        <div class="intro-title">${estado.servicio}</div>
+        <div class="intro-text">Elige el día y la hora que mejor te venga</div>
+      </div>
+      <div class="card">
+        <label class="campo-label">Día</label>
+        <input type="date" id="input-fecha" min="${fmtInput(manana)}" max="${fmtInput(maxFecha)}">
+        <div id="huecos-contenedor"></div>
+        <button class="btn-secundario" onclick="volverA(1)">← Cambiar servicio</button>
+      </div>`;
+
+    document.getElementById('input-fecha').addEventListener('change', cargarHuecos);
+  }
+
+  function fmtInput(d) { return d.toISOString().split('T')[0]; }
+
+  async function cargarHuecos() {
+    const fecha = document.getElementById('input-fecha').value;
+    if (!fecha) return;
+    estado.fecha = fecha;
+    const cont = document.getElementById('huecos-contenedor');
+    cont.innerHTML = '<div class="msg-cargando">Buscando huecos libres...</div>';
+
+    try {
+      const url = `${EP_DISPONIBILIDAD}?centro=${encodeURIComponent(centro)}&servicio=${encodeURIComponent(estado.servicio)}&fecha=${fecha}`;
+      const resp = await fetch(url);
+      const data = await resp.json();
+      const huecos = data.huecos || [];
+
+      if (!huecos.length) {
+        cont.innerHTML = '<div class="huecos-vacio">No hay huecos libres este día. Prueba con otra fecha 🌿</div>';
+        return;
+      }
+
+      cont.innerHTML = `<div class="huecos-grid">${huecos.map(h =>
+        `<button class="hueco-btn" data-hora="${h}" onclick="elegirHora('${h}')">${h}</button>`
+      ).join('')}</div>`;
+    } catch (e) {
+      cont.innerHTML = '<div class="msg-error">No se pudo comprobar la disponibilidad. Inténtalo de nuevo.</div>';
+    }
+  }
+
+  function elegirHora(hora) {
+    estado.hora = hora;
+    document.querySelectorAll('.hueco-btn').forEach(b => b.classList.toggle('seleccionado', b.dataset.hora === hora));
+    setTimeout(() => { estado.paso = 3; renderPaso(); }, 200);
+  }
+
+  // ── PASO 3 — DATOS DE CONTACTO ──
+  function renderPasoDatos() {
+    renderPasos(3, 3);
+    contenido.innerHTML = `
+      <div class="intro">
+        <div class="intro-title">Tus datos</div>
+        <div class="intro-text">Para confirmar la reserva</div>
+      </div>
+      <div class="card">
+        <div class="resumen-reserva">
+          <strong>${estado.servicio}</strong><br>
+          ${formatoFechaLarga(estado.fecha)} — ${estado.hora}
+        </div>
+        <div class="campo-grupo">
+          <label class="campo-label">Nombre *</label>
+          <input class="campo-input" id="d-nombre" type="text" placeholder="Nombre">
+        </div>
+        <div class="campo-grupo">
+          <label class="campo-label">Apellidos *</label>
+          <input class="campo-input" id="d-apellidos" type="text" placeholder="Apellidos">
+        </div>
+        <div class="campo-grupo">
+          <label class="campo-label">Teléfono *</label>
+          <input class="campo-input" id="d-telefono" type="tel" placeholder="600 000 000">
+        </div>
+        <div class="campo-grupo">
+          <label class="campo-label">Email *</label>
+          <input class="campo-input" id="d-email" type="email" placeholder="correo@ejemplo.com">
+        </div>
+        <div class="msg-error" id="d-error"></div>
+        <button class="btn-principal" id="btn-confirmar" onclick="confirmarReserva()">Confirmar reserva</button>
+        <button class="btn-secundario" onclick="volverA(2)">← Cambiar día u hora</button>
+      </div>`;
+  }
+
+  function formatoFechaLarga(fechaISO) {
+    const d = new Date(fechaISO + 'T00:00:00');
+    const f = d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+    return f.charAt(0).toUpperCase() + f.slice(1);
+  }
+
+  function volverA(paso) { estado.paso = paso; renderPaso(); }
+
+  async function confirmarReserva() {
+    const nombre = document.getElementById('d-nombre').value.trim();
+    const apellidos = document.getElementById('d-apellidos').value.trim();
+    const telefono = document.getElementById('d-telefono').value.trim();
+    const email = document.getElementById('d-email').value.trim();
+    const errorEl = document.getElementById('d-error');
+
+    if (!nombre || !apellidos || !telefono || !email) {
+      errorEl.textContent = 'Completa todos los campos, por favor.';
+      return;
+    }
+    errorEl.textContent = '';
+
+    const btn = document.getElementById('btn-confirmar');
+    btn.disabled = true;
+    btn.textContent = 'Reservando...';
+
+    try {
+      const resp = await fetch(EP_CREAR_RESERVA, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          centro, servicio: estado.servicio, fecha: estado.fecha, hora: estado.hora,
+          nombre, apellidos, telefono, email
+        })
+      });
+      const data = await resp.json();
+
+      if (!data.ok) {
+        errorEl.textContent = data.error === 'hueco_ocupado'
+          ? 'Justo se ha ocupado ese hueco. Elige otra hora, por favor.'
+          : 'No se pudo completar la reserva. Inténtalo de nuevo.';
+        btn.disabled = false;
+        btn.textContent = 'Confirmar reserva';
+        return;
+      }
+
+      estado.nombre = nombre;
+      estado.paso = 4;
+      renderPaso();
+    } catch (e) {
+      errorEl.textContent = 'Error de conexión. Inténtalo de nuevo.';
+      btn.disabled = false;
+      btn.textContent = 'Confirmar reserva';
+    }
+  }
+
+  // ── PASO 4 — CONFIRMACIÓN ──
+  function renderPasoConfirmacion() {
+    renderPasos(0, 0);
+    contenido.innerHTML = `
+      <div class="card confirmacion">
+        <div class="confirmacion-icono">💫</div>
+        <div class="confirmacion-titulo">¡Reserva confirmada, ${estado.nombre}!</div>
+        <div class="confirmacion-detalle">
+          <strong>${estado.servicio}</strong><br>
+          ${formatoFechaLarga(estado.fecha)} — ${estado.hora}
+        </div>
+        <div class="confirmacion-nota">
+          Te hemos enviado un email de confirmación con un enlace para gestionar tu cita
+          (cancelarla o cambiarla de fecha) si lo necesitas.<br><br>
+          Ha sido un placer acompañarte 💛<br>Equipo Emociona 5D
+        </div>
+      </div>`;
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // GESTIONAR RESERVA EXISTENTE (vía token en la URL)
+  // ══════════════════════════════════════════════════════════
+  async function cargarGestionReserva(token) {
+    contenido.innerHTML = '<div class="msg-cargando">Buscando tu reserva...</div>';
+    try {
+      const resp = await fetch(`${EP_GESTIONAR}?token=${encodeURIComponent(token)}`);
+      const data = await resp.json();
+      if (!data.ok) {
+        contenido.innerHTML = `<div class="card"><div class="msg-error">No hemos encontrado esa reserva. Si el enlace es antiguo, contacta con nosotras.</div></div>`;
+        return;
+      }
+      renderGestionReserva(token, data.reserva);
+    } catch (e) {
+      contenido.innerHTML = `<div class="card"><div class="msg-error">No se pudo comprobar tu reserva. Inténtalo de nuevo.</div></div>`;
+    }
+  }
+
+  function renderGestionReserva(token, r) {
+    const activa = r.estado === 'Activa';
+    const horasHastaCita = (new Date(r.fecha + 'T' + r.hora) - new Date()) / 3600000;
+    const dentroDePlazo = horasHastaCita >= ANTELACION_MIN_HORAS;
+
+    contenido.innerHTML = `
+      <div class="card">
+        <span class="estado-badge ${activa ? 'activa' : 'cancelada'}">${r.estado}</span>
+        <div class="resumen-reserva">
+          <strong>${r.servicio}</strong><br>
+          ${formatoFechaLarga(r.fecha)} — ${r.hora}
+        </div>
+        ${activa ? `
+          ${dentroDePlazo ? `
+            <button class="btn-principal" onclick="mostrarReprogramar('${token}','${r.servicio}')">Cambiar fecha u hora</button>
+            <button class="btn-secundario" style="color:#C0392B;border-color:#F5C6C6" onclick="cancelarReserva('${token}')">Cancelar mi cita</button>
+          ` : `
+            <div class="aviso-plazo">Tu cita es en menos de ${ANTELACION_MIN_HORAS} horas. Para cancelar o cambiar la fecha con tan poca antelación, escríbenos directamente 💛</div>
+          `}
+        ` : `<div class="confirmacion-nota">Esta reserva ya no está activa.</div>`}
+      </div>`;
+  }
+
+  async function cancelarReserva(token) {
+    if (!confirm('¿Seguro que quieres cancelar tu cita?')) return;
+    try {
+      const resp = await fetch(EP_GESTIONAR, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, accion: 'cancelar' })
+      });
+      const data = await resp.json();
+      if (data.ok) {
+        cargarGestionReserva(token);
+      } else {
+        alert('No se pudo cancelar. Inténtalo de nuevo o escríbenos.');
+      }
+    } catch (e) { alert('Error de conexión. Inténtalo de nuevo.'); }
+  }
+
+  function mostrarReprogramar(token, servicio) {
+    const manana = new Date(); manana.setDate(manana.getDate() + 1);
+    const maxFecha = new Date(); maxFecha.setDate(maxFecha.getDate() + 60);
+    contenido.innerHTML = `
+      <div class="card">
+        <div class="card-titulo">Elige nuevo día y hora</div>
+        <label class="campo-label">Día</label>
+        <input type="date" id="rp-fecha" min="${fmtInput(manana)}" max="${fmtInput(maxFecha)}">
+        <div id="rp-huecos"></div>
+        <button class="btn-secundario" onclick="cargarGestionReserva('${token}')">← Volver</button>
+      </div>`;
+    document.getElementById('rp-fecha').addEventListener('change', () => cargarHuecosReprogramar(token, servicio));
+  }
+
+  async function cargarHuecosReprogramar(token, servicio) {
+    const fecha = document.getElementById('rp-fecha').value;
+    const cont = document.getElementById('rp-huecos');
+    cont.innerHTML = '<div class="msg-cargando">Buscando huecos...</div>';
+    try {
+      const url = `${EP_DISPONIBILIDAD}?centro=${encodeURIComponent(centro)}&fecha=${fecha}&servicio=${encodeURIComponent(servicio)}&token=${encodeURIComponent(token)}`;
+      const resp = await fetch(url);
+      const data = await resp.json();
+      const huecos = data.huecos || [];
+      if (!huecos.length) {
+        cont.innerHTML = '<div class="huecos-vacio">No hay huecos libres este día.</div>';
+        return;
+      }
+      cont.innerHTML = `<div class="huecos-grid">${huecos.map(h =>
+        `<button class="hueco-btn" onclick="confirmarReprogramacion('${token}','${fecha}','${h}')">${h}</button>`
+      ).join('')}</div>`;
+    } catch (e) {
+      cont.innerHTML = '<div class="msg-error">Error al comprobar disponibilidad.</div>';
+    }
+  }
+
+  async function confirmarReprogramacion(token, fecha, hora) {
+    try {
+      const resp = await fetch(EP_GESTIONAR, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, accion: 'reprogramar', nuevaFecha: fecha, nuevaHora: hora })
+      });
+      const data = await resp.json();
+      if (data.ok) {
+        cargarGestionReserva(token);
+      } else {
+        alert('No se pudo cambiar la cita. Puede que ese hueco ya no esté libre.');
+      }
+    } catch (e) { alert('Error de conexión. Inténtalo de nuevo.'); }
+  }
+</script>
+
+</body>
+</html>

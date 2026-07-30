@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Emociona 5D — Agenda</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #FDF8F4; min-height: 100vh; }
+
+  header {
+    background: white; padding: 14px 28px; display: flex; align-items: center;
+    justify-content: space-between; box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+    position: sticky; top: 0; z-index: 100;
+  }
+  .brand-logo { height: 46px; max-width: 160px; object-fit: contain; display: block; }
+  .header-user { display: flex; align-items: center; gap: 10px; }
+  .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: #E8C8E3; object-fit: cover; }
+  .user-name { font-size: 13px; color: #7A8A8E; }
+  .logout-btn { font-size: 12px; color: #9BB5BC; background: none; border: 1px solid #D8E8EB; border-radius: 6px; padding: 4px 12px; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+  .logout-btn:hover { background: #F9EEF7; color: #A7228C; }
+
+  nav { background: white; border-bottom: 1px solid #EEF2F4; padding: 0 28px; display: flex; }
+  .nav-tab { padding: 12px 20px; font-size: 13px; color: #9BB5BC; border-bottom: 2px solid transparent; transition: all 0.2s; text-decoration: none; display: block; }
+  .nav-tab.active { color: #A7228C; border-bottom-color: #A7228C; font-weight: 500; }
+
+  .main { max-width: 920px; margin: 28px auto; padding: 0 24px; }
+
+  .page-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+  .page-title { font-size: 22px; font-weight: 300; color: #A7228C; }
+  .page-date { font-size: 13px; color: #9BB5BC; margin-top: 3px; }
+
+  .fecha-selector { display: flex; align-items: center; gap: 8px; }
+  .fecha-selector label { font-size: 13px; color: #7A8A8E; }
+  .fecha-selector input[type="date"] { font-family: inherit; font-size: 13px; padding: 7px 12px; border: 1.5px solid #E0E8EA; border-radius: 8px; color: #3C4A50; outline: none; background: white; }
+  .btn-hoy { font-size: 12px; padding: 7px 14px; border: 1.5px solid #E0E8EA; border-radius: 8px; background: white; color: #7A8A8E; cursor: pointer; font-family: inherit; transition: all 0.2s; }
+  .btn-hoy:hover { background: #F9EEF7; border-color: #5BAA96; color: #A7228C; }
+
+  .btn-accion {
+    font-size: 13px; padding: 8px 16px; border: 1.5px solid #A7228C; border-radius: 8px;
+    background: #A7228C; color: white; cursor: pointer; font-family: inherit; font-weight: 500;
+    transition: all 0.2s; white-space: nowrap;
+  }
+  .btn-accion:hover { background: #8A1A74; border-color: #8A1A74; }
+  .btn-accion.secundario { background: white; color: #A7228C; }
+  .btn-accion.secundario:hover { background: #FBF0F8; }
+
+  .acciones-owner { display: flex; gap: 10px; margin-bottom: 22px; flex-wrap: wrap; }
+
+  .seccion-titulo { font-size: 15px; color: #6A7A80; margin: 26px 0 12px; text-transform: uppercase; letter-spacing: 0.6px; }
+
+  .citas-lista { display: flex; flex-direction: column; gap: 12px; }
+  .cita-card {
+    background: white; border-radius: 14px; padding: 16px 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    border-left: 4px solid #E0E0E0; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  }
+  .cita-card.es-bloqueo { border-left-color: #B2B2B2; background: #F7F7F7; }
+  .cita-card.es-apertura { border-left-color: #5BAA96; }
+  .cita-info { flex: 1; min-width: 200px; }
+  .cita-hora { font-size: 15px; font-weight: 600; color: #2C3E40; }
+  .cita-nombre { font-size: 14px; color: #2C3E40; margin-top: 2px; }
+  .cita-meta { font-size: 12px; color: #9BB5BC; margin-top: 4px; }
+  .cita-badges { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .badge { font-size: 10px; padding: 3px 9px; border-radius: 10px; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase; }
+  .badge-auto { background: #E0F4F2; color: #1A7A70; }
+  .badge-manual { background: #F0F0F0; color: #777; }
+  .badge-bloqueo { background: #ECECEC; color: #666; }
+  .badge-apertura { background: #E8F5F2; color: #2C7A68; }
+  .btn-cancelar-cita { font-size: 12px; padding: 6px 12px; border: 1.5px solid #F5C6C6; border-radius: 8px; background: white; color: #C0392B; cursor: pointer; font-family: inherit; }
+  .btn-cancelar-cita:hover { background: #FFF0F0; }
+
+  .empty-state { background: white; border-radius: 16px; padding: 42px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.04); }
+  .empty-icon { font-size: 32px; margin-bottom: 10px; }
+  .empty-text { font-size: 14px; color: #9BB5BC; }
+  .loading-msg { text-align: center; padding: 30px; color: #9BB5BC; font-size: 14px; }
+  .error-state { background: #FFF8F8; border: 1px solid #F5C6C6; border-radius: 12px; padding: 18px 20px; color: #C0392B; font-size: 14px; }
+
+  /* ── MODAL ── */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1000; align-items: center; justify-content: center; padding: 20px; }
+  .modal-overlay.visible { display: flex; }
+  .modal { background: white; border-radius: 16px; padding: 28px; width: 100%; max-width: 460px; box-shadow: 0 8px 40px rgba(0,0,0,0.18); }
+  .modal-titulo { font-size: 18px; font-weight: 500; color: #A7228C; margin-bottom: 18px; }
+  .modal-campo { margin-bottom: 14px; }
+  .modal-label { font-size: 12px; color: #6A7A80; text-transform: uppercase; letter-spacing: 0.8px; display: block; margin-bottom: 5px; }
+  .modal-input, .modal-select { font-family: inherit; font-size: 15px; padding: 9px 11px; border: 1.5px solid #E0E8EA; border-radius: 8px; color: #2C3E40; background: white; outline: none; width: 100%; }
+  .modal-fila { display: flex; gap: 10px; }
+  .modal-fila .modal-campo { flex: 1; }
+  .modal-msg-error { font-size: 13px; color: #C0392B; min-height: 18px; margin-bottom: 4px; }
+  .modal-acciones { display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px; }
+  .btn-cancelar { font-size: 14px; padding: 9px 20px; border: 1.5px solid #E0E8EA; border-radius: 8px; background: white; color: #7A8A8E; cursor: pointer; font-family: inherit; }
+  .btn-guardar { font-size: 14px; padding: 9px 24px; border: none; border-radius: 8px; background: #A7228C; color: white; cursor: pointer; font-family: inherit; font-weight: 500; }
+  .btn-guardar:disabled { opacity: 0.5; cursor: wait; }
+
+  @media (max-width: 768px) {
+    .main { margin: 16px auto; padding: 0 12px; }
+    .cita-card { padding: 14px 16px; }
+    .modal-fila { flex-direction: column; }
+  }
+</style>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="silueta.jpg">
+<meta name="theme-color" content="#A7228C">
+<script src="https://accounts.google.com/gsi/client" async></script>
+</head>
+<body>
+
+<header>
+  <img class="brand-logo" src="logo-secundario.jpg" alt="Emociona 5D">
+  <div class="header-user">
+    <img class="user-avatar" id="user-avatar" src="" alt="" onerror="this.style.display='none'">
+    <span class="user-name" id="user-name"></span>
+    <button class="logout-btn" onclick="logout()">Cerrar sesión</button>
+  </div>
+</header>
+
+<nav>
+  <a class="nav-tab" href="dashboard.html">Hoy</a>
+  <a class="nav-tab active" href="agenda.html">Agenda</a>
+  <a class="nav-tab" href="sesiones.html">Sesiones</a>
+  <a class="nav-tab" href="clientas.html">Clientas</a>
+  <a class="nav-tab" href="facturas.html">Facturas</a>
+  <a class="nav-tab" href="ingresos.html">Ingresos</a>
+</nav>
+
+<div class="main">
+
+  <div class="page-top">
+    <div>
+      <div class="page-title" id="page-title">Agenda</div>
+      <div class="page-date" id="page-date"></div>
+    </div>
+    <div class="fecha-selector">
+      <label>Ver otro día:</label>
+      <input type="date" id="selector-fecha" onchange="cambiarFecha()">
+      <button class="btn-hoy" onclick="volverAHoy()">Hoy</button>
+    </div>
+  </div>
+
+  <div class="acciones-owner" id="acciones-owner" style="display:none">
+    <button class="btn-accion" onclick="abrirModalExcepcion('Bloqueo')">🔒 Bloquear hueco</button>
+    <button class="btn-accion secundario" onclick="abrirModalExcepcion('Apertura')">🌿 Abrir franja extra</button>
+  </div>
+
+  <div id="contenido">
+    <div class="loading-msg">Cargando agenda...</div>
+  </div>
+
+</div>
+
+<!-- ── MODAL BLOQUEO / APERTURA ── -->
+<div class="modal-overlay" id="modal-excepcion">
+  <div class="modal">
+    <div class="modal-titulo" id="modal-excepcion-titulo">Bloquear hueco</div>
+    <div class="modal-campo">
+      <label class="modal-label">Fecha *</label>
+      <input class="modal-input" id="ex-fecha" type="date">
+    </div>
+    <div class="modal-fila">
+      <div class="modal-campo">
+        <label class="modal-label">Hora inicio *</label>
+        <input class="modal-input" id="ex-hora-inicio" type="time">
+      </div>
+      <div class="modal-campo">
+        <label class="modal-label">Hora fin *</label>
+        <input class="modal-input" id="ex-hora-fin" type="time">
+      </div>
+    </div>
+    <div class="modal-campo">
+      <label class="modal-label">Motivo (opcional)</label>
+      <input class="modal-input" id="ex-motivo" type="text" placeholder="Notas para ti, no la ve la clienta">
+    </div>
+    <div class="modal-msg-error" id="ex-error"></div>
+    <div class="modal-acciones">
+      <button class="btn-cancelar" onclick="cerrarModalExcepcion()">Cancelar</button>
+      <button class="btn-guardar" id="ex-btn-guardar" onclick="guardarExcepcion()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ══════════════════════════════════════════════════════════
+  // CONFIG — sustituir por las URLs reales de los webhooks n8n
+  // ══════════════════════════════════════════════════════════
+  const N8N_BASE      = 'https://emociona5d.app.n8n.cloud/webhook/agenda';
+  const EP_EXCEPCION  = N8N_BASE + '/excepcion-horario'; // crea bloqueo o apertura
+  const EP_CANCELAR   = N8N_BASE + '/cancelar-desde-agenda'; // cancela una cita desde el panel
+
+  const CENTRO_ACTUAL = 'Merida';
+
+  // ── SESIÓN ──
+  const SHEET_ID   = '1Zb5yWR1oQF03jU8JNDDr4ynChC66WEObkDwnvYLOkpM';
+  const CLIENT_ID  = '439474376295-jjs3q4nki5pkpc9fc9qfcdmp4ldlj1vh.apps.googleusercontent.com';
+  const SCOPES     = 'openid email profile https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/drive.file';
+
+  const sesionData = sessionStorage.getItem('emociona_session');
+  if (!sesionData) { window.location.href = 'index.html'; }
+  const sesion = JSON.parse(sesionData || '{}');
+  if (!sesion.access_token || Date.now() > sesion.token_expiry) {
+    sessionStorage.removeItem('emociona_session');
+    window.location.href = 'index.html';
+  }
+
+  if (sesion.picture) document.getElementById('user-avatar').src = sesion.picture;
+  document.getElementById('user-name').textContent = sesion.name || sesion.email;
+
+  const esOwner = sesion.role === 'owner';
+  if (esOwner) document.getElementById('acciones-owner').style.display = 'flex';
+
+  function logout() {
+    sessionStorage.removeItem('emociona_session');
+    window.location.href = 'index.html';
+  }
+
+  // ── FECHA ACTIVA ──
+  let fechaActiva = new Date();
+
+  function formatoInput(date) { return date.toISOString().split('T')[0]; }
+  function formatoLargo(date) {
+    const f = date.toLocaleDateString('es-ES', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+    return f.charAt(0).toUpperCase() + f.slice(1);
+  }
+  function esHoy(date) { return date.toDateString() === new Date().toDateString(); }
+
+  document.getElementById('selector-fecha').value = formatoInput(fechaActiva);
+  actualizarCabecera();
+
+  function cambiarFecha() {
+    const val = document.getElementById('selector-fecha').value;
+    if (!val) return;
+    const parts = val.split('-');
+    fechaActiva = new Date(parts[0], parts[1]-1, parts[2]);
+    actualizarCabecera();
+    cargarAgenda();
+  }
+
+  function volverAHoy() {
+    fechaActiva = new Date();
+    document.getElementById('selector-fecha').value = formatoInput(fechaActiva);
+    actualizarCabecera();
+    cargarAgenda();
+  }
+
+  function actualizarCabecera() {
+    document.getElementById('page-title').textContent = esHoy(fechaActiva) ? 'Agenda de hoy' : 'Agenda del ' + fechaActiva.getDate() + ' de ' + fechaActiva.toLocaleDateString('es-ES',{month:'long'});
+    document.getElementById('page-date').textContent = formatoLargo(fechaActiva);
+  }
+
+  // ── RENOVACIÓN TOKEN (igual que el resto de la Suite) ──
+  let _tokenClient = null;
+  function getTokenClient() {
+    if (!_tokenClient) {
+      _tokenClient = google.accounts.oauth2.initTokenClient({ client_id: CLIENT_ID, scope: SCOPES, prompt: '', callback: () => {} });
+    }
+    return _tokenClient;
+  }
+  function renovarToken() {
+    return new Promise((resolve, reject) => {
+      try {
+        const client = getTokenClient();
+        client.callback = (tr) => {
+          if (tr.error) { reject(new Error(tr.error)); return; }
+          sesion.access_token = tr.access_token;
+          sesion.token_expiry = Date.now() + (tr.expires_in * 1000);
+          sessionStorage.setItem('emociona_session', JSON.stringify(sesion));
+          resolve();
+        };
+        client.requestAccessToken();
+      } catch(e) { reject(e); }
+    });
+  }
+  async function renovarTokenSiNecesario() {
+    if (Date.now() > sesion.token_expiry - 5 * 60 * 1000) await renovarToken();
+  }
+
+  // ── LECTURA DE CALENDAR (solo lectura, igual que dashboard.html) ──
+  async function fetchCalEvents(desde, hasta) {
+    await renovarTokenSiNecesario();
+    const params = new URLSearchParams({
+      timeMin: desde.toISOString(), timeMax: hasta.toISOString(),
+      singleEvents: 'true', orderBy: 'startTime', maxResults: '100'
+    });
+    const resp = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?${params}`,
+      { headers: { Authorization: 'Bearer ' + sesion.access_token } });
+    if (!resp.ok) throw new Error('Error ' + resp.status);
+    const data = await resp.json();
+    return (data.items || []).filter(ev => ev.start);
+  }
+
+  function extraerTelefono(desc) {
+    const limpio = (desc || '').replace(/<[^>]+>/g, ' ');
+    const m = limpio.match(/\d[\d\s\-\.]{8,}/);
+    return m ? m[0].replace(/\D/g,'').slice(-9) : '';
+  }
+  function extraerToken(desc) {
+    const m = (desc || '').match(/Token:\s*([a-zA-Z0-9]+)/);
+    return m ? m[1] : null;
+  }
+  // Prefijo distintivo para no confundir con notas personales tuyas en el mismo calendario
+  // (p.ej. si alguna vez usas la palabra suelta "Apertura" o "Bloqueo" para otra cosa)
+  function esBloqueo(ev) { return /^AGENDA5D-BLOQUEO/i.test(ev.summary || ''); }
+  function esApertura(ev) { return /^AGENDA5D-APERTURA/i.test(ev.summary || ''); }
+
+  async function cargarAgenda() {
+    document.getElementById('contenido').innerHTML = '<div class="loading-msg">Cargando agenda...</div>';
+    try {
+      const inicio = new Date(fechaActiva); inicio.setHours(0,0,0,0);
+      const fin = new Date(fechaActiva); fin.setHours(23,59,59,999);
+      const eventos = await fetchCalEvents(inicio, fin);
+      renderAgenda(eventos);
+    } catch (e) {
+      document.getElementById('contenido').innerHTML = `<div class="error-state"><strong>Error al cargar:</strong> ${e.message}<br>Prueba a cerrar sesión y volver a entrar.</div>`;
+    }
+  }
+
+  function renderAgenda(eventos) {
+    if (!eventos.length) {
+      document.getElementById('contenido').innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">🌸</div>
+          <div class="empty-text">No hay nada programado este día.</div>
+        </div>`;
+      return;
+    }
+
+    eventos.sort((a,b) => new Date(a.start.dateTime || a.start.date) - new Date(b.start.dateTime || b.start.date));
+
+    const lista = document.createElement('div');
+    lista.className = 'citas-lista';
+
+    eventos.forEach(ev => {
+      const inicio = new Date(ev.start.dateTime || ev.start.date);
+      const hora = ev.start.dateTime ? inicio.toLocaleTimeString('es-ES', { hour:'2-digit', minute:'2-digit' }) : 'Todo el día';
+      const bloqueo = esBloqueo(ev);
+      const apertura = esApertura(ev);
+      const telefono = extraerTelefono(ev.description);
+      const token = extraerToken(ev.description);
+
+      const card = document.createElement('div');
+      card.className = 'cita-card' + (bloqueo ? ' es-bloqueo' : apertura ? ' es-apertura' : '');
+      card.innerHTML = `
+        <div class="cita-info">
+          <div class="cita-hora">${hora}</div>
+          <div class="cita-nombre">${(ev.summary || 'Sin título').replace(/^AGENDA5D-BLOQUEO:?\s*/i,'').replace(/^AGENDA5D-APERTURA:?\s*/i,'')}</div>
+          ${telefono ? `<div class="cita-meta">📞 ${telefono}</div>` : ''}
+        </div>
+        <div class="cita-badges">
+          ${bloqueo ? '<span class="badge badge-bloqueo">Bloqueado</span>' : ''}
+          ${apertura ? '<span class="badge badge-apertura">Franja extra</span>' : ''}
+          ${!bloqueo && !apertura ? `<span class="badge ${token ? 'badge-auto' : 'badge-manual'}">${token ? 'Autogestión' : 'Manual'}</span>` : ''}
+          ${!bloqueo && !apertura ? `<button class="btn-cancelar-cita" onclick="cancelarCita('${ev.id}', ${token ? `'${token}'` : 'null'})">Cancelar</button>` : ''}
+          ${bloqueo && esOwner ? `<button class="btn-cancelar-cita" onclick="cancelarCita('${ev.id}', null)">Quitar bloqueo</button>` : ''}
+          ${apertura && esOwner ? `<button class="btn-cancelar-cita" onclick="cancelarCita('${ev.id}', null)">Quitar apertura</button>` : ''}
+        </div>`;
+      lista.appendChild(card);
+    });
+
+    document.getElementById('contenido').innerHTML = '';
+    document.getElementById('contenido').appendChild(lista);
+  }
+
+  // ── CANCELAR CITA / QUITAR BLOQUEO ──
+  async function cancelarCita(eventId, token) {
+    if (!confirm('¿Seguro que quieres cancelar esto?')) return;
+    try {
+      const resp = await fetch(EP_CANCELAR, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eventId, token, canceladoPor: sesion.email })
+      });
+      const data = await resp.json();
+      if (data.ok) {
+        cargarAgenda();
+      } else {
+        alert('No se pudo cancelar. Inténtalo de nuevo.');
+      }
+    } catch (e) { alert('Error de conexión. Inténtalo de nuevo.'); }
+  }
+
+  // ── MODAL BLOQUEO / APERTURA (solo owner) ──
+  let tipoExcepcionActual = 'Bloqueo';
+
+  function abrirModalExcepcion(tipo) {
+    tipoExcepcionActual = tipo;
+    document.getElementById('modal-excepcion-titulo').textContent = tipo === 'Bloqueo' ? '🔒 Bloquear hueco' : '🌿 Abrir franja extra';
+    document.getElementById('ex-fecha').value = formatoInput(fechaActiva);
+    document.getElementById('ex-hora-inicio').value = '';
+    document.getElementById('ex-hora-fin').value = '';
+    document.getElementById('ex-motivo').value = '';
+    document.getElementById('ex-error').textContent = '';
+    document.getElementById('ex-btn-guardar').disabled = false;
+    document.getElementById('ex-btn-guardar').textContent = 'Guardar';
+    document.getElementById('modal-excepcion').classList.add('visible');
+  }
+
+  function cerrarModalExcepcion() {
+    document.getElementById('modal-excepcion').classList.remove('visible');
+  }
+
+  document.getElementById('modal-excepcion').addEventListener('click', function(e) {
+    if (e.target === this) cerrarModalExcepcion();
+  });
+
+  async function guardarExcepcion() {
+    const fecha = document.getElementById('ex-fecha').value;
+    const horaInicio = document.getElementById('ex-hora-inicio').value;
+    const horaFin = document.getElementById('ex-hora-fin').value;
+    const motivo = document.getElementById('ex-motivo').value.trim();
+    const errorEl = document.getElementById('ex-error');
+
+    if (!fecha || !horaInicio || !horaFin) {
+      errorEl.textContent = 'Completa fecha, hora inicio y hora fin.';
+      return;
+    }
+    if (horaFin <= horaInicio) {
+      errorEl.textContent = 'La hora fin debe ser posterior a la hora inicio.';
+      return;
+    }
+    errorEl.textContent = '';
+
+    const btn = document.getElementById('ex-btn-guardar');
+    btn.disabled = true;
+    btn.textContent = 'Guardando...';
+
+    try {
+      const resp = await fetch(EP_EXCEPCION, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tipo: tipoExcepcionActual, centro: CENTRO_ACTUAL,
+          fecha, horaInicio, horaFin, motivo, creadoPor: sesion.email
+        })
+      });
+      const data = await resp.json();
+      if (data.ok) {
+        cerrarModalExcepcion();
+        cargarAgenda();
+      } else {
+        errorEl.textContent = 'No se pudo guardar. Inténtalo de nuevo.';
+        btn.disabled = false;
+        btn.textContent = 'Guardar';
+      }
+    } catch (e) {
+      errorEl.textContent = 'Error de conexión. Inténtalo de nuevo.';
+      btn.disabled = false;
+      btn.textContent = 'Guardar';
+    }
+  }
+
+  cargarAgenda();
+</script>
+
+</body>
+</html>
