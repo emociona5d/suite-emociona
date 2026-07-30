@@ -195,7 +195,7 @@
     servicio: null,
     fecha: null,
     hora: null,
-    nombre: '', apellidos: '', telefono: '', email: ''
+    nombre: '', apellidos: '', telefono: '', email: '', semanas: ''
   };
 
   const contenido = document.getElementById('contenido');
@@ -345,6 +345,10 @@
           <label class="campo-label">Email *</label>
           <input class="campo-input" id="d-email" type="email" placeholder="correo@ejemplo.com">
         </div>
+        <div class="campo-grupo">
+          <label class="campo-label">Semana de embarazo el día de la cita *</label>
+          <input class="campo-input" id="d-semanas" type="number" min="1" max="42" placeholder="Ej: 20">
+        </div>
         <div class="msg-error" id="d-error"></div>
         <button class="btn-principal" id="btn-confirmar" onclick="confirmarReserva()">Confirmar reserva</button>
         <button class="btn-secundario" onclick="volverA(2)">← Cambiar día u hora</button>
@@ -364,9 +368,10 @@
     const apellidos = document.getElementById('d-apellidos').value.trim();
     const telefono = document.getElementById('d-telefono').value.trim();
     const email = document.getElementById('d-email').value.trim();
+    const semanas = document.getElementById('d-semanas').value.trim();
     const errorEl = document.getElementById('d-error');
 
-    if (!nombre || !apellidos || !telefono || !email) {
+    if (!nombre || !apellidos || !telefono || !email || !semanas) {
       errorEl.textContent = 'Completa todos los campos, por favor.';
       return;
     }
@@ -382,7 +387,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           centro, servicio: estado.servicio, fecha: estado.fecha, hora: estado.hora,
-          nombre, apellidos, telefono, email
+          nombre, apellidos, telefono, email, semanas
         })
       });
       const data = await resp.json();
