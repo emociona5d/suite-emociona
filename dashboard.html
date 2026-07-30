@@ -172,6 +172,38 @@
 
     .campo-input.guardado { border-color: #5BAA96; background: #F0FAF7; }
 
+    /* ── CUSTOM COLORED SELECT ── */
+    .cs-wrap { position: relative; width: 100%; }
+    .cs-display {
+      font-family: inherit; font-size: 15px;
+      padding: 9px 30px 9px 11px;
+      border: 1.5px solid #E0E8EA; border-radius: 8px;
+      background: white; color: #9BB5BC;
+      width: 100%; cursor: pointer;
+      display: flex; align-items: center;
+      transition: border-color 0.2s, opacity 0.2s;
+      user-select: none; position: relative;
+      line-height: 1.3;
+    }
+    .cs-display::after {
+      content: '▾'; position: absolute; right: 10px;
+      font-size: 11px; opacity: 0.7; font-weight: 400;
+    }
+    .cs-display.guardando { opacity: 0.4; pointer-events: none; }
+    .cs-options {
+      position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+      background: white; border: 1.5px solid #E0E8EA; border-radius: 10px;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.16); z-index: 500; overflow: hidden;
+      display: none;
+    }
+    .cs-options.abierto { display: block; }
+    .cs-option {
+      padding: 9px 14px; cursor: pointer; font-size: 14px; font-weight: 500;
+      transition: opacity 0.1s;
+    }
+    .cs-option:hover { opacity: 0.78; }
+    .cs-option.cs-vacia { color: #9BB5BC !important; background: white !important; font-weight: 400; }
+
     /* ── OBSERVACIONES CON ALERTA ── */
     .campo-input-obs { color: #C0392B; }
     .campo-input-obs::placeholder { color: #C8B0B0; }
@@ -503,6 +535,99 @@
     }
   }
 
+  // ── CUSTOM COLORED SELECT ──
+  function toggleCS(display) {
+    const opts = display.nextElementSibling;
+    const wasOpen = opts.classList.contains('abierto');
+    document.querySelectorAll('.cs-options.abierto').forEach(e => e.classList.remove('abierto'));
+    if (!wasOpen) opts.classList.add('abierto');
+  }
+
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.cs-wrap')) {
+      document.querySelectorAll('.cs-options.abierto').forEach(e => e.classList.remove('abierto'));
+    }
+  });
+
+  function htmlSelectColoreado(col, row, opciones, colorMap, valorActual, placeholder) {
+    const valLower = (valorActual || '').toLowerCase().trim();
+    const c = colorMap[valLower];
+    const displayStyle = c
+      ? `background:${c.bg};color:${c.text};border-color:${c.bg};font-weight:600;`
+      : '';
+    const displayText = valorActual || placeholder;
+
+    const optsHtml = [
+      `<div class="cs-option cs-vacia" data-value="">${placeholder}</div>`,
+      ...opciones.map(o => {
+        const ck = colorMap[o.toLowerCase().trim()];
+        const style = ck ? `background:${ck.bg};color:${ck.text};` : '';
+        return `<div class="cs-option" data-value="${o}" style="${style}">${o}</div>`;
+      })
+    ].join('');
+
+    return `<div class="cs-wrap" data-col="${col}" data-row="${row}" data-valor-guardado="${valorActual || ''}">
+      <div class="cs-display" style="${displayStyle}" onclick="toggleCS(this)">${displayText}</div>
+      <div class="cs-options">${optsHtml}</div>
+    </div>`;
+  }
+
+  // Delegación de eventos para opciones del custom select
+  document.getElementById('contenido').addEventListener('click', async function(e) {
+    const opt = e.target.closest('.cs-option');
+    if (!opt) return;
+    const wrap = opt.closest('.cs-wrap');
+    if (!wrap) return;
+    const display = wrap.querySelector('.cs-display');
+    const opts = wrap.querySelector('.cs-options');
+    const val = opt.dataset.value;
+    const col = wrap.dataset.col;
+    const prevVal = wrap.dataset.valorGuardado || '';
+
+    opts.classList.remove('abierto');
+    if (val === prevVal) return;
+
+    // Actualizar visual inmediatamente
+    const colorMap = col === 'K' ? COLOR_SELECT.servicio : COLOR_SELECT.pago;
+    const ck = colorMap[(val || '').toLowerCase().trim()];
+    const placeholder = col === 'K' ? '— Sin asignar —' : '— Sin cobrar —';
+    if (ck) {
+      display.style.cssText = `background:${ck.bg};color:${ck.text};border-color:${ck.bg};font-weight:600;`;
+    } else {
+      display.style.cssText = '';
+    }
+    display.textContent = val || placeholder;
+
+    // Guardar en Sheets
+    display.classList.add('guardando');
+    try {
+      await actualizarCelda(col, wrap.dataset.row, val);
+      wrap.dataset.valorGuardado = val;
+      display.classList.remove('guardando');
+      display.style.opacity = '0.65';
+      setTimeout(() => { display.style.opacity = ''; }, 500);
+
+      // Si es Sesión (col K), actualizar badge y borde de la tarjeta
+      if (col === 'K') {
+        const card = wrap.closest('.cita-card');
+        if (card) {
+          const svcKey = val.toLowerCase();
+          const svcColor = COLORES[svcKey] || { bg:'#F0F4F5', color:'#666', borde:'#CCC' };
+          card.style.borderLeftColor = svcColor.borde;
+          const badge = card.querySelector('.servicio-badge');
+          if (badge) {
+            badge.textContent = val || '';
+            badge.style.background = svcColor.bg;
+            badge.style.color = svcColor.color;
+          }
+        }
+      }
+    } catch(err) {
+      display.classList.remove('guardando');
+      alert('Error al guardar. Comprueba tu conexión.');
+    }
+  });
+
   // ── SESIÓN ──
   const sesionData = sessionStorage.getItem('emociona_session');
   if (!sesionData) { window.location.href = 'index.html'; }
@@ -668,17 +793,11 @@
         <div class="campos-edicion">
           <div class="campo-grupo">
             <div class="campo-label">Sesión</div>
-            <select class="campo-select" data-col="K" data-row="${sheetRow}" onchange="guardarCampo(this)">
-              <option value="">— Sin asignar —</option>
-              ${SERVICIOS.map(s => `<option value="${s}" ${s===servicio?'selected':''}>${s}</option>`).join('')}
-            </select>
+            ${htmlSelectColoreado('K', sheetRow, SERVICIOS, COLOR_SELECT.servicio, servicio, '— Sin asignar —')}
           </div>
           <div class="campo-grupo">
             <div class="campo-label">Cobrado con</div>
-            <select class="campo-select" data-col="M" data-row="${sheetRow}" onchange="guardarCampo(this)">
-              <option value="">— Sin cobrar —</option>
-              ${MEDIOS_PAGO.map(m => `<option value="${m}" ${m===cobrado?'selected':''}>${m}</option>`).join('')}
-            </select>
+            ${htmlSelectColoreado('M', sheetRow, MEDIOS_PAGO, COLOR_SELECT.pago, cobrado, '— Sin cobrar —')}
           </div>
           <div class="campo-grupo">
             <div class="campo-label">Importe (€)</div>
@@ -721,9 +840,6 @@
 
     document.getElementById('contenido').innerHTML = '';
     document.getElementById('contenido').appendChild(lista);
-    // Colorear desplegables de sesión y cobrado al cargar
-    lista.querySelectorAll('.campo-select[data-col="K"], .campo-select[data-col="M"]')
-         .forEach(colorearSelect);
   }
 
   // ── CALENDAR ──
