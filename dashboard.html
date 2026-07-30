@@ -337,6 +337,7 @@
 
 <nav>
   <a class="nav-tab active" href="dashboard.html">Hoy</a>
+  <a class="nav-tab" href="agenda.html">Agenda</a>
   <a class="nav-tab" href="sesiones.html">Sesiones</a>
   <a class="nav-tab" href="clientas.html">Clientas</a>
   <a class="nav-tab" href="facturas.html">Facturas</a>
@@ -456,13 +457,51 @@
   const MEDIOS_PAGO = ['Efectivo','Tarjeta','Bizum','Web'];
 
   const COLORES = {
-    'ecoconfirmación':  { bg: '#F0F0F0', color: '#555', borde: '#9E9E9E' },
-    'ecosexo emociona': { bg: '#E8F2E5', color: '#4A7A3A', borde: '#7DAE6C' },
-    'ecosexo':          { bg: '#FDECEA', color: '#C0392B', borde: '#E05A4E' },
-    'ecobasic plus':    { bg: '#FFF8E1', color: '#B8860B', borde: '#D4A017' },
-    'ecobasic':         { bg: '#FFF0E5', color: '#D2691E', borde: '#E8834A' },
-    'ecoemociona':      { bg: '#E0F4F2', color: '#1A7A70', borde: '#1E8E8E' }
+    'ecoconfirmación':  { bg: '#EDE0F5', color: '#5B1F80', borde: '#9B59C0' },
+    'ecosexo emociona': { bg: '#E3F2E5', color: '#1B5E20', borde: '#4CAF50' },
+    'ecosexo':          { bg: '#FDECEA', color: '#B71C1C', borde: '#E53935' },
+    'ecobasic plus':    { bg: '#FFF8E1', color: '#7B5200', borde: '#FFC107' },
+    'ecobasic':         { bg: '#FCE4EC', color: '#880E4F', borde: '#E91E63' },
+    'ecoemociona':      { bg: '#E3F0FC', color: '#0D47A1', borde: '#1976D2' }
   };
+
+  // Colores para los desplegables de Sesión y Cobrado (fondo del select)
+  const COLOR_SELECT = {
+    servicio: {
+      'ecoconfirmación':  { bg: '#7B2D8B', text: '#fff' },
+      'ecosexo':          { bg: '#C62828', text: '#fff' },
+      'ecosexo emociona': { bg: '#2E7D32', text: '#fff' },
+      'ecobasic':         { bg: '#C2185B', text: '#fff' },
+      'ecobasic plus':    { bg: '#F9A825', text: '#3E2700' },
+      'ecoemociona':      { bg: '#1565C0', text: '#fff' },
+    },
+    pago: {
+      'tarjeta':  { bg: '#C62828', text: '#fff' },
+      'efectivo': { bg: '#6D4C41', text: '#fff' },
+      'web':      { bg: '#2E7D32', text: '#fff' },
+      'bizum':    { bg: '#1565C0', text: '#fff' },
+    }
+  };
+
+  function colorearSelect(el) {
+    const val = (el.value || '').toLowerCase().trim();
+    const mapa = el.dataset.col === 'K' ? COLOR_SELECT.servicio
+               : el.dataset.col === 'M' ? COLOR_SELECT.pago
+               : null;
+    if (!mapa) return;
+    const c = mapa[val];
+    if (c) {
+      el.style.background  = c.bg;
+      el.style.color       = c.text;
+      el.style.borderColor = c.bg;
+      el.style.fontWeight  = '600';
+    } else {
+      el.style.background  = '';
+      el.style.color       = '';
+      el.style.borderColor = '';
+      el.style.fontWeight  = '';
+    }
+  }
 
   // ── SESIÓN ──
   const sesionData = sessionStorage.getItem('emociona_session');
@@ -682,6 +721,9 @@
 
     document.getElementById('contenido').innerHTML = '';
     document.getElementById('contenido').appendChild(lista);
+    // Colorear desplegables de sesión y cobrado al cargar
+    lista.querySelectorAll('.campo-select[data-col="K"], .campo-select[data-col="M"]')
+         .forEach(colorearSelect);
   }
 
   // ── CALENDAR ──
@@ -784,6 +826,7 @@
 
   // ── CAMPOS EDITABLES ──
   async function guardarCampo(el) {
+    colorearSelect(el); // aplicar color inmediatamente al cambiar
     const valor = el.value.trim();
     const valorActual = el.dataset.valorGuardado || '';
     if (valor === valorActual) return; // Sin cambios
