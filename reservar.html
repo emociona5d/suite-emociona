@@ -65,12 +65,32 @@
 
   /* ── FECHA / HORAS ── */
   .campo-label { font-size: 12px; color: #6A7A80; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; display: block; }
-  input[type="date"] {
-    font-family: inherit; font-size: 15px; padding: 11px 12px;
-    border: 1.5px solid #E0E8EA; border-radius: 10px; color: #2C3E40;
-    width: 100%; outline: none; margin-bottom: 20px;
+
+  /* ── CALENDARIO MENSUAL ── */
+  .mes-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .mes-nav button {
+    background: #FBF5FA; border: none; width: 32px; height: 32px; border-radius: 8px;
+    font-size: 18px; color: #A7228C; cursor: pointer;
   }
-  input[type="date"]:focus { border-color: #5BAA96; }
+  .mes-nav button:disabled { color: #D8D8D8; background: #F5F8F9; cursor: not-allowed; }
+  .mes-nombre { font-size: 14px; font-weight: 600; color: #2C3E40; text-transform: capitalize; }
+  .calendario-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 12px; }
+  .cal-dow { text-align: center; font-size: 10px; color: #9BB5BC; text-transform: uppercase; padding-bottom: 4px; }
+  .cal-dia {
+    aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+    border-radius: 8px; font-size: 13px; cursor: default; border: 1.5px solid transparent; color: #2C3E40;
+  }
+  .cal-dia.vacio { visibility: hidden; }
+  .cal-dia.disponible { background: #EAF6F2; color: #2C7A68; font-weight: 600; cursor: pointer; }
+  .cal-dia.disponible:hover { border-color: #5BAA96; }
+  .cal-dia.sin-hueco { color: #C8D4D8; }
+  .cal-dia.fuera-rango { color: #E8ECEC; }
+  .cal-dia.seleccionado { background: #A7228C !important; color: white !important; }
+  .cal-leyenda { display: flex; gap: 14px; justify-content: center; font-size: 11px; color: #9BB5BC; margin-bottom: 18px; }
+  .cal-leyenda span { display: flex; align-items: center; gap: 5px; }
+  .cal-punto { width: 8px; height: 8px; border-radius: 50%; }
+  .cal-punto.disp { background: #5BAA96; }
+  .cal-punto.no-disp { background: #E0E8EA; }
 
   .huecos-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 4px; }
   .hueco-btn {
@@ -166,6 +186,7 @@
   // ══════════════════════════════════════════════════════════
   const N8N_BASE          = 'https://emociona5d.app.n8n.cloud/webhook/agenda';
   const EP_DISPONIBILIDAD = N8N_BASE + '/disponibilidad';
+  const EP_RESUMEN        = N8N_BASE + '/disponibilidad-resumen'; // NUEVO — calendario mensual
   const EP_CREAR_RESERVA  = N8N_BASE + '/crear-reserva';
   const EP_GESTIONAR      = N8N_BASE + '/gestionar-reserva';
 
@@ -259,13 +280,138 @@
     renderPaso();
   }
 
+  // ══════════════════════════════════════════════════════════
+  // CALENDARIO DE DISPONIBILIDAD (mes visible con días resaltados)
+  // Se usa tanto en el paso 2 (reserva nueva) como al reprogramar.
+  // ══════════════════════════════════════════════════════════
+  const DIAS_SEMANA_CORTOS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+  const cacheResumen = {}; // clave "servicio|YYYY-MM" -> { 'YYYY-MM-DD': true/false }, evita repetir llamadas
+
+  // OJO: NO usar d.toISOString() aquí — convierte a UTC y en España (siempre por delante de UTC)
+  // desplaza la fecha un día hacia atrás cerca de medianoche. Se construye el texto a mano
+  // con la fecha LOCAL del navegador de la clienta, tal cual la ve.
+  function fmtISO(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${dd}`;
+  }
+
+  let calPrincipal = null; // estado del calendario del paso 2
+  let calRepro = null;     // estado del calendario al reprogramar
+
+  async function pintarCalendario(estadoCal) {
+    const cont = document.getElementById(estadoCal.contenedorId);
+    if (!cont) return;
+    const [anyo, mesIdx0] = estadoCal.mesVisible.split('-').map(Number);
+    const mesIdx = mesIdx0 - 1;
+    const inicioMes = new Date(anyo, mesIdx, 1);
+    const finMes = new Date(anyo, mesIdx + 1, 0);
+    estadoCal._inicioMes = inicioMes;
+    estadoCal._finMes = finMes;
+
+    let nombreMes = inicioMes.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+    nombreMes = nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1);
+
+    const mesMin = estadoCal.minFecha.getFullYear() + '-' + String(estadoCal.minFecha.getMonth() + 1).padStart(2, '0');
+    const mesMax = estadoCal.maxFecha.getFullYear() + '-' + String(estadoCal.maxFecha.getMonth() + 1).padStart(2, '0');
+    const puedeAnterior = estadoCal.mesVisible > mesMin;
+    const puedeSiguiente = estadoCal.mesVisible < mesMax;
+
+    cont.innerHTML = `
+      <div class="mes-nav">
+        <button ${puedeAnterior ? '' : 'disabled'} onclick="cambiarMes('${estadoCal.id}', -1)">‹</button>
+        <span class="mes-nombre">${nombreMes}</span>
+        <button ${puedeSiguiente ? '' : 'disabled'} onclick="cambiarMes('${estadoCal.id}', 1)">›</button>
+      </div>
+      <div class="calendario-grid" id="${estadoCal.contenedorId}-grid">
+        <div class="msg-cargando" style="grid-column:1/-1;padding:16px 0;">Consultando disponibilidad...</div>
+      </div>
+      <div class="cal-leyenda">
+        <span><span class="cal-punto disp"></span>Hay huecos</span>
+        <span><span class="cal-punto no-disp"></span>Sin huecos</span>
+      </div>`;
+
+    // rango real a pedir al backend, acotado a la ventana de reserva permitida
+    const desde = inicioMes < estadoCal.minFecha ? fmtISO(estadoCal.minFecha) : fmtISO(inicioMes);
+    const hasta = finMes > estadoCal.maxFecha ? fmtISO(estadoCal.maxFecha) : fmtISO(finMes);
+
+    const claveCache = `${estadoCal.servicio}|${estadoCal.mesVisible}`;
+    let disponibilidad = cacheResumen[claveCache];
+
+    if (!disponibilidad) {
+      try {
+        const url = `${EP_RESUMEN}?centro=${encodeURIComponent(centro)}&servicio=${encodeURIComponent(estadoCal.servicio)}&fechaDesde=${desde}&fechaHasta=${hasta}`;
+        const resp = await fetch(url);
+        const data = await resp.json();
+        disponibilidad = data.dias || {};
+        cacheResumen[claveCache] = disponibilidad;
+      } catch (e) {
+        disponibilidad = {};
+      }
+    }
+    estadoCal._disponibilidad = disponibilidad;
+    dibujarDiasCalendario(estadoCal);
+  }
+
+  function dibujarDiasCalendario(estadoCal) {
+    const grid = document.getElementById(`${estadoCal.contenedorId}-grid`);
+    if (!grid) return;
+    const inicioMes = estadoCal._inicioMes, finMes = estadoCal._finMes;
+    const disponibilidad = estadoCal._disponibilidad || {};
+    const minMidnight = new Date(fmtISO(estadoCal.minFecha) + 'T00:00:00');
+    const maxMidnight = new Date(fmtISO(estadoCal.maxFecha) + 'T00:00:00');
+
+    let primerDow = (inicioMes.getDay() + 6) % 7; // convierte domingo=0..sábado=6 a lunes=0..domingo=6
+    let html = DIAS_SEMANA_CORTOS.map(d => `<div class="cal-dow">${d}</div>`).join('');
+    for (let i = 0; i < primerDow; i++) html += `<div class="cal-dia vacio"></div>`;
+
+    for (let dia = 1; dia <= finMes.getDate(); dia++) {
+      const fechaObj = new Date(inicioMes.getFullYear(), inicioMes.getMonth(), dia);
+      const fechaStr = fmtISO(fechaObj);
+      const fueraRango = fechaObj < minMidnight || fechaObj > maxMidnight;
+      const hayHueco = disponibilidad[fechaStr] === true;
+      const seleccionado = estadoCal.fechaSeleccionada === fechaStr;
+
+      let clase = 'cal-dia';
+      if (fueraRango) clase += ' fuera-rango';
+      else if (!hayHueco) clase += ' sin-hueco';
+      else clase += ' disponible';
+      if (seleccionado) clase += ' seleccionado';
+
+      const clickable = !fueraRango && hayHueco;
+      html += `<div class="${clase}" ${clickable ? `onclick="elegirDiaCalendario('${estadoCal.id}','${fechaStr}')"` : ''}>${dia}</div>`;
+    }
+    grid.innerHTML = html;
+  }
+
+  function cambiarMes(idCal, delta) {
+    const estadoCal = idCal === 'principal' ? calPrincipal : calRepro;
+    const [anyo, mes] = estadoCal.mesVisible.split('-').map(Number);
+    const d = new Date(anyo, mes - 1 + delta, 1);
+    estadoCal.mesVisible = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    estadoCal.fechaSeleccionada = null;
+    if (idCal === 'principal') {
+      estado.fecha = null; estado.hora = null;
+      const h = document.getElementById('huecos-contenedor'); if (h) h.innerHTML = '';
+    } else {
+      const h = document.getElementById('rp-huecos'); if (h) h.innerHTML = '';
+    }
+    pintarCalendario(estadoCal);
+  }
+
+  function elegirDiaCalendario(idCal, fechaStr) {
+    const estadoCal = idCal === 'principal' ? calPrincipal : calRepro;
+    estadoCal.fechaSeleccionada = fechaStr;
+    dibujarDiasCalendario(estadoCal);
+    estadoCal.onSeleccionar(fechaStr);
+  }
+
   // ── PASO 2 — FECHA Y HORA ──
   function renderPasoFechaHora() {
     renderPasos(2, 3);
-    const manana = new Date();
-    manana.setDate(manana.getDate() + 1);
-    const maxFecha = new Date();
-    maxFecha.setDate(maxFecha.getDate() + 60);
+    const manana = new Date(); manana.setHours(0, 0, 0, 0); manana.setDate(manana.getDate() + 1);
+    const maxFecha = new Date(); maxFecha.setHours(0, 0, 0, 0); maxFecha.setDate(maxFecha.getDate() + 60);
 
     contenido.innerHTML = `
       <div class="intro">
@@ -273,24 +419,36 @@
         <div class="intro-text">Elige el día y la hora que mejor te venga</div>
       </div>
       <div class="card">
-        <label class="campo-label">Día</label>
-        <input type="date" id="input-fecha" min="${fmtInput(manana)}" max="${fmtInput(maxFecha)}">
+        <div id="cal-principal"></div>
         <div id="huecos-contenedor"></div>
         <button class="btn-secundario" onclick="volverA(1)">← Cambiar servicio</button>
       </div>`;
 
-    document.getElementById('input-fecha').addEventListener('change', cargarHuecos);
+    if (!calPrincipal || calPrincipal.servicio !== estado.servicio) {
+      calPrincipal = {
+        id: 'principal',
+        contenedorId: 'cal-principal',
+        servicio: estado.servicio,
+        minFecha: manana,
+        maxFecha: maxFecha,
+        mesVisible: manana.getFullYear() + '-' + String(manana.getMonth() + 1).padStart(2, '0'),
+        fechaSeleccionada: estado.fecha || null,
+        onSeleccionar: (fecha) => {
+          estado.fecha = fecha;
+          estado.hora = null;
+          document.getElementById('huecos-contenedor').innerHTML = '';
+          cargarHuecosParaFecha(fecha);
+        }
+      };
+    }
+    pintarCalendario(calPrincipal);
+    if (estado.fecha) cargarHuecosParaFecha(estado.fecha);
   }
 
-  function fmtInput(d) { return d.toISOString().split('T')[0]; }
-
-  async function cargarHuecos() {
-    const fecha = document.getElementById('input-fecha').value;
-    if (!fecha) return;
-    estado.fecha = fecha;
+  async function cargarHuecosParaFecha(fecha) {
     const cont = document.getElementById('huecos-contenedor');
+    if (!cont) return;
     cont.innerHTML = '<div class="msg-cargando">Buscando huecos libres...</div>';
-
     try {
       const url = `${EP_DISPONIBILIDAD}?centro=${encodeURIComponent(centro)}&servicio=${encodeURIComponent(estado.servicio)}&fecha=${fecha}`;
       const resp = await fetch(url);
@@ -489,22 +647,33 @@
   }
 
   function mostrarReprogramar(token, servicio) {
-    const manana = new Date(); manana.setDate(manana.getDate() + 1);
-    const maxFecha = new Date(); maxFecha.setDate(maxFecha.getDate() + 60);
+    const manana = new Date(); manana.setHours(0, 0, 0, 0); manana.setDate(manana.getDate() + 1);
+    const maxFecha = new Date(); maxFecha.setHours(0, 0, 0, 0); maxFecha.setDate(maxFecha.getDate() + 60);
+
     contenido.innerHTML = `
       <div class="card">
         <div class="card-titulo">Elige nuevo día y hora</div>
-        <label class="campo-label">Día</label>
-        <input type="date" id="rp-fecha" min="${fmtInput(manana)}" max="${fmtInput(maxFecha)}">
+        <div id="cal-repro"></div>
         <div id="rp-huecos"></div>
         <button class="btn-secundario" onclick="cargarGestionReserva('${token}')">← Volver</button>
       </div>`;
-    document.getElementById('rp-fecha').addEventListener('change', () => cargarHuecosReprogramar(token, servicio));
+
+    calRepro = {
+      id: 'repro',
+      contenedorId: 'cal-repro',
+      servicio: servicio,
+      minFecha: manana,
+      maxFecha: maxFecha,
+      mesVisible: manana.getFullYear() + '-' + String(manana.getMonth() + 1).padStart(2, '0'),
+      fechaSeleccionada: null,
+      onSeleccionar: (fecha) => cargarHuecosReprogramar(token, servicio, fecha)
+    };
+    pintarCalendario(calRepro);
   }
 
-  async function cargarHuecosReprogramar(token, servicio) {
-    const fecha = document.getElementById('rp-fecha').value;
+  async function cargarHuecosReprogramar(token, servicio, fecha) {
     const cont = document.getElementById('rp-huecos');
+    if (!cont) return;
     cont.innerHTML = '<div class="msg-cargando">Buscando huecos...</div>';
     try {
       const url = `${EP_DISPONIBILIDAD}?centro=${encodeURIComponent(centro)}&fecha=${fecha}&servicio=${encodeURIComponent(servicio)}&token=${encodeURIComponent(token)}`;
@@ -531,7 +700,7 @@
         ${formatoFechaLarga(fecha)} — ${hora}
       </div>
       <button class="btn-principal" id="btn-confirmar-repro" onclick="confirmarReprogramacion('${token}','${fecha}','${hora}')">Confirmar cambio</button>
-      <button class="btn-secundario" onclick="cargarHuecosReprogramar('${token}','${servicio}')">← Elegir otra hora</button>
+      <button class="btn-secundario" onclick="cargarHuecosReprogramar('${token}','${servicio}','${fecha}')">← Elegir otra hora</button>
     `;
   }
 
