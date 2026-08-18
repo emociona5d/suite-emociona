@@ -296,6 +296,11 @@
     const m = (desc || '').match(/Token:\s*([a-zA-Z0-9]+)/);
     return m ? m[1] : null;
   }
+  function extraerServicio(desc) {
+    const limpio = (desc || '').replace(/<[^>]+>/g, ' ');
+    const m = limpio.match(/Servicio:\s*([^\r\n]+)/);
+    return m ? m[1].trim() : null;
+  }
   // Prefijo distintivo para no confundir con notas personales tuyas en el mismo calendario
   // (p.ej. si alguna vez usas la palabra suelta "Apertura" o "Bloqueo" para otra cosa)
   function esBloqueo(ev) { return /^AGENDA5D-BLOQUEO/i.test(ev.summary || ''); }
@@ -335,6 +340,7 @@
       const apertura = esApertura(ev);
       const telefono = extraerTelefono(ev.description);
       const token = extraerToken(ev.description);
+      const servicio = (!bloqueo && !apertura) ? extraerServicio(ev.description) : null;
 
       const card = document.createElement('div');
       card.className = 'cita-card' + (bloqueo ? ' es-bloqueo' : apertura ? ' es-apertura' : '');
@@ -342,6 +348,7 @@
         <div class="cita-info">
           <div class="cita-hora">${hora}</div>
           <div class="cita-nombre">${(ev.summary || 'Sin título').replace(/^AGENDA5D-BLOQUEO:?\s*/i,'').replace(/^AGENDA5D-APERTURA:?\s*/i,'')}</div>
+          ${servicio ? `<div class="cita-meta">💫 ${servicio}</div>` : ''}
           ${telefono ? `<div class="cita-meta">📞 ${telefono}</div>` : ''}
         </div>
         <div class="cita-badges">
