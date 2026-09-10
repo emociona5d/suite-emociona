@@ -246,6 +246,7 @@
 
 <nav>
   <a class="nav-tab" href="dashboard.html">Hoy</a>
+  <a class="nav-tab" href="agenda.html">Agenda</a>
   <a class="nav-tab" href="sesiones.html">Sesiones</a>
   <a class="nav-tab" href="clientas.html">Clientas</a>
   <a class="nav-tab active" href="facturas.html">Facturas</a>
@@ -455,11 +456,11 @@
   };
 
   // ── SESIÓN ──
-  const sesionData = sessionStorage.getItem('emociona_session');
+  const sesionData = localStorage.getItem('emociona_session');
   if (!sesionData) window.location.href = 'index.html';
   const sesion = JSON.parse(sesionData || '{}');
-  if (!sesion.access_token || Date.now() > sesion.token_expiry) {
-    sessionStorage.removeItem('emociona_session');
+  if (!sesion.session_expiry || Date.now() > sesion.session_expiry) {
+    localStorage.removeItem('emociona_session');
     window.location.href = 'index.html';
   }
   if (sesion.role !== 'owner') window.location.href = 'dashboard.html';
@@ -1137,7 +1138,7 @@
         if (resp.access_token) {
           sesion.access_token = resp.access_token;
           sesion.token_expiry = Date.now() + (resp.expires_in || 3600) * 1000;
-          sessionStorage.setItem('emociona_session', JSON.stringify(sesion));
+          localStorage.setItem('emociona_session', JSON.stringify(sesion));
         }
       }
     });
@@ -1235,7 +1236,7 @@
   }
 
   function logout() {
-    sessionStorage.removeItem('emociona_session');
+    localStorage.removeItem('emociona_session');
     window.location.href = 'index.html';
   }
 

@@ -193,11 +193,11 @@
   const CLIENT_ID  = '439474376295-jjs3q4nki5pkpc9fc9qfcdmp4ldlj1vh.apps.googleusercontent.com';
   const SCOPES     = 'openid email profile https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/drive.file';
 
-  const sesionData = sessionStorage.getItem('emociona_session');
+  const sesionData = localStorage.getItem('emociona_session');
   if (!sesionData) { window.location.href = 'index.html'; }
   const sesion = JSON.parse(sesionData || '{}');
-  if (!sesion.access_token || Date.now() > sesion.token_expiry) {
-    sessionStorage.removeItem('emociona_session');
+  if (!sesion.session_expiry || Date.now() > sesion.session_expiry) {
+    localStorage.removeItem('emociona_session');
     window.location.href = 'index.html';
   }
 
@@ -208,7 +208,7 @@
   if (esOwner) document.getElementById('acciones-owner').style.display = 'flex';
 
   function logout() {
-    sessionStorage.removeItem('emociona_session');
+    localStorage.removeItem('emociona_session');
     window.location.href = 'index.html';
   }
 
@@ -262,7 +262,7 @@
           if (tr.error) { reject(new Error(tr.error)); return; }
           sesion.access_token = tr.access_token;
           sesion.token_expiry = Date.now() + (tr.expires_in * 1000);
-          sessionStorage.setItem('emociona_session', JSON.stringify(sesion));
+          localStorage.setItem('emociona_session', JSON.stringify(sesion));
           resolve();
         };
         client.requestAccessToken();

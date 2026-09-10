@@ -155,14 +155,17 @@
 
   const CLIENT_ID = '439474376295-jjs3q4nki5pkpc9fc9qfcdmp4ldlj1vh.apps.googleusercontent.com';
 
-  // Si ya hay sesión válida, ir al dashboard
-  const sesion = sessionStorage.getItem('emociona_session');
+  // Migración: limpiar sesión antigua en sessionStorage (ya no se usa)
+  sessionStorage.removeItem('emociona_session');
+
+  // Si ya hay sesión de jornada válida (8h), ir al dashboard sin pedir correo
+  const sesion = localStorage.getItem('emociona_session');
   if (sesion) {
     const s = JSON.parse(sesion);
-    if (s.token_expiry && Date.now() < s.token_expiry) {
-      window.location.href = 'dashboard.html';
+    if (s.session_expiry && Date.now() < s.session_expiry) {
+      window.location.href = 'dashboard.html'; // el token se renueva automáticamente si expiró
     } else {
-      sessionStorage.removeItem('emociona_session');
+      localStorage.removeItem('emociona_session');
     }
   }
 
@@ -228,13 +231,14 @@
         return;
       }
 
-      sessionStorage.setItem('emociona_session', JSON.stringify({
+      localStorage.setItem('emociona_session', JSON.stringify({
         email,
         name: userData.name,
         picture: userData.picture,
         role,
         access_token: accessToken,
-        token_expiry: Date.now() + (response.expires_in * 1000)
+        token_expiry: Date.now() + (response.expires_in * 1000),
+        session_expiry: Date.now() + 8 * 60 * 60 * 1000  // 8h — no pide login aunque el token de Google caduque
       }));
 
       window.location.href = 'dashboard.html';

@@ -518,11 +518,11 @@
   };
 
   // ── SESIÓN ──
-  const sesionData = sessionStorage.getItem('emociona_session');
+  const sesionData = localStorage.getItem('emociona_session');
   if (!sesionData) { window.location.href = 'index.html'; }
   const sesion = JSON.parse(sesionData || '{}');
-  if (!sesion.access_token || Date.now() > sesion.token_expiry) {
-    sessionStorage.removeItem('emociona_session');
+  if (!sesion.session_expiry || Date.now() > sesion.session_expiry) {
+    localStorage.removeItem('emociona_session');
     window.location.href = 'index.html';
   }
   if (sesion.picture) document.getElementById('user-avatar').src = sesion.picture;
@@ -915,7 +915,7 @@
           if (tokenResponse.error) { reject(new Error(tokenResponse.error)); return; }
           sesion.access_token = tokenResponse.access_token;
           sesion.token_expiry = Date.now() + (tokenResponse.expires_in * 1000);
-          sessionStorage.setItem('emociona_session', JSON.stringify(sesion));
+          localStorage.setItem('emociona_session', JSON.stringify(sesion));
           resolve();
         };
         client.requestAccessToken();
@@ -1301,7 +1301,7 @@
   }
 
   function logout() {
-    sessionStorage.removeItem('emociona_session');
+    localStorage.removeItem('emociona_session');
     window.location.href = 'index.html';
   }
 
