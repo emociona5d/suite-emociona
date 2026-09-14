@@ -206,6 +206,13 @@
 
     /* ── OBSERVACIONES CON ALERTA ── */
     .campo-input-obs { color: #C0392B; }
+
+    /* ── BEBÉ: alertas sexo ── */
+    .bebe-tag { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; margin-left: 6px; vertical-align: middle; }
+    .bebe-tag-noquiero { background: #FFF0E0; color: #C05000; }
+    .bebe-tag-sobre    { background: #F3E8FF; color: #7C3AED; }
+    .campo-input-noquiero { background: #FFF7F0 !important; border-color: #F0A060 !important; }
+    .campo-input-sobre    { background: #FAF0FF !important; border-color: #C084FC !important; }
     .campo-input-obs::placeholder { color: #C8B0B0; }
     .obs-label-wrap { display: flex; align-items: center; gap: 6px; }
     .obs-alerta {
@@ -757,6 +764,14 @@
       const importe  = (fila[11]||'').toString().trim();
       const cobrado  = (fila[12]||'').trim();
       const bebe     = (fila[13]||'').trim();
+      const bebeNoquiero = /no quiero/i.test(bebe);
+      const bebeSobre    = /sobre/i.test(bebe);
+      const bebeTag = bebeNoquiero
+        ? '<span class="bebe-tag bebe-tag-noquiero">🤫 No revelar</span>'
+        : bebeSobre
+          ? '<span class="bebe-tag bebe-tag-sobre">🎁 Sobre sorpresa</span>'
+          : '';
+      const bebeInputClass = bebeNoquiero ? 'campo-input-noquiero' : bebeSobre ? 'campo-input-sobre' : '';
       const telefono = (fila[16]||'').trim();
       const obs        = (fila[23]||'').trim();
       const descuento  = (fila[25]||'').trim(); // Z
@@ -804,8 +819,8 @@
             <input class="campo-input" type="text" placeholder="0,00" value="${importe}" data-col="L" data-row="${sheetRow}" onblur="guardarCampo(this)">
           </div>
           <div class="campo-grupo">
-            <div class="campo-label">Bebé / Sexo</div>
-            <input class="campo-input" type="text" placeholder="Nombre / niño / niña / no decir" value="${bebe}" data-col="N" data-row="${sheetRow}" onblur="guardarCampo(this)">
+            <div class="campo-label">Bebé / Sexo${bebeTag}</div>
+            <input class="campo-input ${bebeInputClass}" type="text" placeholder="Nombre / niño / niña / no decir" value="${bebe}" data-col="N" data-row="${sheetRow}" onblur="guardarCampo(this)">
           </div>
           <div class="campo-grupo ancho-completo">
             <div class="campo-label obs-label-wrap">
