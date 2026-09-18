@@ -1206,12 +1206,13 @@
 
   let sobresEncontrados = []; // sesiones pendientes de "Sobre" mostradas en el modal de revisión
 
-  function escribirVentanaSobres(ventana, sobres) {
+  function escribirVentanaSobres(ventana, sobres, logoUrl) {
+    const logoSrc = logoUrl || LOGO_SOBRE_B64;
     const paginas = sobres.map(s => `
       <div class="sobre">
         <div class="remite">
           <div class="remite-texto">${s.remite.replace(/\n/g, '<br>')}</div>
-          <img src="${LOGO_SOBRE_B64}" class="remite-logo" alt="">
+          <img src="${logoSrc}" class="remite-logo" alt="">
         </div>
         <div class="destinatario">${s.destinatario.replace(/\n/g, '<br>')}</div>
       </div>`).join('');
@@ -1367,7 +1368,8 @@
         };
       });
 
-      escribirVentanaSobres(ventana, sobres);
+      const { dataUrl: logoDataUrl } = await cargarLogo().catch(() => ({ dataUrl: null }));
+      escribirVentanaSobres(ventana, sobres, logoDataUrl);
 
       estado.textContent = 'Marcando "Sobre" en la hoja...';
       for (const s of seleccionadas) {
@@ -1490,7 +1492,8 @@
         remite: REMITENTE_SOBRE,
         destinatario: `${nombre}\n${direccion}\n${cp} ${municipio}${provincia ? '\n' + provincia : ''}`
       };
-      escribirVentanaSobres(ventana, [sobre]);
+      const { dataUrl: logoDataUrl } = await cargarLogo().catch(() => ({ dataUrl: null }));
+      escribirVentanaSobres(ventana, [sobre], logoDataUrl);
 
       // Solo marca "Sobre" si todavía no lo estaba, para no perder el rastro
       // de que ya se había enviado si esto es una reimpresión.
