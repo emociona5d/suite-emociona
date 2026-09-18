@@ -1368,7 +1368,13 @@
         };
       });
 
-      const { dataUrl: logoDataUrl } = await cargarLogo().catch(() => ({ dataUrl: null }));
+      const logoDataUrl = await (async () => {
+        try {
+          const r = await fetch('./logo-sobre.png');
+          if (r.ok) { const b = await r.blob(); return await new Promise(res => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(b); }); }
+        } catch(e) {}
+        return (await cargarLogo().catch(() => ({dataUrl: null}))).dataUrl;
+      })();
       escribirVentanaSobres(ventana, sobres, logoDataUrl);
 
       estado.textContent = 'Marcando "Sobre" en la hoja...';
@@ -1492,7 +1498,13 @@
         remite: REMITENTE_SOBRE,
         destinatario: `${nombre}\n${direccion}\n${cp} ${municipio}${provincia ? '\n' + provincia : ''}`
       };
-      const { dataUrl: logoDataUrl } = await cargarLogo().catch(() => ({ dataUrl: null }));
+      const logoDataUrl = await (async () => {
+        try {
+          const r = await fetch('./logo-sobre.png');
+          if (r.ok) { const b = await r.blob(); return await new Promise(res => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(b); }); }
+        } catch(e) {}
+        return (await cargarLogo().catch(() => ({dataUrl: null}))).dataUrl;
+      })();
       escribirVentanaSobres(ventana, [sobre], logoDataUrl);
 
       // Solo marca "Sobre" si todavía no lo estaba, para no perder el rastro
