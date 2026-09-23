@@ -816,11 +816,11 @@
           </div>
           <div class="campo-grupo">
             <div class="campo-label">Importe (€)</div>
-            <input class="campo-input" type="text" placeholder="0,00" value="${importe}" data-col="L" data-row="${sheetRow}" onblur="guardarCampo(this)">
+            <input class="campo-input" type="text" placeholder="0,00" value="${importe}" data-col="L" data-row="${sheetRow}" onblur="guardarCampo(this)" oninput="debounceGuardar(this)">
           </div>
           <div class="campo-grupo">
             <div class="campo-label">Bebé / Sexo${bebeTag}</div>
-            <input class="campo-input ${bebeInputClass}" type="text" placeholder="Nombre / niño / niña / no decir" value="${bebe}" data-col="N" data-row="${sheetRow}" onblur="guardarCampo(this)">
+            <input class="campo-input ${bebeInputClass}" type="text" placeholder="Nombre / niño / niña / no decir" value="${bebe}" data-col="N" data-row="${sheetRow}" onblur="guardarCampo(this)" oninput="debounceGuardar(this)">
           </div>
           <div class="campo-grupo ancho-completo">
             <div class="campo-label obs-label-wrap">
@@ -829,7 +829,7 @@
             </div>
             <input class="campo-input campo-input-obs" type="text" placeholder="Notas libres..." value="${obs}" data-col="X" data-row="${sheetRow}"
               onblur="guardarCampo(this)"
-              oninput="this.closest('.campo-grupo').querySelector('.obs-alerta').classList.toggle('visible', this.value.trim().length > 0)">
+              oninput="this.closest('.campo-grupo').querySelector('.obs-alerta').classList.toggle('visible', this.value.trim().length > 0); debounceGuardar(this)">
           </div>
           <div class="campo-grupo">
             <div class="campo-label">Descuento pack</div>
@@ -956,6 +956,16 @@
   }
 
   // ── CAMPOS EDITABLES ──
+  // Autoguardado con retardo: guarda 1,5 s después de que el usuario deje de escribir
+  const _debounceTimers = new WeakMap();
+  function debounceGuardar(el) {
+    if (_debounceTimers.has(el)) clearTimeout(_debounceTimers.get(el));
+    _debounceTimers.set(el, setTimeout(() => {
+      _debounceTimers.delete(el);
+      guardarCampo(el);
+    }, 1500));
+  }
+
   async function guardarCampo(el) {
     colorearSelect(el); // aplicar color inmediatamente al cambiar
     const valor = el.value.trim();
