@@ -886,18 +886,38 @@
   // así que es más fiable) y usa el nombre como confirmación / respaldo cuando la fecha no basta.
   function emparejarCarpetaParaSesion(sesionPendiente, todasLasCarpetas) {
     const nombreNorm = normalizarTexto(sesionPendiente.nombre);
+
+    // Comprueba si el nombre de la carpeta tiene relación con el nombre del cliente.
+    // Usa la primera parte (antes del primer guión) de la carpeta y permite coincidencias parciales.
     const coincideNombre = (carpeta) => {
       const primeraParte = normalizarTexto((carpeta.name || '').split('-')[0]);
       return primeraParte.length >= 3 && (primeraParte.includes(nombreNorm) || nombreNorm.includes(primeraParte));
     };
 
+    // Coincidencia "aproximada": al menos los primeros 4 caracteres del nombre coinciden
+    // con los primeros 4 de la primera parte de la carpeta (cubre variaciones menores sin
+    // devolver la carpeta de otra clienta completamente distinta).
+    const coincideNombreAprox = (carpeta) => {
+      const primeraParte = normalizarTexto((carpeta.name || '').split('-')[0]);
+      if (primeraParte.length < 3) return false;
+      const prefijo = nombreNorm.substring(0, 4);
+      return prefijo.length >= 3 && primeraParte.startsWith(prefijo);
+    };
+
     const porFecha = todasLasCarpetas.filter(c => extraerFechaDeCarpeta(c.name) === sesionPendiente.fechaCita);
     const porFechaYNombre = porFecha.filter(coincideNombre);
 
+    // 1. Fecha + nombre coinciden exactamente → resultado seguro
     if (porFechaYNombre.length === 1) return { carpeta: porFechaYNombre[0], confianza: 'segura' };
-    if (porFecha.length === 1) return { carpeta: porFecha[0], confianza: 'fecha' };
 
-    // Sin coincidencia de fecha fiable: probamos solo por nombre como último recurso
+    // 2. Fecha sola, una carpeta: solo la usamos si el nombre de carpeta
+    //    comparte al menos el inicio con el nombre del cliente.
+    //    Esto evita devolver la carpeta de otra clienta del mismo día.
+    if (porFecha.length === 1 && coincideNombreAprox(porFecha[0])) {
+      return { carpeta: porFecha[0], confianza: 'fecha' };
+    }
+
+    // 3. Solo nombre como último recurso (todas las fechas)
     const soloNombre = todasLasCarpetas.filter(coincideNombre);
     if (soloNombre.length === 1) return { carpeta: soloNombre[0], confianza: 'nombre' };
 
