@@ -1138,6 +1138,7 @@
         if (resp.access_token) {
           sesion.access_token = resp.access_token;
           sesion.token_expiry = Date.now() + (resp.expires_in || 3600) * 1000;
+          sesion.session_expiry = Date.now() + 30 * 24 * 60 * 60 * 1000;
           localStorage.setItem('emociona_session', JSON.stringify(sesion));
         }
       }

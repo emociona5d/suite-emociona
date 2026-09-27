@@ -1024,6 +1024,7 @@
           if (tokenResponse.error) { reject(new Error(tokenResponse.error)); return; }
           sesion.access_token  = tokenResponse.access_token;
           sesion.token_expiry  = Date.now() + (tokenResponse.expires_in * 1000);
+          sesion.session_expiry = Date.now() + 30 * 24 * 60 * 60 * 1000; // renovar ventana de 30 días con cada uso
           localStorage.setItem('emociona_session', JSON.stringify(sesion));
           resolve();
         };

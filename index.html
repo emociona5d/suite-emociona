@@ -238,7 +238,7 @@
         role,
         access_token: accessToken,
         token_expiry: Date.now() + (response.expires_in * 1000),
-        session_expiry: Date.now() + 8 * 60 * 60 * 1000  // 8h — no pide login aunque el token de Google caduque
+        session_expiry: Date.now() + 30 * 24 * 60 * 60 * 1000  // 30 días — se renueva automáticamente con cada uso
       }));
 
       window.location.href = 'dashboard.html';
