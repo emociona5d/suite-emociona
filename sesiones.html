@@ -786,6 +786,14 @@
     return (s || '').toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
   }
 
+  // Normaliza fecha DD/MM/AAAA con ceros: "1/9/2026" \u2192 "01/09/2026"
+  function normalizarFecha(str) {
+    if (!str) return '';
+    const parts = str.trim().split('/');
+    if (parts.length !== 3) return str.trim();
+    return parts[0].padStart(2,'0') + '/' + parts[1].padStart(2,'0') + '/' + parts[2];
+  }
+
   async function listarCarpetasEncargos() {
     const q = encodeURIComponent(`'${ENCARGOS_FOLDER_ID}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`);
     const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)&pageSize=1000`;
@@ -936,7 +944,7 @@
         })
         .map(({ fila, sheetRow }) => ({
           nombre: ((fila[0] || '') + ' ' + (fila[1] || '')).trim(),
-          fechaCita: (fila[3] || '').trim(),
+          fechaCita: normalizarFecha(fila[3]),
           servicio: (fila[10] || '').trim(),
           sheetRow
         }));
@@ -1400,7 +1408,7 @@
   async function imprimirFotoIndividual(idx) {
     const { fila, sheetRow } = filasRender[idx];
     const nombre    = ((fila[0] || '') + ' ' + (fila[1] || '')).trim();
-    const fechaCita = (fila[3] || '').trim();
+    const fechaCita = normalizarFecha(fila[3]);
 
     // Abrir la ventana ya, dentro del clic, para que no la bloquee el navegador
     const ventana = window.open('', '_blank');
