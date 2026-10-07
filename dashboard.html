@@ -700,9 +700,15 @@
     document.getElementById('resumen').style.display = 'none';
 
     try {
+      await renovarTokenSiNecesario(); // asegura token fresco antes de cargar
       const range = encodeURIComponent(`'${SHEET_NAME}'!A:AB`);
       const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}`;
-      const resp = await fetch(url, { headers: { Authorization: 'Bearer ' + sesion.access_token } });
+      let resp = await fetch(url, { headers: { Authorization: 'Bearer ' + sesion.access_token } });
+      // Si aun así devuelve 401, renovar y reintentar una vez
+      if (resp.status === 401) {
+        await renovarToken();
+        resp = await fetch(url, { headers: { Authorization: 'Bearer ' + sesion.access_token } });
+      }
       if (!resp.ok) throw new Error('Error ' + resp.status);
 
       const data = await resp.json();
@@ -1028,7 +1034,7 @@
           localStorage.setItem('emociona_session', JSON.stringify(sesion));
           resolve();
         };
-        client.requestAccessToken();
+        client.requestAccessToken({ prompt: '' }); // prompt:'' = silencioso, sin popup
       } catch(e) { reject(e); }
     });
   }

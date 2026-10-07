@@ -919,7 +919,7 @@
           localStorage.setItem('emociona_session', JSON.stringify(sesion));
           resolve();
         };
-        client.requestAccessToken();
+        client.requestAccessToken({ prompt: '' });
       } catch(e) { reject(e); }
     });
   }
