@@ -248,13 +248,24 @@
 
   // ── RENOVACIÓN TOKEN (igual que el resto de la Suite) ──
   let _tokenClient = null;
+  function esperarGoogle(timeout = 8000) {
+    return new Promise((resolve, reject) => {
+      if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) { resolve(); return; }
+      const start = Date.now();
+      const interval = setInterval(() => {
+        if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) { clearInterval(interval); resolve(); }
+        else if (Date.now() - start > timeout) { clearInterval(interval); reject(new Error('Google Identity Services no disponible')); }
+      }, 100);
+    });
+  }
   function getTokenClient() {
     if (!_tokenClient) {
       _tokenClient = google.accounts.oauth2.initTokenClient({ client_id: CLIENT_ID, scope: SCOPES, prompt: '', callback: () => {} });
     }
     return _tokenClient;
   }
-  function renovarToken() {
+  async function renovarToken() {
+    await esperarGoogle();
     return new Promise((resolve, reject) => {
       try {
         const client = getTokenClient();
