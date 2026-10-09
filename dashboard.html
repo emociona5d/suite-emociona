@@ -638,7 +638,9 @@
   // ── SESIÓN ──
   const sesionData = localStorage.getItem('emociona_session');
   if (!sesionData) { window.location.href = 'index.html'; }
-  const sesion = JSON.parse(sesionData || '{}');
+  let sesion;
+  try { sesion = JSON.parse(sesionData || '{}'); }
+  catch(e) { localStorage.removeItem('emociona_session'); window.location.href = 'index.html'; }
   if (!sesion.session_expiry || Date.now() > sesion.session_expiry) {
     localStorage.removeItem('emociona_session');
     window.location.href = 'index.html';
@@ -695,7 +697,9 @@
   }
 
   // ── FETCH ──
+  let _cargaGeneracion = 0; // evita que dos cargas simultáneas se pisen: solo la más reciente pinta resultados
   async function cargarCitas() {
+    const generacion = ++_cargaGeneracion;
     document.getElementById('contenido').innerHTML = '<div class="loading-msg">Cargando citas...</div>';
     document.getElementById('resumen').style.display = 'none';
 
@@ -738,8 +742,10 @@
       // Ordenar por fila de hoja
       citas.sort((a, b) => a.sheetRow - b.sheetRow);
 
+      if (generacion !== _cargaGeneracion) return; // llegó una carga más reciente: descartar esta
       renderCitas(citas);
     } catch(e) {
+      if (generacion !== _cargaGeneracion) return;
       document.getElementById('contenido').innerHTML = `<div class="error-state"><strong>Error al cargar:</strong> ${e.message}<br>Prueba a cerrar sesión y volver a entrar.</div>`;
     }
   }
@@ -968,7 +974,7 @@
     if (_debounceTimers.has(el)) clearTimeout(_debounceTimers.get(el));
     _debounceTimers.set(el, setTimeout(() => {
       _debounceTimers.delete(el);
-      guardarCampo(el);
+      if (document.contains(el)) guardarCampo(el); // solo guardar si el elemento sigue en el DOM
     }, 1500));
   }
 

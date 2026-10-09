@@ -158,16 +158,18 @@
   // Migración: limpiar sesión antigua en sessionStorage (ya no se usa)
   sessionStorage.removeItem('emociona_session');
 
-  // Si ya hay sesión de jornada válida (8h), ir al dashboard sin pedir correo
-  const sesion = localStorage.getItem('emociona_session');
-  if (sesion) {
-    const s = JSON.parse(sesion);
-    if (s.session_expiry && Date.now() < s.session_expiry) {
-      window.location.href = 'dashboard.html'; // el token se renueva automáticamente si expiró
-    } else {
-      localStorage.removeItem('emociona_session');
+  // Si ya hay sesión de jornada válida, ir al dashboard sin pedir correo
+  try {
+    const sesionRaw = localStorage.getItem('emociona_session');
+    if (sesionRaw) {
+      const s = JSON.parse(sesionRaw);
+      if (s.session_expiry && Date.now() < s.session_expiry) {
+        window.location.href = 'dashboard.html'; // el token se renueva automáticamente si expiró
+      } else {
+        localStorage.removeItem('emociona_session');
+      }
     }
-  }
+  } catch(e) { localStorage.removeItem('emociona_session'); } // JSON corrupto: limpiar y mostrar login
 
   let tokenClient;
 
@@ -178,6 +180,11 @@
   const SCOPE_KEY = 'emociona_v4_ok'; // v4: se añade drive.readonly para leer la carpeta Encargos (imprimir fotos collage)
 
   window.addEventListener('load', function () {
+    if (typeof google === 'undefined' || !google.accounts) {
+      // El script de Google no cargó (sin conexión, firewall, etc.)
+      mostrarError('No se pudo conectar con Google. Comprueba tu conexión a internet e inténtalo de nuevo.');
+      return;
+    }
     tokenClient = google.accounts.oauth2.initTokenClient({
       client_id: CLIENT_ID,
       scope: 'openid email profile https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly',

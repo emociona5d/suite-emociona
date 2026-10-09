@@ -453,6 +453,10 @@
     const range = encodeURIComponent(`'${SHEET_NAME}'!A:W`);
     const url   = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}`;
     const resp  = await fetch(url, { headers: { Authorization: 'Bearer ' + sesion.access_token } });
+    if (resp.status === 401) {
+      // Token caducado — redirigir al dashboard donde se renueva automáticamente
+      throw new Error('Sesión expirada. Vuelve al <a href="dashboard.html">dashboard</a> y regresa aquí.');
+    }
     if (!resp.ok) throw new Error('Error al leer la hoja: ' + resp.status);
     const data = await resp.json();
     let filas = data.values || [];

@@ -458,7 +458,9 @@
   // ── SESIÓN ──
   const sesionData = localStorage.getItem('emociona_session');
   if (!sesionData) window.location.href = 'index.html';
-  const sesion = JSON.parse(sesionData || '{}');
+  let sesion;
+  try { sesion = JSON.parse(sesionData || '{}'); }
+  catch(e) { localStorage.removeItem('emociona_session'); window.location.href = 'index.html'; }
   if (!sesion.session_expiry || Date.now() > sesion.session_expiry) {
     localStorage.removeItem('emociona_session');
     window.location.href = 'index.html';
