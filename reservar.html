@@ -156,6 +156,12 @@
     font-size: 13px; color: #8A6D00; margin-top: 14px; line-height: 1.6;
   }
 
+  .btn-whatsapp {
+    display: block; margin-top: 12px; padding: 11px; border-radius: 10px; text-align: center;
+    background: #25D366; color: white; text-decoration: none; font-size: 14px; font-weight: 500;
+  }
+  .btn-whatsapp:hover { background: #1EB656; }
+
   .aviso-sabado {
     background: #FBF0F8; border-radius: 10px; padding: 10px 14px;
     font-size: 13px; color: #8A1A74; margin: 4px 0 14px; line-height: 1.5; text-align: center;
@@ -209,6 +215,7 @@
   ];
 
   const ANTELACION_MIN_HORAS = 48; // para cancelar/reprogramar
+  const WHATSAPP_NEGOCIO = '34644593823'; // WhatsApp del negocio, con prefijo de país y sin espacios
 
   // ── ESTADO ──
   const params = new URLSearchParams(window.location.search);
@@ -639,7 +646,9 @@
             <button class="btn-principal" onclick="mostrarReprogramar('${token}','${r.servicio}')">Cambiar fecha u hora</button>
             <button class="btn-secundario" style="color:#C0392B;border-color:#F5C6C6" onclick="cancelarReserva('${token}')">Cancelar mi cita</button>
           ` : `
-            <div class="aviso-plazo">Tu cita es en menos de ${ANTELACION_MIN_HORAS} horas. Para cancelar o cambiar la fecha con tan poca antelación, escríbenos directamente 💛</div>
+            <div class="aviso-plazo">Tu cita es en menos de ${ANTELACION_MIN_HORAS} horas. Para cancelar o cambiar la fecha con tan poca antelación, escríbenos directamente, por favor 💛
+              <a class="btn-whatsapp" href="https://wa.me/${WHATSAPP_NEGOCIO}?text=${encodeURIComponent('Hola, quería consultar sobre mi cita de ' + r.servicio + ' del ' + formatoFechaLarga(r.fecha) + ' a las ' + r.hora + '.')}" target="_blank" rel="noopener">Escríbenos por WhatsApp</a>
+            </div>
           `}
         ` : `<div class="confirmacion-nota">Esta reserva ya no está activa.</div>`}
       </div>`;
