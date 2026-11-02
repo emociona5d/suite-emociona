@@ -156,6 +156,11 @@
     font-size: 13px; color: #8A6D00; margin-top: 14px; line-height: 1.6;
   }
 
+  .aviso-sabado {
+    background: #FBF0F8; border-radius: 10px; padding: 10px 14px;
+    font-size: 13px; color: #8A1A74; margin: 4px 0 14px; line-height: 1.5; text-align: center;
+  }
+
   .footer-nota { text-align: center; font-size: 12px; color: #C8D4D8; margin-top: 30px; }
 
   @media (max-width: 420px) {
@@ -460,7 +465,7 @@
         return;
       }
 
-      cont.innerHTML = `<div class="huecos-grid">${huecos.map(h =>
+      cont.innerHTML = avisoSabado(fecha) + `<div class="huecos-grid">${huecos.map(h =>
         `<button class="hueco-btn" data-hora="${h}" onclick="elegirHora('${h}')">${h}</button>`
       ).join('')}</div>`;
     } catch (e) {
@@ -487,6 +492,7 @@
           <strong>${estado.servicio}</strong><br>
           ${formatoFechaLarga(estado.fecha)} — ${estado.hora}
         </div>
+        ${avisoSabado(estado.fecha)}
         <div class="campo-grupo">
           <label class="campo-label">Nombre *</label>
           <input class="campo-input" id="d-nombre" type="text" placeholder="Nombre">
@@ -511,6 +517,15 @@
         <button class="btn-principal" id="btn-confirmar" onclick="confirmarReserva()">Confirmar reserva</button>
         <button class="btn-secundario" onclick="volverA(2)">← Cambiar día u hora</button>
       </div>`;
+  }
+
+  // Aviso de recargo en sábado (los sábados solo hay huecos si se abre una franja extra)
+  const RECARGO_SABADO = 10;
+  function esSabado(fechaISO) { return new Date(fechaISO + 'T00:00:00').getDay() === 6; }
+  function avisoSabado(fechaISO) {
+    return esSabado(fechaISO)
+      ? `<div class="aviso-sabado">Las sesiones en sábado tienen un coste adicional de ${RECARGO_SABADO} € 💛</div>`
+      : '';
   }
 
   function formatoFechaLarga(fechaISO) {
@@ -580,6 +595,7 @@
           <strong>${estado.servicio}</strong><br>
           ${formatoFechaLarga(estado.fecha)} — ${estado.hora}
         </div>
+        ${avisoSabado(estado.fecha)}
         <div class="confirmacion-nota">
           Te hemos enviado un email de confirmación con un enlace para gestionar tu cita
           (cancelarla o cambiarla de fecha) si lo necesitas.<br><br>
@@ -684,7 +700,7 @@
         cont.innerHTML = '<div class="huecos-vacio">No hay huecos libres este día.</div>';
         return;
       }
-      cont.innerHTML = `<div class="huecos-grid">${huecos.map(h =>
+      cont.innerHTML = avisoSabado(fecha) + `<div class="huecos-grid">${huecos.map(h =>
         `<button class="hueco-btn" onclick="seleccionarHoraReprogramar('${token}','${servicio}','${fecha}','${h}')">${h}</button>`
       ).join('')}</div>`;
     } catch (e) {
@@ -699,6 +715,7 @@
         <strong>${servicio}</strong><br>
         ${formatoFechaLarga(fecha)} — ${hora}
       </div>
+      ${avisoSabado(fecha)}
       <button class="btn-principal" id="btn-confirmar-repro" onclick="confirmarReprogramacion('${token}','${fecha}','${hora}')">Confirmar cambio</button>
       <button class="btn-secundario" onclick="cargarHuecosReprogramar('${token}','${servicio}','${fecha}')">← Elegir otra hora</button>
     `;
