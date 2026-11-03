@@ -235,12 +235,63 @@
   <meta name="theme-color" content="#A7228C">
 </head>
 <body>
+<!-- ══ PIN de acceso a Ingresos / Facturas ══
+     Solo es una barrera de comodidad: el PIN no está escrito aquí, solo su huella (SHA-256).
+     Una vez puesto, queda abierto en ESTE aparato hasta pulsar "🔒 Bloquear". -->
+<div id="pin-capa" style="position:fixed;inset:0;z-index:99999;background:#FDF8F4;display:flex;align-items:center;justify-content:center;font-family:'Segoe UI',system-ui,sans-serif;">
+  <div style="background:white;border-radius:16px;box-shadow:0 8px 40px rgba(0,0,0,0.10);padding:32px 30px;width:100%;max-width:340px;text-align:center;">
+    <div style="font-size:30px;margin-bottom:8px">🔒</div>
+    <div style="font-size:18px;color:#A7228C;margin-bottom:6px">Zona protegida</div>
+    <div style="font-size:13px;color:#7A8A8E;margin-bottom:18px">Introduce el PIN para continuar</div>
+    <input id="pin-input" type="password" inputmode="numeric" autocomplete="off" maxlength="8"
+      style="width:100%;font-size:22px;letter-spacing:6px;text-align:center;padding:10px;border:1.5px solid #E0E8EA;border-radius:10px;outline:none;font-family:inherit"
+      onkeydown="if(event.key==='Enter')comprobarPin()">
+    <div id="pin-error" style="color:#C0392B;font-size:13px;min-height:18px;margin-top:8px"></div>
+    <button onclick="comprobarPin()" style="margin-top:6px;width:100%;font-size:15px;padding:10px;border:none;border-radius:10px;background:#A7228C;color:white;cursor:pointer;font-family:inherit">Entrar</button>
+    <a href="dashboard.html" style="display:block;margin-top:14px;font-size:13px;color:#9BB5BC;text-decoration:none">← Volver a Hoy</a>
+  </div>
+</div>
+<script>
+  (function () {
+    var HUELLA = '54acc0169eecd03ac03dbbab494e49f50760bf91bc32e61ffd694c4e3a72fc94';
+    var CLAVE = 'emociona_pin_ok';
+    function abierto() { try { return localStorage.getItem(CLAVE) === HUELLA; } catch (e) { return false; } }
+    function quitarCapa() { var c = document.getElementById('pin-capa'); if (c) c.remove(); }
+    if (abierto()) quitarCapa();
+    else setTimeout(function () { var i = document.getElementById('pin-input'); if (i) i.focus(); }, 50);
+    async function huellaDe(pin) {
+      var datos = new TextEncoder().encode('emociona5d-pin:' + pin);
+      var buf = await crypto.subtle.digest('SHA-256', datos);
+      return Array.from(new Uint8Array(buf)).map(function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+    }
+    window.comprobarPin = async function () {
+      var inp = document.getElementById('pin-input');
+      var err = document.getElementById('pin-error');
+      var pin = (inp.value || '').trim();
+      if (!pin) return;
+      if (await huellaDe(pin) === HUELLA) {
+        try { localStorage.setItem(CLAVE, HUELLA); } catch (e) {}
+        quitarCapa();
+      } else {
+        inp.value = '';
+        err.textContent = 'PIN incorrecto';
+        inp.disabled = true;
+        setTimeout(function () { inp.disabled = false; inp.focus(); }, 1500);
+      }
+    };
+    window.bloquearPin = function () {
+      try { localStorage.removeItem(CLAVE); } catch (e) {}
+      window.location.href = 'dashboard.html';
+    };
+  })();
+</script>
 
 <header>
   <img class="brand-logo" src="logo-secundario.jpg" alt="Emociona 5D">
   <div class="header-user">
     <img class="user-avatar" id="user-avatar" src="" alt="" onerror="this.style.display='none'">
     <span class="user-name" id="user-name"></span>
+    <button class="logout-btn" onclick="bloquearPin()" title="Cerrar con PIN en este aparato">🔒 Bloquear</button>
     <button class="logout-btn" onclick="logout()">Cerrar sesión</button>
   </div>
 </header>
