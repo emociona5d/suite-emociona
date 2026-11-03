@@ -197,6 +197,11 @@
     .btn-doc:hover { background: #F5F0FA; border-color: #A72280; }
     .btn-doc.justif:hover { background: #EAF5FB; border-color: #00ADD8; }
     td.td-docs { white-space: nowrap; text-align: center; }
+    /* Envío pendiente (aviso de Eli) */
+    .btn-doc.pendiente-envio { background: #FFF3E0; border-color: #E8A040; position: relative; }
+    .btn-doc.pendiente-envio::after { content: ''; position: absolute; top: -4px; right: -4px; width: 9px; height: 9px; border-radius: 50%; background: #E06A2B; }
+    .aviso-envios { cursor: pointer; background: #FFF3E0; color: #B0561A; border-radius: 14px; padding: 4px 12px; font-size: 13px; margin-left: 12px; user-select: none; }
+    .aviso-envios.activo { outline: 2px solid #E06A2B; }
 
     /* ── MODAL JUSTIFICANTE ── */
     .modal-overlay {
@@ -330,6 +335,7 @@
 
   <div class="stats-bar" id="stats-bar" style="display:none">
     <div class="stat-pill"><strong id="stat-count">0</strong> sesiones</div>
+    <div class="aviso-envios" id="aviso-envios" style="display:none" onclick="toggleSoloEnvios()"></div>
   </div>
 
   <div id="contenido">
@@ -487,6 +493,17 @@
     ['ticket-btn-email', 'justif-btn-email'].forEach(id => { const b = document.getElementById(id); if (b) b.style.display = 'none'; });
   }
 
+  // ── ENVÍOS PENDIENTES (columna AH) ──
+  // El rol staff no genera tickets ni justificantes: pulsa el botón y se avisa al negocio
+  // (marca en la columna AH + email a la cuenta del negocio). Al generarlo, la marca se borra sola.
+  const COL_ENVIO = 33, LETRA_ENVIO = 'AH', CAB_ENVIO = 'Envío pendiente';
+  const EMAIL_NEGOCIO = 'emocionaecografia5d@gmail.com';
+  let _envioDisponible = true;  // false si la columna AH no existe o tiene otra cosa
+  let _soloEnvios = false;      // filtro "ver solo envíos pendientes"
+  function tiposPendientes(fila) {
+    return (fila[COL_ENVIO] || '').split(',').map(s => s.trim()).filter(Boolean);
+  }
+
   if (sesion.picture) document.getElementById('user-avatar').src = sesion.picture;
   document.getElementById('user-name').textContent = sesion.name || sesion.email;
 
@@ -500,11 +517,19 @@
   async function cargarSesiones() {
     try {
       // A:AC en vez de A:Y para incluir la columna "Sobre" (AC, índice 28)
-      const range = encodeURIComponent(`'${SHEET_NAME}'!${Packs.RANGO_LECTURA}`); // incluye packs (AD:AG)
-      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}`;
-      const resp = await fetch(url, {
+      // A:AH = packs (AD:AG) + "Envío pendiente" (AH). Si AH no existe todavía, se lee A:AG.
+      const urlDe = r => `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(`'${SHEET_NAME}'!${r}`)}`;
+      let resp = await fetch(urlDe('A:AH'), {
         headers: { Authorization: 'Bearer ' + sesion.access_token }
       });
+      _envioDisponible = true;
+      if (resp.status === 400) {
+        _envioDisponible = false;
+        console.warn('La columna AH no existe: los avisos de envío solo irán por email.');
+        resp = await fetch(urlDe(Packs.RANGO_LECTURA), {
+          headers: { Authorization: 'Bearer ' + sesion.access_token }
+        });
+      }
       if (!resp.ok) throw new Error('Error ' + resp.status);
 
       const data = await resp.json();
@@ -514,6 +539,12 @@
       const cabecera = filas[0] || [];
       if ((cabecera[28] || '').trim() !== 'Sobre') {
         actualizarCelda('AC', 1, 'Sobre').catch(() => {});
+      }
+      // Cabecera AH "Envío pendiente": crearla si está vacía; si hay otra cosa, no tocar
+      if (_envioDisponible) {
+        const cabAH = (cabecera[COL_ENVIO] || '').trim();
+        if (!cabAH) actualizarCelda(LETRA_ENVIO, 1, CAB_ENVIO).catch(() => {});
+        else if (cabAH !== CAB_ENVIO) { _envioDisponible = false; console.warn('AH1 tiene "' + cabAH + '": no se usan marcas de envío.'); }
       }
 
       todasLasFilas = filas
@@ -596,9 +627,11 @@
       if (mes && !fecha.includes('/' + mes)) return false;
       if (servicio && !svc.includes(servicio)) return false;
       if (pendiente && esActivo(ecoOK)) return false;
+      if (_soloEnvios && !tiposPendientes(fila).length) return false;
       return true;
     });
 
+    actualizarAvisoEnvios();
     actualizarStats(filtradas);
     renderTabla(filtradas);
   }
@@ -608,6 +641,23 @@
     document.getElementById('filtro-mes').value = '';
     document.getElementById('filtro-servicio').value = '';
     document.getElementById('solo-pendientes').checked = false;
+    _soloEnvios = false;
+    aplicarFiltros();
+  }
+
+  function actualizarAvisoEnvios() {
+    const el = document.getElementById('aviso-envios');
+    const n = todasLasFilas.filter(({ fila }) => tiposPendientes(fila).length).length;
+    if (!n && !_soloEnvios) { el.style.display = 'none'; return; }
+    el.style.display = 'block';
+    el.classList.toggle('activo', _soloEnvios);
+    el.textContent = _soloEnvios
+      ? `🔔 Viendo ${n} envío${n !== 1 ? 's' : ''} pendiente${n !== 1 ? 's' : ''} · pulsa para ver todo`
+      : `🔔 ${n} envío${n !== 1 ? 's' : ''} pendiente${n !== 1 ? 's' : ''} (tickets/justificantes) · pulsa para verlos`;
+  }
+
+  function toggleSoloEnvios() {
+    _soloEnvios = !_soloEnvios;
     aplicarFiltros();
   }
 
@@ -671,6 +721,7 @@
       const editada  = fila[7] || '';
       const whatsapp = fila[8] || '';
       const carta    = fila[9] || '';
+      const pend     = tiposPendientes(fila);
 
       const svcKey = servicio.toLowerCase();
       const svcColor = COLORES[svcKey] || { bg: '#F0F4F5', color: '#666' };
@@ -686,8 +737,8 @@
         <td class="td-toggle">${toggleBtn('J', sheetRow, carta, '✉️')}</td>
         ${esOwner ? `<td class="td-importe">${importe ? importe : ''}</td><td class="td-cobrado">${cobrado}</td>` : ''}
         <td class="td-docs">
-          <button class="btn-doc" title="Ticket de venta" onclick="abrirModalTicket(${idx})">🧾</button>
-          <button class="btn-doc justif" title="Justificante de asistencia" onclick="abrirModalJustif(${idx})">📋</button>
+          <button class="btn-doc${pend.includes('Ticket') ? ' pendiente-envio' : ''}" title="${pend.includes('Ticket') ? 'Ticket pendiente de enviar' : 'Ticket de venta'}" onclick="abrirModalTicket(${idx})">🧾</button>
+          <button class="btn-doc justif${pend.includes('Justificante') ? ' pendiente-envio' : ''}" title="${pend.includes('Justificante') ? 'Justificante pendiente de enviar' : 'Justificante de asistencia'}" onclick="abrirModalJustif(${idx})">📋</button>
           <button class="btn-doc" title="Imprimir fotos" onclick="imprimirFotoIndividual(${idx})">🖨️</button>
           <button class="btn-doc" title="Imprimir sobre" onclick="imprimirSobreIndividual(${idx})">✉️</button>
         </td>`;
@@ -1582,6 +1633,7 @@
 
   // ── MODAL TICKET ──
   function abrirModalTicket(idx) {
+    if (!puedeEnviarEmail) { pedirEnvio(idx, 'Ticket'); return; }
     _ticketIdx = idx;
     const { fila } = filasRender[idx];
     const nombre   = ((fila[0]||'') + ' ' + (fila[1]||'')).trim();
@@ -1635,6 +1687,7 @@
       } else {
         await enviarPorEmail(doc, filename, fila[17]||'', nombre, 'ticket', fecha);
       }
+      await limpiarEnvio(fila, 'Ticket');
     } catch(e) {
       alert('Error al generar ticket: ' + e.message);
       console.error(e);
@@ -1845,6 +1898,7 @@
   // ─────────────────────────────────────────────────
 
   function abrirModalJustif(idx) {
+    if (!puedeEnviarEmail) { pedirEnvio(idx, 'Justificante'); return; }
     const { fila } = filasRender[idx];
     _justifFila = fila;
     document.getElementById('justif-nombre').value = ((fila[0]||'') + ' ' + (fila[1]||'')).trim();
@@ -1890,10 +1944,101 @@
       } else {
         await enviarPorEmail(doc, filename, fila[17]||'', nombre, 'justificante', fecha);
       }
+      await limpiarEnvio(fila, 'Justificante');
     } catch(e) {
       alert('Error al generar justificante: ' + e.message);
       console.error(e);
     }
+  }
+
+  // ── AVISOS DE ENVÍO (rol staff) ──
+  function b64Utf8(str) {
+    const u8 = new TextEncoder().encode(str);
+    let bin = '';
+    for (let i = 0; i < u8.length; i++) bin += String.fromCharCode(u8[i]);
+    return btoa(bin);
+  }
+
+  async function pedirEnvio(idx, tipo) {
+    const entrada = filasRender[idx];
+    if (!entrada) return;
+    const { fila, sheetRow } = entrada;
+    const nombre = ((fila[0] || '') + ' ' + (fila[1] || '')).trim() || 'esta clienta';
+    const fecha  = (fila[3] || '').trim();
+    const cosa   = tipo === 'Ticket' ? 'el ticket' : 'el justificante';
+    const actuales = tiposPendientes(fila);
+    if (actuales.includes(tipo)) {
+      alert(`Ya se avisó para enviar ${cosa} a ${nombre}. Está pendiente.`);
+      return;
+    }
+    if (!confirm(`¿Avisar para que se envíe ${cosa} a ${nombre}${fecha ? ' (sesión del ' + fecha + ')' : ''}?`)) return;
+
+    let marcado = false, emailOk = false;
+    if (_envioDisponible) {
+      try {
+        const nuevo = actuales.concat(tipo).join(', ');
+        await actualizarCelda(LETRA_ENVIO, sheetRow, nuevo);
+        fila[COL_ENVIO] = nuevo;
+        marcado = true;
+      } catch (e) { console.error('[Emociona] marca envío:', e); }
+    }
+    try {
+      await enviarAvisoEnvio(tipo, fila);
+      emailOk = true;
+    } catch (e) { console.error('[Emociona] email aviso:', e); }
+
+    aplicarFiltros();
+    if (marcado && emailOk) alert(`✓ Aviso enviado. Se enviará ${cosa} a ${nombre}.`);
+    else if (marcado || emailOk) alert(`Aviso enviado, pero ${marcado ? 'no se pudo mandar el email' : 'no se pudo marcar en la Suite'}. Por si acaso, avisa también por WhatsApp.`);
+    else alert('No se pudo enviar el aviso. Avisa por WhatsApp, por favor.');
+  }
+
+  async function enviarAvisoEnvio(tipo, fila) {
+    await renovarTokenSiNecesario();
+    const nombre = ((fila[0] || '') + ' ' + (fila[1] || '')).trim();
+    const fecha  = (fila[3] || '').trim();
+    const svc    = (fila[10] || '').trim();
+    const tel    = (fila[16] || '').replace(/\D/g, '').slice(-9);
+    const quien  = sesion.name || sesion.email || 'Alguien del centro';
+    const cosa   = tipo === 'Ticket' ? 'el ticket' : 'el justificante';
+    const asunto = `🔔 Enviar ${tipo.toLowerCase()} a ${nombre}`;
+    const cuerpo = `${quien} pide que se envíe ${cosa} a:\r\n\r\n`
+      + `Clienta: ${nombre}\r\n`
+      + (svc ? `Sesión: ${svc}\r\n` : '')
+      + (fecha ? `Fecha: ${fecha}\r\n` : '')
+      + (tel ? `Teléfono: ${tel}\r\n` : '')
+      + `\r\nEn la Suite (pestaña Sesiones) aparece marcado como pendiente. Al generarlo, la marca se quita sola.`;
+    const mime = [
+      'MIME-Version: 1.0',
+      'To: ' + EMAIL_NEGOCIO,
+      'Subject: =?UTF-8?B?' + b64Utf8(asunto) + '?=',
+      'Content-Type: text/plain; charset=UTF-8',
+      'Content-Transfer-Encoding: base64',
+      '',
+      b64Utf8(cuerpo)
+    ].join('\r\n');
+    const raw = btoa(mime).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const resp = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + sesion.access_token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ raw })
+    });
+    if (!resp.ok) throw new Error('Gmail ' + resp.status);
+  }
+
+  // Quita la marca de envío pendiente cuando se ha generado el documento
+  async function limpiarEnvio(fila, tipo) {
+    if (!_envioDisponible) return;
+    const actuales = tiposPendientes(fila);
+    if (!actuales.includes(tipo)) return;
+    const entrada = todasLasFilas.find(e => e.fila === fila);
+    if (!entrada) return;
+    const resto = actuales.filter(t => t !== tipo).join(', ');
+    try {
+      await actualizarCelda(LETRA_ENVIO, entrada.sheetRow, resto);
+      fila[COL_ENVIO] = resto;
+      aplicarFiltros();
+    } catch (e) { console.error('[Emociona] limpiar envío:', e); }
   }
 
   async function construirJustificante({ nombre, dni, fecha, hora }, logo) {

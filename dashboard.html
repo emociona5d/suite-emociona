@@ -665,6 +665,13 @@
     window.location.href = 'index.html';
   }
 
+  // Rol staff: sin acceso a Facturas ni Ingresos (se ocultan las pestañas)
+  if (sesion.role !== 'owner') {
+    document.querySelectorAll('a.nav-tab[href="facturas.html"], a.nav-tab[href="ingresos.html"]').forEach(a => a.style.display = 'none');
+  }
+
+  // Calendario del negocio: se lee siempre este, entre quien entre (también Eli con su correo)
+  const CALENDARIO_NEGOCIO = 'emocionaecografia5d@gmail.com';
   if (sesion.picture) document.getElementById('user-avatar').src = sesion.picture;
   document.getElementById('user-name').textContent = sesion.name || sesion.email;
 
@@ -942,7 +949,7 @@
     if (_packsBloqueado) {
       return `<div class="campo-grupo ancho-completo"><div class="pack-caja">⚠️ Los packs están desactivados: las columnas AD–AG de la hoja ya tienen otros datos. Avisa para revisarlo.</div></div>`;
     }
-    const esOwner = sesion.role === 'owner';
+    const esOwner = true; // owner y staff ven precios de packs y botones de importe
     const info = Packs.infoFila(fila);
     const supl = (fila[26] || '').trim();
     const importeActual = Packs.parseImporte(fila[11]);
@@ -1129,7 +1136,7 @@
         maxResults: '100'
       });
       const resp = await fetch(
-        `https://www.googleapis.com/calendar/v3/calendars/primary/events?${params}`,
+        `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDARIO_NEGOCIO)}/events?${params}`,
         { headers: { Authorization: 'Bearer ' + token } }
       );
       if (!resp.ok) return [];
