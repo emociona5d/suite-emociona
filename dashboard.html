@@ -1000,6 +1000,15 @@
     ).join('');
     const avisoAbierto = abiertos.length
       ? `<div class="pack-aviso">📦 Esta clienta tiene ${abiertos.length === 1 ? 'un pack' : abiertos.length + ' packs'} con sesiones por reservar. Si esta cita es del pack, elígelo aquí.</div>` : '';
+    // Enlace manual: otros packs abiertos (por si la clienta vino con otro teléfono)
+    const idsPropios = abiertos.map(p => p.id);
+    const escTxt = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const optsOtros = _indicePacks.lista
+      .filter(p => !p.cerrado && idsPropios.indexOf(p.id) === -1)
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+      .map(p =>
+        `<option value="otro|${p.id}">${escTxt(p.nombre || 'Sin nombre')} · ${p.id} · ${p.def.corto} (será la ${p.siguienteNum}/${p.total})</option>`
+      ).join('');
     return `
       <div class="campo-grupo ancho-completo">
         <div class="campo-label">Pack</div>
@@ -1007,16 +1016,28 @@
           <option value="">Sesión suelta (sin pack)</option>
           ${optsAbiertos ? `<optgroup label="Packs abiertos de esta clienta">${optsAbiertos}</optgroup>` : ''}
           <optgroup label="Pack nuevo (se cobra hoy entero)">${optsNuevos}</optgroup>
+          ${optsOtros ? `<optgroup label="Otros packs abiertos (si vino con otro teléfono)">${optsOtros}</optgroup>` : ''}
         </select>
         ${avisoAbierto}
       </div>`;
   }
 
   async function cambiarPack(sel, row) {
-    const v = sel.value;
+    let v = sel.value;
     if (!v) return;
     const fila = filaDeRow(row);
     if (!fila) { alert('No encuentro esta fila. Recarga la página.'); return; }
+    // Enlace manual a un pack de otra ficha: pedir confirmación antes de guardar
+    if (v.startsWith('otro|')) {
+      const pOtro = _indicePacks.porId[v.slice(5)];
+      const nombreSesion = `${(fila[0] || '').trim()} ${(fila[1] || '').trim()}`.trim();
+      const ok = pOtro && confirm(
+        `¿Seguro que esta sesión${nombreSesion ? ' de ' + nombreSesion : ''} pertenece al pack ${pOtro.id} de ${pOtro.nombre || 'otra clienta'} (${pOtro.def.corto})?\n\n` +
+        `Úsalo solo si es la misma clienta y vino con otro teléfono.`
+      );
+      if (!ok) { sel.value = ''; return; }
+      v = 'continuar|' + pOtro.id;
+    }
     sel.disabled = true;
     try {
       const L = Packs.LETRA;
