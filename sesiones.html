@@ -6,6 +6,7 @@
   <title>Emociona 5D — Sesiones</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.6.0/jspdf.plugin.autotable.min.js"></script>
+  <script src="packs.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -430,8 +431,9 @@
       <div id="sobres-estado" style="font-size:13px;color:#9BB5BC;margin-bottom:12px;">Buscando sesiones pendientes de sobre...</div>
       <div id="sobres-lista"></div>
     </div>
-    <div style="padding:16px 24px; border-top:1px solid #F0F4F5; display:flex; gap:10px;">
+    <div style="padding:16px 24px; border-top:1px solid #F0F4F5; display:flex; gap:10px; flex-wrap:wrap;">
       <button class="btn-send-method" style="flex:none; padding:11px 20px; background:#A7228C; color:#fff; border-color:#A7228C;" id="btn-imprimir-sobres" onclick="imprimirSobresSeleccionados()" disabled>✉️ Imprimir sobres seleccionados</button>
+      <button class="btn-send-method" style="flex:none; padding:11px 20px; background:#2C7A68; color:#fff; border-color:#2C7A68;" id="btn-marcar-enviadas" onclick="marcarSobresComoEnviados()" disabled>✅ Marcar seleccionadas como enviadas</button>
       <button class="btn-send-method" style="flex:none; padding:11px 20px;" onclick="cerrarRevisionSobres()">Cerrar</button>
     </div>
   </div>
@@ -487,7 +489,7 @@
   async function cargarSesiones() {
     try {
       // A:AC en vez de A:Y para incluir la columna "Sobre" (AC, índice 28)
-      const range = encodeURIComponent(`'${SHEET_NAME}'!A:AC`);
+      const range = encodeURIComponent(`'${SHEET_NAME}'!${Packs.RANGO_LECTURA}`); // incluye packs (AD:AG)
       const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}`;
       const resp = await fetch(url, {
         headers: { Authorization: 'Bearer ' + sesion.access_token }
@@ -666,7 +668,7 @@
       tr.innerHTML = `
         <td class="td-fecha">${fecha}</td>
         <td class="td-nombre nombre-link" onclick="window.location.href='clientas.html?buscar=${encodeURIComponent(telefono || (nombre + ' ' + apellidos).trim())}'" title="Ver ficha de clienta" style="cursor:pointer;">${nombre} <span class="td-apellidos">${apellidos}</span></td>
-        <td>${servicio ? `<span class="servicio-badge" style="background:${svcColor.bg};color:${svcColor.color}">${servicio}</span>` : ''}</td>
+        <td>${servicio ? `<span class="servicio-badge" style="background:${svcColor.bg};color:${svcColor.color}">${servicio}</span>` : ''}${(() => { const ip = Packs.infoFila(fila); return ip ? ` <span class="pack-badge" title="${ip.id} · ${ip.tipo}">📦 ${ip.etiquetaSesion}</span>` : ''; })()}</td>
         <td class="td-toggle">${toggleBtn('G', sheetRow, ecoOK, '📷')}</td>
         <td class="td-toggle">${toggleBtn('H', sheetRow, editada, '✏️')}</td>
         <td class="td-toggle">${toggleBtn('I', sheetRow, whatsapp, '💬')}</td>
@@ -1610,7 +1612,7 @@
       localStorage.setItem('emociona_ultimo_ticket', String(nf)); // guardar para siguiente ticket
       const doc = construirTicket({ fila, nombre, dni }, nfStr, logo);
       const fecha    = (fila[3]||'').trim();
-      const svc      = (fila[10]||'').trim();
+      const svc      = conceptoTicket(fila).lineaHoja;
       const cobrado  = parseFloat((fila[11]||'0').toString().replace(',','.').replace('€','').trim()) || 0;
       const pago     = (fila[12]||'').trim();
       const filename = `Ticket_${nfStr}_${nombre}.pdf`;
@@ -1655,6 +1657,38 @@
 
   function formatNumero(n) {
     return `A-${String(n).padStart(4, '0')}`;
+  }
+
+  // Texto del concepto del ticket: sesión suelta, compra de pack o sesión incluida en un pack
+  function conceptoTicket(fila) {
+    const svc = (fila[10]||'').trim();
+    const svcDisplay = svc.charAt(0).toUpperCase() + svc.slice(1);
+    const supl = (fila[26]||'').trim();
+    const cobrado = parseFloat((fila[11]||'0').toString().replace(',','.').replace('€','').trim()) || 0;
+    const pack = Packs.infoFila(fila);
+    if (pack && (pack.num === 1 || pack.num === 0)) {
+      const extras = [];
+      if (Packs.tieneGemelos(supl)) extras.push('embarazo múltiple');
+      if (Packs.tieneSabado(supl)) extras.push('incluye suplemento de sábado (10 €)');
+      return {
+        titulo: pack.tipo,
+        detalle: 'Incluye: ' + pack.def.incluye.join(' + ') + (extras.length ? ' · ' + extras.join(' · ') : '') + ' · Ref. ' + pack.id,
+        dto: 'Pack',
+        lineaHoja: pack.tipo
+      };
+    }
+    if (pack) {
+      return {
+        titulo: `${svcDisplay || pack.def.incluye[pack.num - 1] || 'Sesión'} — sesión ${pack.etiquetaSesion} del pack`,
+        detalle: cobrado > 0
+          ? `Suplemento de sábado. La sesión ya estaba pagada con el ${pack.tipo} (Ref. ${pack.id}).`
+          : `Sesión incluida en el ${pack.tipo}, ya abonado (Ref. ${pack.id}).`,
+        dto: '—',
+        lineaHoja: `${svc || pack.def.incluye[pack.num - 1] || 'Sesión'} (${pack.def.corto} ${pack.etiquetaSesion})`
+      };
+    }
+    const descPct = parseInt((fila[25]||'0').replace('%','').trim()) || 0;
+    return { titulo: svcDisplay, detalle: '', dto: descPct + '%', lineaHoja: svc };
   }
 
   function construirTicket({ fila, nombre }, numeroTicket, logo) {
@@ -1734,9 +1768,7 @@
     const cy = sy + 4;
     const cobrado = parseFloat((fila[11]||'0').toString().replace(',','.').replace('€','').trim()) || 0;
     const baseConcepto = cobrado / 1.21;
-    const descPct = parseInt((fila[25]||'0').replace('%','').trim()) || 0;
-    const svc = (fila[10]||'').trim();
-    const svcDisplay = svc.charAt(0).toUpperCase() + svc.slice(1);
+    const concepto = conceptoTicket(fila);
 
     doc.setFillColor(...BLUE_LT);
     doc.rect(ML, cy, W - ML - MR, 38, 'F');
@@ -1745,13 +1777,19 @@
     doc.setTextColor(...GRAY);
     doc.text('CONCEPTO', W / 2, cy + 7, { align: 'center' });
     doc.setFontSize(10);
-    doc.text(svcDisplay, ML + 20, cy + 18);
-    doc.text(baseConcepto.toFixed(2) + ' €', W - MR - 5, cy + 18, { align: 'right' });
+    doc.text(doc.splitTextToSize(concepto.titulo, 130)[0], ML + 20, cy + 16);
+    doc.text(baseConcepto.toFixed(2) + ' €', W - MR - 5, cy + 16, { align: 'right' });
+    if (concepto.detalle) {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(...GRAY_LT);
+      doc.text(doc.splitTextToSize(concepto.detalle, 150).slice(0, 2), ML + 20, cy + 22);
+    }
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
     doc.setTextColor(...GRAY_LT);
-    doc.text('Dto.', ML + 40, cy + 30);
-    doc.text(descPct + '%', W / 2, cy + 30, { align: 'center' });
+    doc.text('Dto.', ML + 40, cy + 33);
+    doc.text(concepto.dto, W / 2, cy + 33, { align: 'center' });
 
     // ── TABLA IVA ──
     const baseStr  = baseConcepto.toFixed(2);

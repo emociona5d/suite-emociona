@@ -7,6 +7,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.6.0/jspdf.plugin.autotable.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="packs.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', system-ui, sans-serif; background: #FDF8F4; min-height: 100vh; }
@@ -482,7 +483,7 @@
 
   async function cargar() {
     try {
-      const range = encodeURIComponent(`'${SHEET_NAME}'!A:AB`);
+      const range = encodeURIComponent(`'${SHEET_NAME}'!${Packs.RANGO_LECTURA}`);
       const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}`;
       const resp = await fetch(url, { headers: { Authorization: 'Bearer ' + sesion.access_token } });
       if (!resp.ok) throw new Error('Error ' + resp.status);
@@ -680,7 +681,26 @@
         row.appendChild(spanFecha);
         row.appendChild(spanSvc);
 
-        if (descuento) {
+        const infoPack = Packs.infoFila(fila);
+        if (infoPack) {
+          const s = document.createElement('span');
+          s.className = 'pack-badge';
+          s.title = infoPack.id;
+          const esCompraPack = infoPack.num === 1 || infoPack.num === 0;
+          s.textContent = esCompraPack
+            ? `📦 ${infoPack.tipo}`
+            : `📦 sesión ${infoPack.etiquetaSesion} (suplemento)`;
+          row.appendChild(s);
+          // Aviso si el importe no coincide con el precio del pack (la factura saldría descuadrada)
+          const esperado = esCompraPack ? Packs.precioCompra(infoPack.tipo, supl) : Packs.precioSesionSiguiente(supl);
+          const real = parseFloat((fila[11]||'0').toString().replace(',','.').replace('€','').trim()) || 0;
+          if (Math.abs(esperado - real) > 0.009) {
+            const w = document.createElement('span');
+            w.style.cssText = 'font-size:11px;color:#C0392B;background:#FDECEA;padding:2px 7px;border-radius:6px;white-space:nowrap';
+            w.textContent = `⚠ el precio del pack es ${esperado} €: revisa el importe antes de facturar`;
+            row.appendChild(w);
+          }
+        } else if (descuento) {
           const s = document.createElement('span');
           s.className = 'sesion-descuento';
           s.textContent = `-${descuento}% pack`;
@@ -1007,14 +1027,44 @@
     const lineas = [];
     let baseTotal = 0;
 
+    const lineaSimple = (texto, base, dto = '') => {
+      const b = +base.toFixed(2);
+      baseTotal += b;
+      lineas.push([texto, '1', b.toFixed(2) + ' €', b.toFixed(2) + ' €', dto, b.toFixed(2) + ' €']);
+    };
+
     grupo.sesiones.forEach(({ fila }) => {
       const servicio  = (fila[10]||'').trim();
       const descPct   = parseInt((fila[25]||'0').replace('%','').trim()) || 0;
       const supl      = (fila[26]||'').trim();
       const svcKey    = servicio.toLowerCase();
-      const precioBase = PRECIOS[svcKey] !== undefined
-        ? PRECIOS[svcKey]
-        : parseFloat((fila[11]||'0').toString().replace(',','.').replace('€','').trim()) / 1.21;
+      const cobradoFila = parseFloat((fila[11]||'0').toString().replace(',','.').replace('€','').trim()) || 0;
+      const pack      = Packs.infoFila(fila);
+
+      // ── PACK (desde nov 2026): una línea por el pack completo ──
+      if (pack) {
+        if (pack.num === 1 || pack.num === 0) {
+          const gem = Packs.tieneGemelos(supl);
+          const precioPack = gem ? pack.def.precioGemelar : pack.def.precio;
+          lineaSimple(
+            `${pack.tipo}${gem ? ' (embarazo múltiple)' : ''}\nIncluye: ${pack.def.incluye.join(' + ')}\nRef. ${pack.id}`,
+            precioPack / 1.21
+          );
+          if (Packs.tieneSabado(supl)) lineaSimple('Suplemento sábado', Packs.SUPLEMENTO_SABADO / 1.21);
+        } else {
+          // Sesión 2.ª/3.ª: solo llega aquí si se cobró algo (suplemento de sábado)
+          lineaSimple(`Suplemento sábado — ${servicio || 'sesión'} (sesión ${pack.etiquetaSesion} del ${pack.tipo})`, cobradoFila / 1.21);
+        }
+        return;
+      }
+
+      // ── SESIÓN SUELTA ──
+      const tarifaNueva = Packs.esTarifaNueva(fila[3]);
+      const precioBase = (tarifaNueva && Packs.PRECIOS_NUEVOS[svcKey] !== undefined)
+        ? Packs.PRECIOS_NUEVOS[svcKey] / 1.21
+        : PRECIOS[svcKey] !== undefined
+          ? PRECIOS[svcKey]
+          : cobradoFila / 1.21;
 
       const totalLinea = descPct > 0 ? +(precioBase * (1 - descPct/100)).toFixed(2) : +precioBase.toFixed(2);
       baseTotal += totalLinea;
@@ -1028,19 +1078,26 @@
         totalLinea.toFixed(2) + ' €'
       ]);
 
-      if (supl && PRECIOS_SUPLEMENTO[supl] !== undefined) {
-        const supBase = PRECIOS_SUPLEMENTO[supl];
+      // Suplementos: embarazo múltiple (15 €) y sábado (10 € desde nov 2026)
+      const suplementos = [];
+      if (Packs.tieneGemelos(supl)) suplementos.push(['Suplemento embarazo múltiple', PRECIOS_SUPLEMENTO['Gemelos']]);
+      if (Packs.tieneSabado(supl)) {
+        suplementos.push(tarifaNueva
+          ? ['Suplemento sábado', Packs.SUPLEMENTO_SABADO / 1.21]
+          : ['Suplemento ' + supl, PRECIOS_SUPLEMENTO['Fin de semana']]);
+      }
+      suplementos.forEach(([texto, supBase]) => {
         const supTotal = descPct > 0 ? +(supBase * (1 - descPct/100)).toFixed(2) : +supBase.toFixed(2);
         baseTotal += supTotal;
         lineas.push([
-          'Suplemento ' + supl,
+          texto,
           '1',
           supBase.toFixed(2) + ' €',
           supBase.toFixed(2) + ' €',
           descPct > 0 ? descPct + '%' : '',
           supTotal.toFixed(2) + ' €'
         ]);
-      }
+      });
     });
 
     doc.autoTable({

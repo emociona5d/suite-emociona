@@ -6,6 +6,7 @@
   <title>Emociona 5D — Ingresos</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.6.0/jspdf.plugin.autotable.min.js"></script>
+  <script src="packs.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', system-ui, sans-serif; background: #FDF8F4; min-height: 100vh; }
@@ -70,7 +71,7 @@
     .section-title { font-size: 12px; font-weight: 600; color: #9BB5BC; text-transform: uppercase; letter-spacing: 0.9px; margin: 24px 0 10px; }
 
     /* ── KPI GRID ── */
-    .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 6px; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 6px; }
     .kpi-card {
       background: white; border-radius: 12px; padding: 18px 20px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.05);
@@ -287,6 +288,11 @@
         <div class="kpi-sub">Por sesión cobrada</div>
       </div>
       <div class="kpi-card">
+        <div class="kpi-label">Packs vendidos</div>
+        <div class="kpi-value" id="kpi-packs">—</div>
+        <div class="kpi-sub" id="kpi-packs-sub"></div>
+      </div>
+      <div class="kpi-card">
         <div class="kpi-label">Vs período anterior</div>
         <div class="kpi-value" id="kpi-delta-val">—</div>
         <div class="kpi-delta" id="kpi-delta-pct"></div>
@@ -309,6 +315,12 @@
         <div class="card-title">Procedencia de clientas</div>
         <div id="municipios-contenido"></div>
       </div>
+    </div>
+
+    <!-- Packs -->
+    <div id="packs-card" class="card" style="display:none; margin-top:16px;">
+      <div class="card-title">Packs del período</div>
+      <div id="packs-contenido"></div>
     </div>
 
     <!-- Evolución mensual (solo trimestre/año/libre con >1 mes) -->
@@ -450,7 +462,7 @@
   // ── LEER DATOS ──
   async function leerSheet() {
     if (todasLasFilas) return todasLasFilas;
-    const range = encodeURIComponent(`'${SHEET_NAME}'!A:W`);
+    const range = encodeURIComponent(`'${SHEET_NAME}'!${Packs.RANGO_LECTURA}`);
     const url   = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}`;
     const resp  = await fetch(url, { headers: { Authorization: 'Bearer ' + sesion.access_token } });
     if (resp.status === 401) {
@@ -552,19 +564,50 @@
       porMetodo: {},
       porServicio: {},
       porMunicipio: {},
-      porMes: {}
+      porMes: {},
+      // Packs (nuevo sistema nov 2026)
+      packs: { vendidos: 0, total: 0, sinCobrar: 0, sesionesPack: 0, porTipo: {} }
     };
+    Packs.NOMBRES.forEach(n => {
+      stats.packs.porTipo[n] = { label: n, vendidos: 0, total: 0, sesionesPack: 0 };
+    });
 
     filas.forEach(fila => {
       const ts = parseFecha((fila[3]||'').trim());
       if (!ts || ts < desdeTs || ts > hastaTs) return;
-      if (esFilaPack(fila)) return;
+
+      const pack = Packs.infoFila(fila);
+      const esCompraPack = pack && (pack.num === 1 || pack.num === 0);
+      if (pack) {
+        stats.packs.porTipo[pack.tipo].sesionesPack++;
+        stats.packs.sesionesPack++;
+        // Sesión 2.ª/3.ª ya pagada con el pack: no suma dinero ni sesiones cobradas
+        if (!esCompraPack && esFilaPack(fila)) return;
+        // Fila de compra todavía sin importe ni método: avisar, pero no contar dinero
+        if (esCompraPack && esFilaPack(fila)) { stats.packs.sinCobrar++; return; }
+      } else if (esFilaPack(fila)) {
+        return; // sistema antiguo: "regla 0 €"
+      }
 
       const importe   = parseImporte(fila[11]);
       const metodo    = (fila[12]||'').trim();
-      const servicio  = (fila[10]||'').trim();
+      // Las filas de pack van a su propia línea, no al servicio de la sesión
+      const servicio  = pack
+        ? (esCompraPack ? 'Packs (precio cerrado)' : 'Suplementos en sesiones de pack')
+        : (fila[10]||'').trim();
       const municipio = (fila[21]||'').trim();
       const cobrada   = metodo !== '';
+
+      if (pack && esCompraPack) {
+        if (cobrada) {
+          stats.packs.vendidos++;
+          stats.packs.total += importe;
+          stats.packs.porTipo[pack.tipo].vendidos++;
+          stats.packs.porTipo[pack.tipo].total += importe;
+        } else {
+          stats.packs.sinCobrar++;
+        }
+      }
 
       if (cobrada) {
         stats.totalCobrado += importe;
@@ -705,6 +748,13 @@
     document.getElementById('kpi-sesiones').textContent = stats.sesionesCobradas;
     document.getElementById('kpi-sesiones-sub').textContent = stats.sinCobrarCount > 0 ? `+ ${stats.sinCobrarCount} sin cobrar` : '';
     document.getElementById('kpi-ticket').textContent   = stats.sesionesCobradas > 0 ? fmtEur(stats.ticketMedio) : '—';
+    document.getElementById('kpi-packs').textContent    = stats.packs.vendidos;
+    document.getElementById('kpi-packs-sub').textContent = stats.packs.vendidos > 0
+      ? fmtEur(stats.packs.total) + (stats.packs.sinCobrar ? ` · ${stats.packs.sinCobrar} sin cobrar` : '')
+      : (stats.packs.sinCobrar ? `${stats.packs.sinCobrar} sin cobrar` : '');
+
+    // Packs
+    renderPacks(stats);
 
     // Delta vs anterior
     const deltaEl    = document.getElementById('kpi-delta-val');
@@ -816,6 +866,45 @@
     });
 
     html += '</tbody></table>';
+    cont.innerHTML = html;
+  }
+
+  function renderPacks(stats) {
+    const card = document.getElementById('packs-card');
+    const cont = document.getElementById('packs-contenido');
+    const P = stats.packs;
+    if (P.sesionesPack === 0 && P.vendidos === 0 && P.sinCobrar === 0) {
+      card.style.display = 'none';
+      return;
+    }
+    card.style.display = 'block';
+    let html = `<table class="stat-table">
+      <thead><tr>
+        <th>Pack</th>
+        <th class="right">Vendidos</th>
+        <th class="right">Cobrado</th>
+        <th class="right">Sesiones de pack en el período</th>
+      </tr></thead><tbody>`;
+    Object.values(P.porTipo).forEach(t => {
+      if (!t.vendidos && !t.sesionesPack) return;
+      html += `<tr>
+        <td><div style="font-size:12px; color:#3C4A50;">${t.label}</div></td>
+        <td class="right">${t.vendidos}</td>
+        <td class="right bold">${fmtEur(t.total)}</td>
+        <td class="right">${t.sesionesPack}</td>
+      </tr>`;
+    });
+    html += `<tr>
+        <td><div style="font-size:12px; color:#3C4A50; font-weight:600;">Total</div></td>
+        <td class="right bold">${P.vendidos}</td>
+        <td class="right bold">${fmtEur(P.total)}</td>
+        <td class="right bold">${P.sesionesPack}</td>
+      </tr>`;
+    html += '</tbody></table>';
+    html += `<div style="font-size:11px; color:#9BB5BC; margin-top:8px;">El pack cuenta entero en el mes de la 1.ª sesión (cuando se cobra). Las sesiones 2.ª y 3.ª no suman dinero, solo aparecen en la última columna.</div>`;
+    if (P.sinCobrar) {
+      html += `<div style="font-size:12px; color:#C07840; margin-top:6px;">⚠ ${P.sinCobrar} pack(s) empezado(s) en este período sin importe o sin método de cobro.</div>`;
+    }
     cont.innerHTML = html;
   }
 
@@ -971,6 +1060,24 @@
         startY: y, margin: { left: 14, right: 14 }, theme: 'plain',
         headStyles: HS, bodyStyles: BS,
         columnStyles: { 1: { halign:'center' }, 2: { halign:'right' }, 3: { halign:'right' }, 4: { halign:'center' } }
+      });
+      y = doc.lastAutoTable.finalY + 8;
+    }
+
+    // Packs
+    const P = stats.packs;
+    if (P.vendidos > 0 || P.sesionesPack > 0) {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+      doc.text('PACKS', 14, y); y += 4;
+      const filasPacks = Object.values(P.porTipo)
+        .filter(t => t.vendidos || t.sesionesPack)
+        .map(t => [t.label, String(t.vendidos), fmtE(t.total), String(t.sesionesPack)]);
+      filasPacks.push(['Total', String(P.vendidos), fmtE(P.total), String(P.sesionesPack)]);
+      tbl({
+        head: [['PACK', 'VENDIDOS', 'COBRADO', 'SESIONES DE PACK EN EL PERÍODO']],
+        body: filasPacks, startY: y, margin: { left: 14, right: 14 }, theme: 'plain',
+        headStyles: HS, bodyStyles: BS,
+        columnStyles: { 1: { halign:'center' }, 2: { halign:'right' }, 3: { halign:'center' } }
       });
       y = doc.lastAutoTable.finalY + 8;
     }

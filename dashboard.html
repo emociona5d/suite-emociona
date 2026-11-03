@@ -362,6 +362,7 @@
   <link rel="icon" href="silueta.jpg">
   <meta name="theme-color" content="#A7228C">
   <script src="https://accounts.google.com/gsi/client" async></script>
+  <script src="packs.js"></script>
 </head>
 <body>
 
@@ -450,6 +451,17 @@
           <option>Ecoemociona</option>
         </select>
       </div>
+      <div class="modal-campo ancho-completo">
+        <div class="modal-label">Pack (opcional)</div>
+        <select class="modal-select" id="ca-pack" onchange="cambiarPackCobroAnticipado()">
+          <option value="">Sesión suelta (sin pack)</option>
+          <option>Pack 2 sesiones Premium</option>
+          <option>Pack 2 sesiones Económico</option>
+          <option>Pack 3 sesiones Premium</option>
+          <option>Pack 3 sesiones Económico</option>
+        </select>
+        <div id="ca-pack-info" style="font-size:12px;color:#A7228C;margin-top:4px;"></div>
+      </div>
       <div class="modal-campo">
         <div class="modal-label">Importe (€) *</div>
         <input class="modal-input" id="ca-importe" type="text" placeholder="0,00">
@@ -494,6 +506,12 @@
 
   const SERVICIOS = ['Ecoconfirmación','Ecosexo','Ecosexo Emociona','Ecobasic','Ecobasic Plus','Ecoemociona'];
   const MEDIOS_PAGO = ['Efectivo','Tarjeta','Bizum','Web'];
+
+  // ── PACKS (ver packs.js) ──
+  let _entradasTodas = [];   // todas las filas de la hoja [{fila, sheetRow}]
+  let _indicePacks   = { porId: {}, lista: [] };
+  let _citasActuales = [];   // citas del día que se están mostrando
+  let _packsBloqueado = false; // true si las columnas AD:AG están ocupadas por otra cosa
 
   const COLORES = {
     'ecoconfirmación':  { bg: '#EDE0F5', color: '#5B1F80', borde: '#9B59C0' },
@@ -610,6 +628,7 @@
     try {
       await actualizarCelda(col, wrap.dataset.row, val);
       wrap.dataset.valorGuardado = val;
+      guardarEnMemoria(col, wrap.dataset.row, val);
       display.classList.remove('guardando');
       display.style.opacity = '0.65';
       setTimeout(() => { display.style.opacity = ''; }, 500);
@@ -705,7 +724,7 @@
 
     try {
       await renovarTokenSiNecesario(); // asegura token fresco antes de cargar
-      const range = encodeURIComponent(`'${SHEET_NAME}'!A:AB`);
+      const range = encodeURIComponent(`'${SHEET_NAME}'!${Packs.RANGO_LECTURA}`);
       const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}`;
       let resp = await fetch(url, { headers: { Authorization: 'Bearer ' + sesion.access_token } });
       // Si aun así devuelve 401, renovar y reintentar una vez
@@ -716,8 +735,13 @@
       if (!resp.ok) throw new Error('Error ' + resp.status);
 
       const data = await resp.json();
+      asegurarCabecerasPacks((data.values || [])[0] || []);
       const filas = (data.values || []).slice(1); // sin cabecera
       const fechaStr = formatoHoja(fechaActiva);
+
+      // Índice de packs con TODAS las filas (para enlazar sesiones de la misma clienta)
+      _entradasTodas = filas.map((fila, idx) => ({ fila, sheetRow: idx + 2 }));
+      _indicePacks = Packs.construirIndice(_entradasTodas);
 
       const citas = filas
         .map((fila, idx) => ({ fila, sheetRow: idx + 2 }))
@@ -743,6 +767,7 @@
       citas.sort((a, b) => a.sheetRow - b.sheetRow);
 
       if (generacion !== _cargaGeneracion) return; // llegó una carga más reciente: descartar esta
+      _citasActuales = citas;
       renderCitas(citas);
     } catch(e) {
       if (generacion !== _cargaGeneracion) return;
@@ -843,21 +868,25 @@
               onblur="guardarCampo(this)"
               oninput="this.closest('.campo-grupo').querySelector('.obs-alerta').classList.toggle('visible', this.value.trim().length > 0); debounceGuardar(this)">
           </div>
+          ${htmlPackCard(fila, sheetRow)}
+          ${(descuento || !Packs.esTarifaNueva(fila[3])) ? `
           <div class="campo-grupo">
-            <div class="campo-label">Descuento pack</div>
+            <div class="campo-label">Descuento (sistema antiguo)</div>
             <select class="campo-select" data-col="Z" data-row="${sheetRow}" onchange="guardarCampo(this)">
               <option value="" ${!descuento?'selected':''}>Sin descuento</option>
               <option value="10" ${descuento==='10'?'selected':''}>10% — 2 sesiones</option>
               <option value="15" ${descuento==='15'?'selected':''}>15% — 3 sesiones</option>
               <option value="20" ${descuento==='20'?'selected':''}>20% — 4 o más</option>
             </select>
-          </div>
+          </div>` : ''}
           <div class="campo-grupo">
             <div class="campo-label">Suplemento</div>
             <select class="campo-select" data-col="AA" data-row="${sheetRow}" onchange="guardarCampo(this)">
               <option value="" ${!suplemento?'selected':''}>Ninguno</option>
-              <option value="Gemelos" ${suplemento==='Gemelos'?'selected':''}>Gemelos</option>
-              <option value="Fin de semana" ${suplemento==='Fin de semana'?'selected':''}>Fin de semana</option>
+              <option value="Gemelos" ${suplemento==='Gemelos'?'selected':''}>Embarazo múltiple</option>
+              <option value="Sábado" ${suplemento==='Sábado'?'selected':''}>Sábado (+10 €)</option>
+              <option value="Gemelos + Sábado" ${suplemento==='Gemelos + Sábado'?'selected':''}>Embarazo múltiple + Sábado</option>
+              ${suplemento==='Fin de semana' ? `<option value="Fin de semana" selected>Fin de semana (antiguo)</option>` : ''}
             </select>
           </div>
         </div>`;
@@ -867,6 +896,200 @@
 
     document.getElementById('contenido').innerHTML = '';
     document.getElementById('contenido').appendChild(lista);
+  }
+
+  // ── PACKS: tarjeta de la cita ──
+  function colAIndice(col) {
+    let n = 0;
+    for (const ch of col) n = n * 26 + (ch.charCodeAt(0) - 64);
+    return n - 1;
+  }
+
+  function filaDeRow(row) {
+    const e = _entradasTodas.find(x => x.sheetRow === Number(row));
+    return e ? e.fila : null;
+  }
+
+  function guardarEnMemoria(col, row, valor) {
+    const fila = filaDeRow(row);
+    if (fila) fila[colAIndice(col)] = valor;
+  }
+
+  function rehacerVista() {
+    _indicePacks = Packs.construirIndice(_entradasTodas);
+    const y = window.scrollY;
+    renderCitas(_citasActuales);
+    window.scrollTo(0, y);
+  }
+
+  // Crea las cabeceras AD:AG si están vacías. Si hay otra cosa escrita, no toca nada.
+  function asegurarCabecerasPacks(cabecera) {
+    const C = Packs.COL, L = Packs.LETRA, H = Packs.CABECERAS;
+    const cols = [[C.PACK, L.PACK], [C.PACK_ID, L.PACK_ID], [C.PACK_SES, L.PACK_SES], [C.PACK_ANUL, L.PACK_ANUL]];
+    _packsBloqueado = false;
+    cols.forEach(([idx, letra]) => {
+      const actual = (cabecera[idx] || '').trim();
+      if (!actual) {
+        actualizarCelda(letra, 1, H[letra]).catch(() => {});
+      } else if (actual !== H[letra]) {
+        _packsBloqueado = true;
+        console.warn(`La columna ${letra} ya tiene la cabecera "${actual}". Los packs no se guardarán para no pisarla.`);
+      }
+    });
+  }
+
+  function htmlPackCard(fila, sheetRow) {
+    if (_packsBloqueado) {
+      return `<div class="campo-grupo ancho-completo"><div class="pack-caja">⚠️ Los packs están desactivados: las columnas AD–AG de la hoja ya tienen otros datos. Avisa para revisarlo.</div></div>`;
+    }
+    const esOwner = sesion.role === 'owner';
+    const info = Packs.infoFila(fila);
+    const supl = (fila[26] || '').trim();
+    const importeActual = Packs.parseImporte(fila[11]);
+    const importeVacio = !(fila[11] || '').toString().trim();
+
+    // ── Sesión que YA pertenece a un pack ──
+    if (info) {
+      const p = _indicePacks.porId[info.id];
+      const esCompra = p && p.compra.sheetRow === sheetRow;
+      const servicioPrevisto = info.def.incluye[info.num - 1] || '';
+      const servicio = (fila[10] || '').trim();
+      let aviso = '', botones = '';
+      if (esOwner) {
+        const precio = esCompra ? Packs.precioCompra(info.tipo, supl) : Packs.precioSesionSiguiente(supl);
+        if (esCompra) {
+          aviso = `Aquí se cobra el pack completo: <b>${Packs.fmtEur(precio)}</b>`
+            + (Packs.tieneGemelos(supl) ? ' (precio de embarazo múltiple)' : '')
+            + (Packs.tieneSabado(supl) ? ' + 10 € de sábado incluidos' : '')
+            + '. Indica también cómo se ha cobrado.';
+        } else {
+          aviso = precio
+            ? 'Sesión ya pagada con el pack. Solo se cobra el <b>suplemento de sábado: 10 €</b>.'
+            : 'Sesión ya pagada con el pack: importe <b>0 €</b> y sin método de cobro.';
+        }
+        if (importeVacio || importeActual !== precio) {
+          botones += `<button class="pack-btn" onclick="ponerImportePack(${sheetRow}, ${precio})">Poner ${Packs.fmtEur(precio)}</button>`;
+        }
+      }
+      const avisoServicio = servicioPrevisto && servicio.toLowerCase() !== servicioPrevisto.toLowerCase()
+        ? `<div class="pack-linea">Sesión prevista en el pack: <b>${servicioPrevisto}</b>${servicio ? ` (ahora pone ${servicio})` : ''}</div>` : '';
+      return `
+        <div class="campo-grupo ancho-completo">
+          <div class="campo-label">Pack</div>
+          <div class="pack-caja">
+            <span class="pack-badge">📦 ${info.def.corto} · sesión ${info.etiquetaSesion}</span>
+            <span style="font-size:12px;color:#6E8A91;margin-left:6px">${info.id}</span>
+            <div class="pack-linea">Incluye: ${info.def.incluye.join(' + ')}${p ? ' · ' + Packs.textoEstado(p) : ''}</div>
+            ${avisoServicio}
+            ${aviso ? `<div class="pack-aviso">${aviso}</div>` : ''}
+            <div class="pack-acciones">
+              ${botones}
+              <button class="pack-btn secundario" onclick="quitarDelPack(${sheetRow})">Quitar del pack</button>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    // ── Sesión suelta: ofrecer enlazar a un pack ──
+    const abiertos = Packs.packsAbiertosDe(_indicePacks, fila);
+    const optsAbiertos = abiertos.map(p =>
+      `<option value="continuar|${p.id}">➜ Continúa ${p.id} · ${p.def.corto} (será la ${p.siguienteNum}/${p.total}${p.siguienteServicio ? ' · ' + p.siguienteServicio : ''})</option>`
+    ).join('');
+    const optsNuevos = Packs.NOMBRES.map(n =>
+      `<option value="nuevo|${n}">Empieza pack nuevo: ${n}${esOwner ? ' (' + Packs.TIPOS[n].precio + ' €)' : ''}</option>`
+    ).join('');
+    const avisoAbierto = abiertos.length
+      ? `<div class="pack-aviso">📦 Esta clienta tiene ${abiertos.length === 1 ? 'un pack' : abiertos.length + ' packs'} con sesiones por reservar. Si esta cita es del pack, elígelo aquí.</div>` : '';
+    return `
+      <div class="campo-grupo ancho-completo">
+        <div class="campo-label">Pack</div>
+        <select class="campo-select pack-select" onchange="cambiarPack(this, ${sheetRow})">
+          <option value="">Sesión suelta (sin pack)</option>
+          ${optsAbiertos ? `<optgroup label="Packs abiertos de esta clienta">${optsAbiertos}</optgroup>` : ''}
+          <optgroup label="Pack nuevo (se cobra hoy entero)">${optsNuevos}</optgroup>
+        </select>
+        ${avisoAbierto}
+      </div>`;
+  }
+
+  async function cambiarPack(sel, row) {
+    const v = sel.value;
+    if (!v) return;
+    const fila = filaDeRow(row);
+    if (!fila) { alert('No encuentro esta fila. Recarga la página.'); return; }
+    sel.disabled = true;
+    try {
+      const L = Packs.LETRA;
+      if (v.startsWith('nuevo|')) {
+        const tipo = v.slice(6);
+        const def = Packs.TIPOS[tipo];
+        const ts = Packs.parseFecha(fila[3]);
+        const anio = ts ? new Date(ts).getFullYear() : new Date().getFullYear();
+        const id = Packs.siguienteId(_entradasTodas, anio);
+        await actualizarCelda(L.PACK, row, tipo);           guardarEnMemoria(L.PACK, row, tipo);
+        await actualizarCelda(L.PACK_SES, row, `1/${def.sesiones}`); guardarEnMemoria(L.PACK_SES, row, `1/${def.sesiones}`);
+        await actualizarCelda(L.PACK_ID, row, id);          guardarEnMemoria(L.PACK_ID, row, id);
+      } else if (v.startsWith('continuar|')) {
+        const id = v.slice(10);
+        const p = _indicePacks.porId[id];
+        if (!p) throw new Error('Pack no encontrado');
+        const num = `${p.siguienteNum}/${p.total}`;
+        await actualizarCelda(L.PACK, row, p.tipo);         guardarEnMemoria(L.PACK, row, p.tipo);
+        await actualizarCelda(L.PACK_SES, row, num);        guardarEnMemoria(L.PACK_SES, row, num);
+        await actualizarCelda(L.PACK_ID, row, id);          guardarEnMemoria(L.PACK_ID, row, id);
+        // Sesión ya pagada: si el importe está vacío, poner 0 (o 10 € si es sábado)
+        if (!(fila[11] || '').toString().trim()) {
+          const precio = Packs.precioSesionSiguiente(fila[26]);
+          await actualizarCelda('L', row, String(precio));  guardarEnMemoria('L', row, String(precio));
+        }
+      }
+      rehacerVista();
+    } catch (e) {
+      sel.disabled = false;
+      sel.value = '';
+      alert('Error al guardar el pack. Comprueba tu conexión.');
+    }
+  }
+
+  async function quitarDelPack(row) {
+    const fila = filaDeRow(row);
+    const info = fila && Packs.infoFila(fila);
+    if (!info) return;
+    const p = _indicePacks.porId[info.id];
+    const esCompra = p && p.compra.sheetRow === Number(row);
+    const otras = p ? p.sesiones.length - 1 : 0;
+    let msg = `¿Quitar esta sesión del ${info.def.corto} (${info.id})?`;
+    if (esCompra && otras > 0) {
+      msg += `\n\nOjo: es la sesión donde se cobró el pack. Las otras ${otras} sesión(es) del pack seguirán enlazadas, pero sin la fila de compra. Normalmente solo se quita si te has equivocado al elegir el pack.`;
+    }
+    if (!confirm(msg)) return;
+    try {
+      const L = Packs.LETRA;
+      await actualizarCelda(L.PACK_ID, row, '');   guardarEnMemoria(L.PACK_ID, row, '');
+      await actualizarCelda(L.PACK_SES, row, '');  guardarEnMemoria(L.PACK_SES, row, '');
+      await actualizarCelda(L.PACK, row, '');      guardarEnMemoria(L.PACK, row, '');
+      if ((fila[Packs.COL.PACK_ANUL] || '').toString().trim()) {
+        await actualizarCelda(L.PACK_ANUL, row, ''); guardarEnMemoria(L.PACK_ANUL, row, '');
+      }
+      // Si era una sesión 2.ª/3.ª con el 0 € que puso la Suite, dejar el importe vacío otra vez
+      if (!esCompra && Packs.parseImporte(fila[11]) === 0 && !(fila[12] || '').trim() && (fila[11] || '').toString().trim()) {
+        await actualizarCelda('L', row, ''); guardarEnMemoria('L', row, '');
+      }
+      rehacerVista();
+    } catch (e) {
+      alert('Error al guardar. Comprueba tu conexión.');
+    }
+  }
+
+  async function ponerImportePack(row, precio) {
+    try {
+      const valor = String(precio).replace('.', ',');
+      await actualizarCelda('L', row, valor);
+      guardarEnMemoria('L', row, valor);
+      rehacerVista();
+    } catch (e) {
+      alert('Error al guardar. Comprueba tu conexión.');
+    }
   }
 
   // ── CALENDAR ──
@@ -991,6 +1214,9 @@
       el.classList.remove('guardando');
       el.classList.add('guardado');
       setTimeout(() => el.classList.remove('guardado'), 1500);
+      guardarEnMemoria(el.dataset.col, el.dataset.row, valor);
+      // El suplemento cambia el precio que sugiere la caja del pack
+      if (el.dataset.col === 'AA') rehacerVista();
 
       // Si es la Sesión (col K), actualizar el badge y el color del borde
       if (el.dataset.col === 'K') {
@@ -1110,15 +1336,29 @@
     });
     document.getElementById('ca-sesion').value = '';
     document.getElementById('ca-metodo').value = '';
+    document.getElementById('ca-pack').value = '';
+    document.getElementById('ca-pack-info').textContent = '';
     document.getElementById('ca-sesion').classList.remove('error');
     document.getElementById('ca-metodo').classList.remove('error');
     document.getElementById('ca-error').textContent = '';
     document.getElementById('ca-btn-guardar').disabled = false;
+    document.getElementById('ca-btn-guardar').textContent = 'Guardar';
     document.getElementById('modal-cobro-anticipado').classList.add('visible');
   }
 
   function cerrarModalCobroAnticipado() {
     document.getElementById('modal-cobro-anticipado').classList.remove('visible');
+  }
+
+  // Al elegir un pack: proponer la 1.ª sesión del pack y su precio
+  function cambiarPackCobroAnticipado() {
+    const tipo = document.getElementById('ca-pack').value;
+    const info = document.getElementById('ca-pack-info');
+    if (!tipo) { info.textContent = ''; return; }
+    const def = Packs.TIPOS[tipo];
+    document.getElementById('ca-sesion').value = def.incluye[0];
+    document.getElementById('ca-importe').value = String(def.precio);
+    info.textContent = `Incluye: ${def.incluye.join(' + ')}. Precio ${def.precio} € (embarazo múltiple: ${def.precioGemelar} €). Las siguientes sesiones se enlazan después desde "Hoy".`;
   }
 
   // Cerrar al hacer clic fuera del modal
@@ -1180,13 +1420,29 @@
     fila[17] = email;       // R — Email
     fila[23] = obs;         // X — Observaciones
 
+    // Pack (columnas AD:AF) — solo si se ha elegido
+    const packTipo = document.getElementById('ca-pack').value;
+    let rangoFin = 'X';
+    if (packTipo) {
+      if (_packsBloqueado) {
+        document.getElementById('ca-error').textContent = 'Los packs están desactivados (columnas AD–AG ocupadas). Avisa para revisarlo.';
+        return;
+      }
+      const def = Packs.TIPOS[packTipo];
+      while (fila.length < 32) fila.push('');
+      fila[Packs.COL.PACK]     = packTipo;
+      fila[Packs.COL.PACK_ID]  = Packs.siguienteId(_entradasTodas, parseInt(anyo, 10));
+      fila[Packs.COL.PACK_SES] = `1/${def.sesiones}`;
+      rangoFin = 'AF';
+    }
+
     const btn = document.getElementById('ca-btn-guardar');
     btn.disabled = true;
     btn.textContent = 'Guardando…';
 
     try {
       await renovarTokenSiNecesario();
-      const range = encodeURIComponent(`'${SHEET_NAME}'!A:X`);
+      const range = encodeURIComponent(`'${SHEET_NAME}'!A:${rangoFin}`);
       const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
       let resp = await fetch(url, {
         method: 'POST',

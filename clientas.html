@@ -314,6 +314,7 @@
   <link rel="icon" href="silueta.jpg">
   <meta name="theme-color" content="#A7228C">
   <script src="https://accounts.google.com/gsi/client" async></script>
+  <script src="packs.js"></script>
 </head>
 <body>
 
@@ -536,12 +537,13 @@
   let clientasOrdenadas = []; // array de claves ordenado
   let clientaActivaKey = null;
   let nombreClientaActiva = null; // nombre completo de la clienta abierta, para buscar su carpeta de Encargos
+  let indicePacks = { porId: {}, lista: [] }; // ver packs.js
 
   // ── CARGAR ──
   async function cargar() {
     try {
-      // A:AC en vez de A:Y para incluir la columna "Sobre" (AC, índice 28)
-      const range = encodeURIComponent(`'${SHEET_NAME}'!A:AC`);
+      // A:AG: incluye "Sobre" (AC) y las columnas de packs (AD:AG)
+      const range = encodeURIComponent(`'${SHEET_NAME}'!${Packs.RANGO_LECTURA}`);
       const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}`;
       const resp = await fetch(url, { headers: { Authorization: 'Bearer ' + sesion.access_token } });
       if (!resp.ok) throw new Error('Error ' + resp.status);
@@ -555,11 +557,17 @@
         actualizarCelda('AC', 1, 'Sobre').catch(() => {});
       }
 
-      const filas = todasFilas.slice(1).filter(f => f[0]);
+      // Nº de fila real calculado ANTES de filtrar (si no, una fila sin nombre desplazaría los números)
+      const entradas = todasFilas.slice(1)
+        .map((fila, idx) => ({ fila, sheetRow: idx + 2 }))
+        .filter(({ fila }) => fila[0]);
+
+      // Índice de packs (todas las filas con pack)
+      indicePacks = Packs.construirIndice(entradas);
 
       // Agrupar por teléfono (Q = idx 16); si no hay, por nombre+apellido
       clientasMap = {};
-      filas.forEach((fila, idx) => {
+      entradas.forEach(({ fila, sheetRow }) => {
         const tel    = (fila[16] || '').trim();
         const nombre = ((fila[0]||'') + ' ' + (fila[1]||'')).trim();
         const clave  = tel || nombre;
@@ -568,7 +576,7 @@
         if (!clientasMap[clave]) {
           clientasMap[clave] = { sesiones: [], datosFila: null, datosSheetRow: null };
         }
-        clientasMap[clave].sesiones.push({ fila, sheetRow: idx + 2 });
+        clientasMap[clave].sesiones.push({ fila, sheetRow });
       });
 
       // Para cada clienta, usar la sesión más reciente como datos de referencia
@@ -648,6 +656,7 @@
       const nombre   = ((f[0]||'') + ' ' + (f[1]||'')).trim();
       const tel      = (f[16]||'').trim();
       const nSesiones = c.sesiones.length;
+      const packAbierto = packsDeLaClienta(c).some(p => !p.cerrado);
 
       const div = document.createElement('div');
       div.className = 'cliente-item' + (clave === clientaActivaKey ? ' activo' : '');
@@ -656,6 +665,7 @@
         <div class="cliente-meta">
           ${tel ? `<span>📞 ${tel}</span>` : ''}
           <span class="badge-sesiones">${nSesiones} sesión${nSesiones !== 1 ? 'es' : ''}</span>
+          ${packAbierto ? '<span class="pack-badge" title="Tiene sesiones de pack por reservar">📦 pack</span>' : ''}
         </div>`;
       div.dataset.clave = clave;
       div.onclick = () => abrirFicha(clave, div);
@@ -713,6 +723,8 @@
     panel.innerHTML = `
       <div class="ficha-nombre">${nombre}</div>
       <div class="ficha-sub">${c.sesiones.length} sesión${c.sesiones.length !== 1 ? 'es' : ''} · Datos de la sesión más reciente</div>
+
+      ${htmlPacksFicha(c)}
 
       <!-- FOTOS COLLAGE -->
       <div class="seccion">
@@ -825,6 +837,7 @@
       const cobrado  = (sf[12]||'').trim();
       const svcKey   = servicio.toLowerCase();
       const svcColor = COLORES[svcKey] || { bg:'#F0F4F5', color:'#666' };
+      const infoPack = Packs.infoFila(sf);
 
       const item = document.createElement('div');
       item.className = 'historial-item';
@@ -832,11 +845,100 @@
         <div class="historial-fecha">${fecha}</div>
         <div class="historial-servicio">
           ${servicio ? `<span class="servicio-badge" style="background:${svcColor.bg};color:${svcColor.color}">${servicio}</span>` : '<span style="color:#C0CDD0;font-size:12px">Sin asignar</span>'}
+          ${infoPack ? `<span class="pack-badge" title="${infoPack.id}">📦 ${infoPack.def.corto} ${infoPack.etiquetaSesion}</span>` : ''}
         </div>
         ${esOwner && importe ? `<div class="historial-importe">${importe}</div>` : ''}
         ${esOwner && cobrado ? `<div class="historial-cobrado">${cobrado}</div>` : ''}`;
       historialEl.appendChild(item);
     });
+  }
+
+  // ── PACKS EN LA FICHA ──
+  function packsDeLaClienta(c) {
+    const claves = new Set(c.sesiones.map(s => Packs.claveClienta(s.fila)));
+    return indicePacks.lista.filter(p => claves.has(p.clave));
+  }
+
+  function htmlPacksFicha(c) {
+    const packs = packsDeLaClienta(c);
+    if (!packs.length) return '';
+    const hoyTs = new Date().setHours(23, 59, 59, 999);
+
+    const tarjetas = packs.map(p => {
+      // Huecos sin fila: los últimos se consideran "no realizados", el resto "por reservar"
+      const huecos = [];
+      for (let n = 1; n <= p.total; n++) {
+        if (!p.sesiones.some(s => s.num === n)) huecos.push(n);
+      }
+      const anuladasNums = new Set(huecos.slice(huecos.length - Math.min(p.anuladas, huecos.length)));
+      const lineas = [];
+      for (let n = 1; n <= p.total; n++) {
+        const s = p.sesiones.find(x => x.num === n);
+        const prevista = p.def.incluye[n - 1] || '';
+        if (s) {
+          const svc = (s.fila[10] || '').trim() || prevista;
+          const estado = s.ts && s.ts <= hoyTs ? '✓ hecha' : '🗓 reservada';
+          lineas.push(`<div>${n}/${p.total} · ${svc} · ${(s.fila[3] || '').trim()} <span style="color:#6E8A91">(${estado})</span></div>`);
+        } else if (anuladasNums.has(n)) {
+          lineas.push(`<div class="anul">${n}/${p.total} · ${prevista} · no realizada</div>`);
+        } else {
+          lineas.push(`<div class="pend">${n}/${p.total} · ${prevista} · pendiente de reservar</div>`);
+        }
+      }
+      // Sesiones sin número de orden (por si se escribió a mano)
+      p.sesiones.filter(s => !s.num).forEach(s => {
+        lineas.push(`<div>?/${p.total} · ${(s.fila[10] || '').trim()} · ${(s.fila[3] || '').trim()}</div>`);
+      });
+
+      const cobro = esOwner
+        ? (p.metodo
+            ? `Pagado: ${Packs.fmtEur(p.importe)} · ${p.metodo} (${p.fechaCompra})`
+            : `<span style="color:#C07840">⚠ Pack sin cobrar todavía (fila del ${p.fechaCompra})</span>`)
+        : `Comprado el ${p.fechaCompra}`;
+
+      const botones = [];
+      if (p.pendientes > 0) botones.push(`<button class="pack-btn secundario" onclick="cambiarAnuladas('${p.id}', 1)">Marcar 1 sesión como no realizada</button>`);
+      if (p.anuladas > 0) botones.push(`<button class="pack-btn secundario" onclick="cambiarAnuladas('${p.id}', -1)">Deshacer "no realizada"</button>`);
+
+      return `
+        <div class="pack-ficha">
+          <div class="pack-ficha-titulo">
+            <span>📦 ${p.tipo}</span>
+            <span class="pack-badge ${p.cerrado ? 'cerrado' : ''}">${p.cerrado ? 'Completo' : (p.pendientes === 1 ? 'Queda 1 sesión' : 'Quedan ' + p.pendientes + ' sesiones')}</span>
+          </div>
+          <div class="pack-ficha-sub">${p.id} · ${cobro}</div>
+          <div class="pack-ficha-ses">${lineas.join('')}</div>
+          ${botones.length ? `<div class="pack-acciones">${botones.join('')}</div>` : ''}
+        </div>`;
+    }).join('');
+
+    return `
+      <div class="seccion">
+        <div class="seccion-titulo">Packs</div>
+        ${tarjetas}
+      </div>`;
+  }
+
+  async function cambiarAnuladas(packId, delta) {
+    const p = indicePacks.porId[packId];
+    if (!p) return;
+    const nuevo = Math.max(0, p.anuladas + delta);
+    const msg = delta > 0
+      ? `Se marcará 1 sesión del ${p.tipo} (${p.id}) como NO realizada.\n\nDejará de contar como pendiente. Lo que hagas con el dinero (devolver, cambiar por otra sesión…) lo decides tú aparte.\n\n¿Continuar?`
+      : `¿Deshacer una sesión "no realizada" del ${p.tipo} (${p.id})? Volverá a contar como pendiente.`;
+    if (!confirm(msg)) return;
+    try {
+      await actualizarCelda(Packs.LETRA.PACK_ANUL, p.compra.sheetRow, nuevo ? String(nuevo) : '');
+      p.compra.fila[Packs.COL.PACK_ANUL] = nuevo ? String(nuevo) : '';
+      // Reconstruir índice con las filas en memoria y volver a pintar la ficha
+      const entradas = [];
+      Object.values(clientasMap).forEach(cl => cl.sesiones.forEach(s => entradas.push(s)));
+      indicePacks = Packs.construirIndice(entradas);
+      const el = document.querySelector(`.cliente-item[data-clave="${CSS.escape(clientaActivaKey)}"]`);
+      abrirFicha(clientaActivaKey, el);
+    } catch (e) {
+      alert('Error al guardar. Comprueba tu conexión.');
+    }
   }
 
   // ── GUARDAR DATOS PERSONALES ──
