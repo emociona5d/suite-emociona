@@ -250,11 +250,17 @@
       background: #FAFCFD;
       border-radius: 8px;
       border: 1px solid #F0F4F5;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .historial-item[style*="pointer"]:hover {
+      background: #F0F4F5;
+      border-color: #C8D8DC;
     }
     .historial-fecha { font-size: 12px; color: #9BB5BC; white-space: nowrap; width: 80px; }
     .historial-servicio { flex: 1; }
     .historial-importe { font-size: 13px; font-weight: 500; color: #4A6A54; white-space: nowrap; }
     .historial-cobrado { font-size: 11px; color: #9BB5BC; white-space: nowrap; }
+    .historial-ir-dashboard { font-size: 11px; color: #A7228C; white-space: nowrap; opacity: 0.7; }
 
     .servicio-badge { font-size: 11px; padding: 3px 8px; border-radius: 10px; font-weight: 500; }
 
@@ -845,8 +851,24 @@
       const svcColor = COLORES[svcKey] || { bg:'#F0F4F5', color:'#666' };
       const infoPack = Packs.infoFila(sf);
 
+      // Convertir fecha D/MM/YYYY → YYYY-MM-DD para el enlace al dashboard
+      let urlFecha = '';
+      if (fecha) {
+        const fp = fecha.trim().split('/');
+        if (fp.length === 3) {
+          urlFecha = `${fp[2]}-${String(fp[1]).padStart(2,'0')}-${String(fp[0]).padStart(2,'0')}`;
+        }
+      }
+
       const item = document.createElement('div');
       item.className = 'historial-item';
+      if (urlFecha) {
+        item.style.cursor = 'pointer';
+        item.title = 'Ver cita en el dashboard';
+        item.addEventListener('click', () => {
+          window.location.href = `dashboard.html?fecha=${urlFecha}`;
+        });
+      }
       item.innerHTML = `
         <div class="historial-fecha">${fecha}</div>
         <div class="historial-servicio">
@@ -854,7 +876,8 @@
           ${infoPack ? `<span class="pack-badge" title="${infoPack.id}">📦 ${infoPack.def.corto} ${infoPack.etiquetaSesion}</span>` : ''}
         </div>
         ${verImportes && importe ? `<div class="historial-importe">${importe}</div>` : ''}
-        ${verImportes && cobrado ? `<div class="historial-cobrado">${cobrado}</div>` : ''}`;
+        ${verImportes && cobrado ? `<div class="historial-cobrado">${cobrado}</div>` : ''}
+        ${urlFecha ? `<div class="historial-ir-dashboard">Ver cita →</div>` : ''}`;
       historialEl.appendChild(item);
     });
   }

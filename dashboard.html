@@ -678,6 +678,19 @@
   // ── FECHA ACTIVA ──
   let fechaActiva = new Date();
 
+  // Si se llega desde clientas.html con ?fecha=YYYY-MM-DD, activar esa fecha
+  (function() {
+    const params = new URLSearchParams(window.location.search);
+    const fechaParam = params.get('fecha');
+    if (fechaParam) {
+      const p = fechaParam.split('-');
+      if (p.length === 3) {
+        const d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+        if (!isNaN(d.getTime())) fechaActiva = d;
+      }
+    }
+  })();
+
   function formatoInput(date) {
     return date.toISOString().split('T')[0]; // YYYY-MM-DD
   }
