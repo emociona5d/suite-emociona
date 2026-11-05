@@ -61,6 +61,7 @@
   .servicio-opt.seleccionado { border-color: #A7228C; background: #FBF0F8; }
   .servicio-nombre { font-size: 15px; font-weight: 500; color: #2C3E40; }
   .servicio-duracion { font-size: 12px; color: #9BB5BC; margin-top: 2px; }
+  .servicio-semanas  { font-size: 11px; color: #B8A0C0; margin-top: 2px; }
   .servicio-flecha { color: #C8B8CE; font-size: 18px; }
 
   /* ── FECHA / HORAS ── */
@@ -206,12 +207,12 @@
   // duracion = tiempo real de la sesión (lo que ve la clienta). El buffer entre citas
   // (10 o 15 min según servicio) lo aplica el webhook de disponibilidad, no se muestra aquí.
   const SERVICIOS = [
-    { id: 'Ecoconfirmación',   duracion: 20 },
-    { id: 'Ecosexo',           duracion: 20 },
-    { id: 'Ecosexo Emociona',  duracion: 30 },
-    { id: 'Ecobasic',          duracion: 30 },
-    { id: 'Ecobasic Plus',     duracion: 30 },
-    { id: 'Ecoemociona',       duracion: 50 }
+    { id: 'Ecoconfirmación',  duracion: 15, precio: 35, semanas: 'Semanas 9–13' },
+    { id: 'Ecosexo',          duracion: 20, precio: 42, semanas: 'Semanas 14–20' },
+    { id: 'Ecosexo Emociona', duracion: 35, precio: 57, semanas: 'Semanas 14–20' },
+    { id: 'Ecobasic',         duracion: 30, precio: 67, semanas: 'Semanas 26–30' },
+    { id: 'Ecobasic Plus',    duracion: 30, precio: 79, semanas: 'Semanas 26–30' },
+    { id: 'Ecoemociona',      duracion: 50, precio: 95, semanas: 'Semanas 26–30' }
   ];
 
   const ANTELACION_MIN_HORAS = 48; // para cancelar/reprogramar
@@ -278,7 +279,8 @@
             <div class="servicio-opt" data-servicio="${s.id}" onclick="elegirServicio('${s.id}')">
               <div>
                 <div class="servicio-nombre">${s.id}</div>
-                <div class="servicio-duracion">${s.duracion} min</div>
+                <div class="servicio-duracion">${s.duracion} min · ${s.precio} €</div>
+                <div class="servicio-semanas">${s.semanas}</div>
               </div>
               <div class="servicio-flecha">›</div>
             </div>`).join('')}
