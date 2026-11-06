@@ -934,11 +934,11 @@
   }
 
   // ── BOTÓN TICKET DE VENTA ──
-  // Solo se puede pulsar cuando la sesión tiene Eco OK, método de pago e importe cobrado.
+  // Solo se puede pulsar cuando la sesión tiene método de pago e importe cobrado.
+  // (No se exige Eco OK: si la eco hay que repetirla, la clienta puede dejarla pagada igualmente.)
   // Al pulsarlo abre la pestaña Sesiones con el mismo ticket de siempre (mismo modal, misma numeración).
   function faltanParaTicket(fila) {
     const faltan = [];
-    if (!esActivo(fila[6])) faltan.push('Eco OK');
     if (!(fila[12] || '').toString().trim()) faltan.push('método de pago');
     if (!(Packs.parseImporte(fila[11]) > 0)) faltan.push('importe cobrado');
     return faltan;
@@ -1292,7 +1292,6 @@
       await actualizarCelda(btn.dataset.col, btn.dataset.row, nuevoValor);
       btn.classList.toggle('activo');
       guardarEnMemoria(btn.dataset.col, btn.dataset.row, nuevoValor);
-      if (btn.dataset.col === 'G') actualizarBotonTicket(btn.dataset.row);
     } catch(e) {
       alert('Error al guardar. Comprueba tu conexión.');
     } finally {
