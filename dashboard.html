@@ -141,6 +141,19 @@
     .estado-btn.activo { background: #E8F5F2; border-color: #5BAA96; color: #2C7A68; font-weight: 500; }
     .estado-btn.cargando { opacity: 0.5; cursor: wait; }
 
+    /* ── BOTÓN TICKET DE VENTA ── */
+    .ticket-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 14px; padding-top: 14px; border-top: 1px solid #F0F4F5; }
+    .btn-ticket {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 10px 18px; border-radius: 10px; border: 1.5px solid #A7228C;
+      background: #A7228C; color: white; font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: all 0.18s; font-family: inherit;
+    }
+    .btn-ticket:hover:not(:disabled) { filter: brightness(1.08); }
+    .btn-ticket:disabled { background: #F4F6F7; border-color: #E0E8EA; color: #A9B6BA; cursor: not-allowed; font-weight: 500; }
+    .ticket-ayuda { font-size: 12px; color: #9BA8AC; }
+    .ticket-ayuda.listo { color: #2C7A68; }
+
     /* ── CAMPOS EDITABLES ── */
     .campos-edicion {
       border-top: 1px solid #F0F4F5;
@@ -629,6 +642,7 @@
       await actualizarCelda(col, wrap.dataset.row, val);
       wrap.dataset.valorGuardado = val;
       guardarEnMemoria(col, wrap.dataset.row, val);
+      if (col === 'M') actualizarBotonTicket(wrap.dataset.row);
       display.classList.remove('guardando');
       display.style.opacity = '0.65';
       setTimeout(() => { display.style.opacity = ''; }, 500);
@@ -909,13 +923,66 @@
               ${suplemento==='Fin de semana' ? `<option value="Fin de semana" selected>Fin de semana (antiguo)</option>` : ''}
             </select>
           </div>
-        </div>`;
+        </div>
+        ${htmlBotonTicket(fila, sheetRow)}`;
 
       lista.appendChild(card);
     });
 
     document.getElementById('contenido').innerHTML = '';
     document.getElementById('contenido').appendChild(lista);
+  }
+
+  // ── BOTÓN TICKET DE VENTA ──
+  // Solo se puede pulsar cuando la sesión tiene Eco OK, método de pago e importe cobrado.
+  // Al pulsarlo abre la pestaña Sesiones con el mismo ticket de siempre (mismo modal, misma numeración).
+  function faltanParaTicket(fila) {
+    const faltan = [];
+    if (!esActivo(fila[6])) faltan.push('Eco OK');
+    if (!(fila[12] || '').toString().trim()) faltan.push('método de pago');
+    if (!(Packs.parseImporte(fila[11]) > 0)) faltan.push('importe cobrado');
+    return faltan;
+  }
+
+  function htmlBotonTicket(fila, sheetRow) {
+    const faltan = faltanParaTicket(fila);
+    return `<div class="ticket-row" data-ticket-row="${sheetRow}">
+      <button class="btn-ticket" ${faltan.length ? 'disabled' : ''} onclick="irATicket(${sheetRow}, this)">🧾 Enviar ticket de venta</button>
+      <span class="ticket-ayuda ${faltan.length ? '' : 'listo'}">${faltan.length ? 'Falta: ' + faltan.join(', ') : '✓ Listo para enviar'}</span>
+    </div>`;
+  }
+
+  // Refresca el botón de una tarjeta cuando cambia Eco OK, método de pago o importe
+  function actualizarBotonTicket(row) {
+    const fila = filaDeRow(row);
+    const cont = document.querySelector(`.ticket-row[data-ticket-row="${row}"]`);
+    if (!fila || !cont) return;
+    cont.outerHTML = htmlBotonTicket(fila, row);
+  }
+
+  async function irATicket(row, btn) {
+    btn.disabled = true;
+    // Si hay algo escrito que aún no se ha guardado (p. ej. el importe), guardarlo antes de salir
+    const card = btn.closest('.cita-card');
+    if (card) {
+      for (const el of card.querySelectorAll('input[data-col], select[data-col]')) {
+        if (_debounceTimers.has(el)) {
+          clearTimeout(_debounceTimers.get(el));
+          _debounceTimers.delete(el);
+          await guardarCampo(el);
+        }
+      }
+    }
+    const fila = filaDeRow(row);
+    const faltan = fila ? faltanParaTicket(fila) : ['datos de la sesión'];
+    if (faltan.length) {
+      alert('Antes de enviar el ticket falta: ' + faltan.join(', ') + '.');
+      actualizarBotonTicket(row);
+      return;
+    }
+    const d = fechaActiva;
+    const volver = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    window.location.href = `sesiones.html?ticket=${row}&volver=${volver}`;
   }
 
   // ── PACKS: tarjeta de la cita ──
@@ -1224,6 +1291,8 @@
     try {
       await actualizarCelda(btn.dataset.col, btn.dataset.row, nuevoValor);
       btn.classList.toggle('activo');
+      guardarEnMemoria(btn.dataset.col, btn.dataset.row, nuevoValor);
+      if (btn.dataset.col === 'G') actualizarBotonTicket(btn.dataset.row);
     } catch(e) {
       alert('Error al guardar. Comprueba tu conexión.');
     } finally {
@@ -1256,6 +1325,7 @@
       el.classList.add('guardado');
       setTimeout(() => el.classList.remove('guardado'), 1500);
       guardarEnMemoria(el.dataset.col, el.dataset.row, valor);
+      if (el.dataset.col === 'L' || el.dataset.col === 'M') actualizarBotonTicket(el.dataset.row);
       // El suplemento cambia el precio que sugiere la caja del pack
       if (el.dataset.col === 'AA') rehacerVista();
 

@@ -557,6 +557,7 @@
 
       poblarFiltroMes();
       aplicarFiltros();
+      abrirTicketDesdeHoy();
 
     } catch (e) {
       document.getElementById('contenido').innerHTML = `
@@ -1630,6 +1631,44 @@
   // ─────────────────────────────────────────────────
   // ── TICKET DE VENTA ──────────────────────────────
   // ─────────────────────────────────────────────────
+
+  // ── LLEGADA DESDE "CITAS DE HOY" (dashboard.html?…→ sesiones.html?ticket=FILA&volver=AAAA-MM-DD) ──
+  // Abre directamente el modal del ticket de esa sesión y muestra un botón para volver.
+  function abrirTicketDesdeHoy() {
+    const params = new URLSearchParams(window.location.search);
+    const row    = Number(params.get('ticket'));
+    const volver = params.get('volver') || '';
+    if (volver && /^\d{4}-\d{2}-\d{2}$/.test(volver) && !document.getElementById('btn-volver-hoy')) {
+      const b = document.createElement('a');
+      b.id = 'btn-volver-hoy';
+      b.href = 'dashboard.html?fecha=' + volver;
+      b.textContent = '← Volver a Citas de hoy';
+      b.style.cssText = 'position:fixed;bottom:24px;left:24px;z-index:9000;background:#A7228C;color:#fff;padding:12px 18px;border-radius:12px;font-weight:600;font-size:14px;text-decoration:none;box-shadow:0 6px 20px rgba(0,0,0,0.18);font-family:inherit;';
+      document.body.appendChild(b);
+    }
+    if (!row) return;
+    // Quitar "ticket" de la dirección para que al recargar no se vuelva a abrir
+    history.replaceState(null, '', window.location.pathname + (volver ? '?volver=' + encodeURIComponent(volver) : ''));
+
+    const entrada = todasLasFilas.find(e => e.sheetRow === row);
+    if (!entrada) { alert('No se ha encontrado esta sesión en la hoja.'); return; }
+    const { fila } = entrada;
+    // Filtrar la tabla para que se vea esa clienta en su mes
+    const nombre = ((fila[0] || '') + ' ' + (fila[1] || '')).trim();
+    const partes = (fila[3] || '').trim().split('/');
+    const selMes = document.getElementById('filtro-mes');
+    const mes = partes.length === 3 ? partes[1] + '/' + partes[2] : '';
+    document.getElementById('busqueda').value = nombre;
+    selMes.value = [...selMes.options].some(o => o.value === mes) ? mes : '';
+    document.getElementById('filtro-servicio').value = '';
+    document.getElementById('solo-pendientes').checked = false;
+    _soloEnvios = false;
+    aplicarFiltros();
+
+    const idx = filasRender.findIndex(e => e.sheetRow === row);
+    if (idx < 0) { alert('No se ha encontrado esta sesión en la tabla.'); return; }
+    abrirModalTicket(idx);
+  }
 
   // ── MODAL TICKET ──
   function abrirModalTicket(idx) {
