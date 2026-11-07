@@ -567,8 +567,8 @@
   }
 
   function renderAgenda() {
-    const dias = diasCargados;
-    const n = dias.length;
+    let dias = diasCargados;
+    let n = dias.length;
     const hoyISO = fmtISO(new Date());
 
     const items = eventosCargados.map((ev, i) => Object.assign({ ev, i, bloqueo: esBloqueo(ev), apertura: esApertura(ev), color: colorDe(ev) }, tiempos(ev)));
@@ -592,6 +592,11 @@
         maxFin = Math.max(maxFin, Math.ceil(mFin / 60) * 60);
       });
     });
+    // Móvil + semana: el domingo no se enseña (no hay sesiones), salvo que tenga algo apuntado
+    if (vista === 'semana' && window.innerWidth < 768 && n === 7 && !segPorDia[6].length && !todoDiaPorDia[6].length) {
+      dias = dias.slice(0, 6); segPorDia.pop(); todoDiaPorDia.pop(); n = 6;
+    }
+
     const altoTotal = (maxFin - minIni) / 60 * HORA_PX;
 
     let html = `<div class="cal ${vista}"><div class="cal-inner" style="--ndias:${n};--hora-px:${HORA_PX}px">`;
@@ -687,6 +692,13 @@
 
   // La línea roja de "ahora" se mueve sola cada minuto
   setInterval(() => { if (diasCargados.length) renderAgenda(); }, 60000);
+
+  // Al girar el móvil/tablet o cambiar el tamaño de la ventana, se vuelve a pintar
+  let _tResize = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(_tResize);
+    _tResize = setTimeout(() => { if (diasCargados.length) renderAgenda(); }, 200);
+  });
 
   // ── DETALLE DE UNA CITA ──
   function abrirEvento(i) {
