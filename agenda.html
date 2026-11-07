@@ -61,8 +61,7 @@
 
   /* ── CUADRÍCULA TIPO GOOGLE CALENDAR ── */
   .cal { background: white; border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); overflow-x: auto; }
-  .cal.semana .cal-inner { min-width: 780px; }
-  .cal-fila { display: grid; grid-template-columns: 56px repeat(var(--ndias), minmax(0, 1fr)); }
+  .cal-fila { display: grid; grid-template-columns: var(--col-horas, 56px) repeat(var(--ndias), minmax(0, 1fr)); }
   .cal-cab { border-bottom: 1px solid #E6ECEE; }
   .cal-cab-dia { text-align: center; padding: 10px 4px 8px; border-left: 1px solid transparent; }
   .cal.semana .cal-cab-dia { cursor: pointer; }
@@ -94,7 +93,8 @@
   .ev-nombre { font-weight: 500; overflow: hidden; text-overflow: ellipsis; }
   .ev-hora { font-size: 11px; opacity: 0.92; white-space: nowrap; }
   .ev.corto { display: flex; gap: 5px; align-items: center; padding-top: 1px; padding-bottom: 1px; white-space: nowrap; }
-  .ev.corto .ev-nombre { white-space: nowrap; }
+  .ev.corto .ev-nombre { white-space: nowrap; flex: 0 1 auto; min-width: 0; }
+  .ev.corto .ev-hora { flex: 0 1000 auto; min-width: 0; overflow: hidden; }
 
   .ev-fondo { position: absolute; left: 0; right: 0; z-index: 1; cursor: pointer; font-size: 10px; padding: 2px 4px 2px 5px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   .ev-fondo.apertura { background: rgba(11,128,67,0.10); border-left: 3px solid #0b8043; color: #0b8043; }
@@ -144,6 +144,20 @@
     .main { margin: 14px auto; padding: 0 10px; }
     .modal-fila { flex-direction: column; }
     nav { overflow-x: auto; padding: 0 8px; }
+    /* Semana en móvil: los 7 días caben en pantalla, letra más pequeña */
+    .cal.semana { --col-horas: 34px; border-radius: 10px; }
+    .cal.semana .cal-hora-lbl { right: 4px; font-size: 9px; }
+    .cal.semana .cal-cab-dia { padding: 6px 0 5px; }
+    .cal.semana .cal-cab-dow { font-size: 9px; letter-spacing: 0; }
+    .cal.semana .cal-cab-num { font-size: 15px; width: 28px; height: 28px; line-height: 28px; }
+    .cal.semana .ev { font-size: 10px; padding: 2px 3px; border-radius: 4px; line-height: 1.15; }
+    .cal.semana .ev-hora { display: none; }
+    .cal.semana .ev-nombre { font-weight: 500; overflow-wrap: anywhere; }
+    .cal.semana .ev.corto { display: block; }
+    .cal.semana .ev.corto .ev-nombre { white-space: normal; }
+    .cal.semana .ev-fondo { font-size: 0; }
+    .cal.semana .chip-todo-dia { font-size: 10px; padding: 1px 3px; }
+    .cal.semana .cal-todo-dia-lbl { font-size: 8px; padding-right: 3px; }
   }
 </style>
 <link rel="manifest" href="manifest.json">
@@ -357,7 +371,7 @@
   // ── VISTA (día / semana) Y FECHA ACTIVA ──
   let fechaActiva = new Date();
   let vista = 'semana';
-  try { vista = localStorage.getItem('emociona_agenda_vista') || (window.innerWidth < 768 ? 'dia' : 'semana'); } catch(e) {}
+  try { vista = localStorage.getItem('emociona_agenda_vista') || 'semana'; } catch(e) {}
   if (vista !== 'dia' && vista !== 'semana') vista = 'semana';
 
   function diasVisibles() {
