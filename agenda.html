@@ -139,6 +139,9 @@
   .evm-cerrar { margin-left: auto; border: none; background: none; font-size: 18px; color: #9BB5BC; cursor: pointer; padding: 0 4px; }
   .evm-detalle { font-size: 14px; color: #3C4A50; margin: 7px 0 7px 28px; }
   .evm-detalle a { color: #A7228C; }
+  .evm-detalle strong { font-weight: 600; }
+  .evm-gris { font-size: 12px; color: #9BB5BC; }
+  .evm-notas { margin: 10px 0 8px 28px; background: #FFF8E6; border: 1px solid #F6E2A8; border-radius: 10px; padding: 9px 12px; font-size: 14px; color: #5A4A1E; display: flex; flex-direction: column; gap: 5px; word-break: break-word; }
 
   @media (max-width: 768px) {
     .main { margin: 14px auto; padding: 0 10px; }
@@ -300,8 +303,16 @@
     '10': '#0b8043', // Albahaca
     '11': '#d50000', // Tomate
   };
-  // Para citas sin color asignado en Google y sin servicio reconocible
-  const COLOR_SIN_ASIGNAR = '#7986cb';
+  // Citas sin color asignado en Google: salen con el color por defecto del calendario (Pavo real)
+  const COLOR_SIN_ASIGNAR = '#039be5';
+  // Qué servicio corresponde a cada color de Google (para cuando la descripción no lo dice)
+  const SERVICIO_POR_COLOR = { '8': 'Ecoconfirmación', '6': 'Ecosexo', '2': 'Ecosexo Emociona', '4': 'Ecobasic', '5': 'Ecobasic Plus', '7': 'Ecoemociona', '': 'Ecoemociona' };
+  // Cómo reconocer el servicio escrito a mano (de más largo a más corto, y con alguna errata habitual)
+  const SERVICIO_TEXTO = [
+    ['ecosexo emociona', 'Ecosexo Emociona'], ['exosexo emociona', 'Ecosexo Emociona'],
+    ['ecobasic plus', 'Ecobasic Plus'], ['ecoconfirmacion', 'Ecoconfirmación'],
+    ['ecoemociona', 'Ecoemociona'], ['ecobasic', 'Ecobasic'], ['ecosexo', 'Ecosexo'], ['exosexo', 'Ecosexo'],
+  ];
 
   const HORA_PX = 60;          // alto de una hora en la cuadrícula (px)
   const HORA_MIN_DEFECTO = 9;  // la cuadrícula siempre enseña al menos de 9:00…
@@ -523,11 +534,36 @@
     return 'Sin título';
   }
 
-  // Color: 1º el que tiene la cita en Google Calendar; 2º el de su servicio; 3º uno neutro
+  // ── LEER LA DESCRIPCIÓN TAL COMO LA ESCRIBÍS (con o sin etiquetas) ──
+  // Devuelve cada línea clasificada: teléfono, servicio, semanas, email o nota
+  function leerDescripcion(desc) {
+    const lineas = textoPlano(desc).split(/\r?\n/).map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
+    const r = { telefono: null, servicioLinea: null, servicio: null, semanas: null, email: null, notas: [] };
+    lineas.forEach(l => {
+      const n = normalizar(l);
+      if (/^token:/i.test(l)) return; // código interno de la reserva online, no se enseña
+      if (!r.telefono && /^[+\d][\d\s\-\.]{8,}$/.test(l)) { r.telefono = l.replace(/\D/g, '').slice(-9); return; }
+      if (/^e-?mail:/i.test(l) || /^\S+@\S+\.\S+$/.test(l)) { r.email = l.replace(/^e-?mail:\s*/i, ''); return; }
+      if (!r.semanas && /\d/.test(l) && /semana/i.test(l) && l.length <= 25) {
+        const m = l.match(/(\d+(?:\s*\+\s*\d+)?)/);
+        r.semanas = m ? m[1].replace(/\s/g, '') : l;
+        return;
+      }
+      if (!r.servicio) {
+        const sinEtiqueta = n.replace(/^servicio:\s*/, '');
+        const hit = SERVICIO_TEXTO.find(([k]) => sinEtiqueta.startsWith(k));
+        if (hit) { r.servicio = hit[1]; r.servicioLinea = l.replace(/^servicio:\s*/i, ''); return; }
+      }
+      r.notas.push(l);
+    });
+    return r;
+  }
+
+  // Color: 1º el que tiene la cita en Google Calendar; 2º el de su servicio; 3º el azul por defecto
   function colorDe(ev) {
     if (ev.colorId && COLORES_GOOGLE[ev.colorId]) return COLORES_GOOGLE[ev.colorId];
-    const n = normalizar(extraerServicio(ev.description));
-    const s = SERVICIOS.find(x => x.clave === n);
+    const serv = leerDescripcion(ev.description).servicio;
+    const s = SERVICIOS.find(x => x.nombre === serv);
     return s ? s.color : COLOR_SIN_ASIGNAR;
   }
 
@@ -592,8 +628,8 @@
         maxFin = Math.max(maxFin, Math.ceil(mFin / 60) * 60);
       });
     });
-    // Móvil + semana: el domingo no se enseña (no hay sesiones), salvo que tenga algo apuntado
-    if (vista === 'semana' && window.innerWidth < 768 && n === 7 && !segPorDia[6].length && !todoDiaPorDia[6].length) {
+    // Móvil + semana: el domingo no se enseña (no hay sesiones)
+    if (vista === 'semana' && window.innerWidth < 768 && n === 7) {
       dias = dias.slice(0, 6); segPorDia.pop(); todoDiaPorDia.pop(); n = 6;
     }
 
@@ -706,19 +742,27 @@
     if (!ev) return;
     const t = tiempos(ev);
     const bloqueo = esBloqueo(ev), apertura = esApertura(ev);
-    const telefono = extraerTelefono(ev.description);
     const token = extraerToken(ev.description);
-    const servicio = (!bloqueo && !apertura) ? extraerServicio(ev.description) : null;
-    const semanas = (!bloqueo && !apertura) ? extraerCampo(ev.description, 'Semanas') : null;
+    const info = leerDescripcion(ev.description);
+    const telefono = info.telefono || extraerTelefono(ev.description);
+    const esCita = !bloqueo && !apertura;
+    // Si la descripción no dice el servicio, se deduce del color (solo si parece una cita: tiene teléfono)
+    let servicioTxt = info.servicioLinea, servicioDeducido = false;
+    if (esCita && !servicioTxt && telefono) {
+      const porColor = SERVICIO_POR_COLOR[ev.colorId || ''];
+      if (porColor) { servicioTxt = porColor; servicioDeducido = true; }
+    }
 
     document.getElementById('evm-punto').style.background = colorDe(ev);
     document.getElementById('evm-titulo').textContent = nombreVisible(ev);
     document.getElementById('evm-cuando').textContent = formatoLargo(t.ini) + (t.todoDia ? ' · Todo el día' : ` · ${hm(t.ini)} – ${hm(t.fin)}`);
 
     let det = '';
-    if (servicio) det += `<div class="evm-detalle">💫 ${esc(servicio)}</div>`;
-    if (semanas) det += `<div class="evm-detalle">🌱 Semana ${esc(semanas)}</div>`;
+    if (servicioTxt) det += `<div class="evm-detalle">💫 <strong>${esc(servicioTxt)}</strong>${servicioDeducido ? ' <span class="evm-gris">(por el color)</span>' : ''}</div>`;
+    if (info.semanas) det += `<div class="evm-detalle">🌱 ${esc(info.semanas)} semanas</div>`;
     if (telefono) det += `<div class="evm-detalle">📞 <a href="tel:+34${telefono}">${telefono}</a> · <a href="https://wa.me/34${telefono}" target="_blank" rel="noopener">WhatsApp</a></div>`;
+    if (info.email) det += `<div class="evm-detalle">✉️ <a href="mailto:${esc(info.email)}">${esc(info.email)}</a></div>`;
+    if (info.notas.length) det += `<div class="evm-notas">${info.notas.map(l => `<div>📝 ${esc(l)}</div>`).join('')}</div>`;
     if (bloqueo) det += `<div class="evm-detalle"><span class="badge badge-bloqueo">Bloqueado</span></div>`;
     else if (apertura) det += `<div class="evm-detalle"><span class="badge badge-apertura">Franja extra</span></div>`;
     else det += `<div class="evm-detalle"><span class="badge ${token ? 'badge-auto' : 'badge-manual'}">${token ? 'Autogestión' : 'Manual'}</span></div>`;
