@@ -131,6 +131,17 @@
   .btn-guardar { font-size: 14px; padding: 9px 24px; border: none; border-radius: 8px; background: #A7228C; color: white; cursor: pointer; font-family: inherit; font-weight: 500; }
   .btn-guardar:disabled { opacity: 0.5; cursor: wait; }
 
+  .modal { max-height: 92vh; overflow-y: auto; }
+  textarea.modal-input { resize: vertical; min-height: 64px; line-height: 1.4; }
+  .mc-servicio-fila { display: flex; align-items: center; gap: 8px; }
+  .mc-punto { width: 18px; height: 18px; border-radius: 5px; flex-shrink: 0; background: #E0E8EA; }
+  .mc-hint { font-size: 13px; color: #6A7A80; margin: -4px 0 12px; min-height: 16px; }
+  .mc-info { background: #F9EEF7; border-radius: 10px; padding: 10px 12px; font-size: 14px; color: #5A2A50; margin-bottom: 14px; }
+  .aviso-solape { background: #FFF4E5; border: 1px solid #F5C98A; border-radius: 10px; padding: 10px 12px; font-size: 14px; color: #7A4A0A; margin-bottom: 10px; }
+  .aviso-solape ul { margin: 6px 0 4px 18px; }
+  .btn-mover { font-size: 13px; padding: 8px 14px; border: 1.5px solid #E0C2DA; border-radius: 8px; background: white; color: #A7228C; cursor: pointer; font-family: inherit; }
+  .btn-mover:hover { background: #FBF0F8; }
+
   .modal-evento { max-width: 420px; padding: 22px 24px; }
   .evm-cabecera { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 14px; }
   .evm-punto { width: 16px; height: 16px; border-radius: 4px; flex-shrink: 0; margin-top: 5px; }
@@ -209,9 +220,12 @@
 
   <div class="barra-media">
     <div class="leyenda" id="leyenda"></div>
-    <div class="acciones-owner" id="acciones-owner" style="display:none">
-      <button class="btn-accion" onclick="abrirModalExcepcion('Bloqueo')">🔒 Bloquear hueco</button>
-      <button class="btn-accion secundario" onclick="abrirModalExcepcion('Apertura')">🌿 Abrir franja extra</button>
+    <div class="acciones-owner">
+      <button class="btn-accion" onclick="abrirNuevaCita()">＋ Nueva cita</button>
+      <span id="acciones-owner" style="display:none; gap:10px; flex-wrap:wrap">
+        <button class="btn-accion secundario" onclick="abrirModalExcepcion('Bloqueo')">🔒 Bloquear hueco</button>
+        <button class="btn-accion secundario" onclick="abrirModalExcepcion('Apertura')">🌿 Abrir franja extra</button>
+      </span>
     </div>
   </div>
 
@@ -235,6 +249,58 @@
     </div>
     <div id="evm-detalles"></div>
     <div class="modal-acciones" id="evm-acciones"></div>
+  </div>
+</div>
+
+<!-- ── MODAL NUEVA CITA / CAMBIAR DÍA Y HORA ── -->
+<div class="modal-overlay" id="modal-cita">
+  <div class="modal">
+    <div class="modal-titulo" id="mc-titulo">Nueva cita</div>
+    <div class="mc-info" id="mc-mover-info" style="display:none"></div>
+    <div id="mc-campos-crear">
+      <div class="modal-campo">
+        <label class="modal-label">Nombre y apellidos *</label>
+        <input class="modal-input" id="mc-nombre" type="text" autocomplete="off">
+      </div>
+      <div class="modal-fila">
+        <div class="modal-campo">
+          <label class="modal-label">Teléfono *</label>
+          <input class="modal-input" id="mc-telefono" type="tel" inputmode="tel" autocomplete="off">
+        </div>
+        <div class="modal-campo">
+          <label class="modal-label">Semanas</label>
+          <input class="modal-input" id="mc-semanas" type="number" min="4" max="42" inputmode="numeric">
+        </div>
+      </div>
+      <div class="modal-campo">
+        <label class="modal-label">Servicio *</label>
+        <div class="mc-servicio-fila">
+          <span class="mc-punto" id="mc-punto"></span>
+          <select class="modal-select" id="mc-servicio" onchange="cambioEnCita()"></select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-fila">
+      <div class="modal-campo">
+        <label class="modal-label">Día *</label>
+        <input class="modal-input" id="mc-fecha" type="date" onchange="cambioEnCita()">
+      </div>
+      <div class="modal-campo">
+        <label class="modal-label">Hora *</label>
+        <input class="modal-input" id="mc-hora" type="time" step="900" onchange="cambioEnCita()">
+      </div>
+    </div>
+    <div class="mc-hint" id="mc-fin"></div>
+    <div class="modal-campo" id="mc-campo-notas">
+      <label class="modal-label">Notas</label>
+      <textarea class="modal-input" id="mc-notas" rows="3" placeholder="Regalo pagado, no decir el sexo, apuntar en un sobre…"></textarea>
+    </div>
+    <div class="aviso-solape" id="mc-solape" style="display:none"></div>
+    <div class="modal-msg-error" id="mc-error"></div>
+    <div class="modal-acciones">
+      <button class="btn-cancelar" onclick="cerrarModalCita()">Cancelar</button>
+      <button class="btn-guardar" id="mc-btn" onclick="guardarCita()">Guardar cita</button>
+    </div>
   </div>
 </div>
 
@@ -275,6 +341,12 @@
   const N8N_BASE      = 'https://emociona5d.app.n8n.cloud/webhook/agenda';
   const EP_EXCEPCION  = N8N_BASE + '/excepcion-horario'; // crea bloqueo o apertura
   const EP_CANCELAR   = N8N_BASE + '/cancelar-desde-agenda'; // cancela una cita desde el panel
+  const EP_CITA       = N8N_BASE + '/cita-manual';           // crea o mueve una cita desde el panel
+
+  // Tiempo que ocupa cada servicio en la agenda (sesión + margen entre sesiones), en minutos
+  const DURACION_SLOT = { 'Ecoconfirmación': 30, 'Ecosexo': 30, 'Ecosexo Emociona': 45, 'Ecobasic': 45, 'Ecobasic Plus': 45, 'Ecoemociona': 60 };
+  // Color de Google Calendar que se pone a cada cita nueva según su servicio
+  const COLORID_SERVICIO = { 'Ecoconfirmación': '8', 'Ecosexo': '6', 'Ecosexo Emociona': '2', 'Ecobasic': '4', 'Ecobasic Plus': '5', 'Ecoemociona': '7' };
 
   const CENTRO_ACTUAL = 'Merida';
 
@@ -345,7 +417,7 @@
   document.getElementById('user-name').textContent = sesion.name || sesion.email;
 
   const esOwner = sesion.role === 'owner';
-  if (esOwner) document.getElementById('acciones-owner').style.display = 'flex';
+  if (esOwner) document.getElementById('acciones-owner').style.display = 'inline-flex';
 
   function logout() {
     localStorage.removeItem('emociona_session');
@@ -582,6 +654,7 @@
   let eventosCargados = [];
   let diasCargados = [];
   let peticionActual = 0;
+  let renderMinIni = HORA_MIN_DEFECTO * 60; // primera hora que se ve en la cuadrícula (en minutos)
 
   async function cargarAgenda() {
     const id = ++peticionActual;
@@ -634,6 +707,7 @@
     }
 
     const altoTotal = (maxFin - minIni) / 60 * HORA_PX;
+    renderMinIni = minIni;
 
     let html = `<div class="cal ${vista}"><div class="cal-inner" style="--ndias:${n};--hora-px:${HORA_PX}px">`;
 
@@ -660,7 +734,7 @@
     }
     html += `</div>`;
     dias.forEach((d, k) => {
-      html += `<div class="cal-col ${fmtISO(d) === hoyISO ? 'hoy' : ''}">` + bloquesDia(segPorDia[k], minIni) + lineaAhora(d, minIni, maxFin) + `</div>`;
+      html += `<div class="cal-col ${fmtISO(d) === hoyISO ? 'hoy' : ''}" data-col-dia="${fmtISO(d)}">` + bloquesDia(segPorDia[k], minIni) + lineaAhora(d, minIni, maxFin) + `</div>`;
     });
     html += `</div></div></div>`;
 
@@ -718,10 +792,21 @@
     return `<div class="linea-ahora" style="top:${(m - minIni) / 60 * HORA_PX}px"></div>`;
   }
 
-  // Clics dentro de la cuadrícula: abrir cita, o pasar a vista de un día al pulsar la cabecera
+  // Clics dentro de la cuadrícula:
+  //  · sobre una cita → abre su ficha
+  //  · sobre un hueco vacío (o una franja extra, fuera de su etiqueta) → nueva cita a esa hora
+  //  · sobre la cabecera de un día (vista semana) → ver solo ese día
   document.getElementById('contenido').addEventListener('click', e => {
     const evEl = e.target.closest('[data-ev]');
-    if (evEl) { abrirEvento(+evEl.dataset.ev); return; }
+    const esFondo = evEl && evEl.classList.contains('ev-fondo');
+    if (evEl && !(esFondo && e.clientY - evEl.getBoundingClientRect().top > 18)) { abrirEvento(+evEl.dataset.ev); return; }
+    const col = e.target.closest('.cal-col');
+    if (col) {
+      const y = e.clientY - col.getBoundingClientRect().top;
+      const m = renderMinIni + Math.floor(y / HORA_PX * 60 / 15) * 15;
+      abrirNuevaCita(col.dataset.colDia, minAHora(m));
+      return;
+    }
     const diaEl = e.target.closest('[data-dia]');
     if (diaEl && vista === 'semana') irADia(diaEl.dataset.dia);
   });
@@ -770,10 +855,15 @@
 
     const acc = document.getElementById('evm-acciones');
     acc.innerHTML = '';
-    const boton = (texto, fn) => { const b = document.createElement('button'); b.className = 'btn-cancelar-cita'; b.textContent = texto; b.onclick = fn; acc.appendChild(b); };
-    if (!bloqueo && !apertura) boton('Cancelar cita', () => cancelarCita(ev.id, token));
-    if (bloqueo && esOwner) boton('Quitar bloqueo', () => cancelarCita(ev.id, null));
-    if (apertura && esOwner) boton('Quitar franja extra', () => cancelarCita(ev.id, null));
+    const boton = (texto, fn, clase) => { const b = document.createElement('button'); b.className = clase || 'btn-cancelar-cita'; b.textContent = texto; b.onclick = fn; acc.appendChild(b); };
+    const cuandoTxt = t.todoDia ? formatoLargo(t.ini) : `${formatoLargo(t.ini)} a las ${hm(t.ini)}`;
+    if (esCita) {
+      boton('🕒 Cambiar día/hora', () => abrirMoverCita(i), 'btn-mover');
+      boton('Cancelar cita', () => cancelarCita(ev.id, token,
+        `¿Seguro que quieres CANCELAR la cita de ${nombreVisible(ev)}?\n\n${cuandoTxt}\n\nSe borrará del calendario.`));
+    }
+    if (bloqueo && esOwner) boton('Quitar bloqueo', () => cancelarCita(ev.id, null, `¿Quitar este bloqueo del ${cuandoTxt}?`));
+    if (apertura && esOwner) boton('Quitar franja extra', () => cancelarCita(ev.id, null, `¿Quitar esta franja extra del ${cuandoTxt}?`));
 
     document.getElementById('modal-evento').classList.add('visible');
   }
@@ -785,12 +875,173 @@
     if (e.target === this) cerrarModalEvento();
   });
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { cerrarModalEvento(); cerrarModalExcepcion(); }
+    if (e.key === 'Escape') { cerrarModalEvento(); cerrarModalExcepcion(); cerrarModalCita(); }
   });
 
+  // ══════════════════════════════════════════════════════════
+  // NUEVA CITA / CAMBIAR DÍA Y HORA (lo guarda n8n en Google Calendar)
+  // ══════════════════════════════════════════════════════════
+  function minAHora(m) { return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); }
+  function horaAMin(h) { const p = h.split(':').map(Number); return p[0] * 60 + p[1]; }
+
+  let citaModo = 'crear';     // 'crear' o 'mover'
+  let citaMover = null;       // la cita que se está moviendo
+  let solapeConfirmado = false;
+
+  // Rellenar el desplegable de servicios una sola vez
+  document.getElementById('mc-servicio').innerHTML = '<option value="">Elige el servicio…</option>' +
+    SERVICIOS.map(s => `<option value="${s.nombre}">${s.nombre}</option>`).join('');
+
+  function mostrar(id, si) { document.getElementById(id).style.display = si ? '' : 'none'; }
+
+  function abrirNuevaCita(fechaISO, hora) {
+    citaModo = 'crear'; citaMover = null;
+    document.getElementById('mc-titulo').textContent = '＋ Nueva cita';
+    mostrar('mc-mover-info', false); mostrar('mc-campos-crear', true); mostrar('mc-campo-notas', true);
+    ['mc-nombre', 'mc-telefono', 'mc-semanas', 'mc-notas'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('mc-servicio').value = '';
+    document.getElementById('mc-fecha').value = fechaISO || fmtISO(fechaActiva);
+    document.getElementById('mc-hora').value = hora || '';
+    document.getElementById('mc-btn').textContent = 'Guardar cita';
+    document.getElementById('mc-btn').disabled = false;
+    cambioEnCita();
+    document.getElementById('modal-cita').classList.add('visible');
+    setTimeout(() => document.getElementById('mc-nombre').focus(), 50);
+  }
+
+  function abrirMoverCita(i) {
+    const ev = eventosCargados[i];
+    if (!ev) return;
+    const t = tiempos(ev);
+    citaModo = 'mover';
+    citaMover = { ev, dur: Math.round((t.fin - t.ini) / 60000), token: extraerToken(ev.description) };
+    cerrarModalEvento();
+    document.getElementById('mc-titulo').textContent = '🕒 Cambiar día y hora';
+    const info = document.getElementById('mc-mover-info');
+    info.innerHTML = `<strong>${esc(nombreVisible(ev))}</strong><br>Ahora: ${esc(formatoLargo(t.ini))} a las ${hm(t.ini)}`;
+    mostrar('mc-mover-info', true); mostrar('mc-campos-crear', false); mostrar('mc-campo-notas', false);
+    document.getElementById('mc-fecha').value = fmtISO(t.ini);
+    document.getElementById('mc-hora').value = minAHora(t.ini.getHours() * 60 + t.ini.getMinutes());
+    document.getElementById('mc-btn').textContent = 'Mover cita';
+    document.getElementById('mc-btn').disabled = false;
+    cambioEnCita();
+    document.getElementById('modal-cita').classList.add('visible');
+  }
+
+  function cerrarModalCita() { document.getElementById('modal-cita').classList.remove('visible'); }
+  document.getElementById('modal-cita').addEventListener('click', function(e) { if (e.target === this) cerrarModalCita(); });
+
+  function duracionCita() {
+    return citaModo === 'mover' ? citaMover.dur : (DURACION_SLOT[document.getElementById('mc-servicio').value] || 0);
+  }
+
+  // Cada vez que cambia el servicio, el día o la hora: recalcular la hora de fin y olvidar avisos anteriores
+  function cambioEnCita() {
+    solapeConfirmado = false;
+    mostrar('mc-solape', false);
+    document.getElementById('mc-error').textContent = '';
+    document.getElementById('mc-btn').textContent = citaModo === 'mover' ? 'Mover cita' : 'Guardar cita';
+    const serv = document.getElementById('mc-servicio').value;
+    const s = SERVICIOS.find(x => x.nombre === serv);
+    document.getElementById('mc-punto').style.background = s ? s.color : '#E0E8EA';
+    const h = document.getElementById('mc-hora').value, d = duracionCita();
+    document.getElementById('mc-fin').textContent = (h && d)
+      ? `Termina a las ${minAHora(horaAMin(h) + d)} (${d} min, con el margen entre sesiones incluido)`
+      : '';
+  }
+
+  // Busca en el Calendar (en directo) qué hay ya apuntado en ese rato
+  async function buscarSolapes(fechaISO, ini, fin, excluirId) {
+    const p = fechaISO.split('-');
+    const d0 = new Date(p[0], p[1] - 1, p[2]);
+    const eventos = await fetchCalEvents(d0, sumarDias(d0, 1));
+    return eventos.filter(ev => {
+      if (ev.id === excluirId || !ev.start.dateTime || esApertura(ev)) return false;
+      const t = tiempos(ev);
+      const a = (t.ini - d0) / 60000, b = (t.fin - d0) / 60000;
+      return a < fin && b > ini;
+    });
+  }
+
+  async function guardarCita() {
+    const errorEl = document.getElementById('mc-error');
+    const btn = document.getElementById('mc-btn');
+    const fecha = document.getElementById('mc-fecha').value;
+    const hora = document.getElementById('mc-hora').value;
+    errorEl.textContent = '';
+
+    let datos = {};
+    if (citaModo === 'crear') {
+      datos = {
+        nombre: document.getElementById('mc-nombre').value.replace(/\s+/g, ' ').trim(),
+        telefono: document.getElementById('mc-telefono').value.trim(),
+        servicio: document.getElementById('mc-servicio').value,
+        semanas: document.getElementById('mc-semanas').value.trim(),
+        notas: document.getElementById('mc-notas').value.trim(),
+      };
+      if (!datos.nombre) { errorEl.textContent = 'Escribe el nombre y apellidos.'; return; }
+      if (datos.telefono.replace(/\D/g, '').length < 9) { errorEl.textContent = 'El teléfono debe tener al menos 9 números.'; return; }
+      if (!datos.servicio) { errorEl.textContent = 'Elige el servicio.'; return; }
+    }
+    if (!fecha || !hora) { errorEl.textContent = 'Elige el día y la hora.'; return; }
+    const ini = horaAMin(hora), fin = ini + duracionCita();
+    if (fin > 24 * 60) { errorEl.textContent = 'La cita no puede pasar de medianoche.'; return; }
+
+    const textoBoton = btn.textContent;
+    btn.disabled = true;
+    try {
+      // 1º) ¿Se pisa con algo? Avisar una vez; si vuelve a pulsar, se guarda igualmente
+      if (!solapeConfirmado) {
+        btn.textContent = 'Comprobando…';
+        const choques = await buscarSolapes(fecha, ini, fin, citaMover ? citaMover.ev.id : null);
+        if (choques.length) {
+          const aviso = document.getElementById('mc-solape');
+          aviso.innerHTML = '⚠️ <strong>A esa hora ya hay:</strong><ul>' +
+            choques.map(ev => { const t = tiempos(ev); return `<li>${esc(nombreVisible(ev))} (${hm(t.ini)} – ${hm(t.fin)})</li>`; }).join('') +
+            '</ul>Si quieres guardarla igualmente, pulsa el botón otra vez.';
+          mostrar('mc-solape', true);
+          solapeConfirmado = true;
+          btn.textContent = citaModo === 'mover' ? 'Mover igualmente' : 'Guardar igualmente';
+          btn.disabled = false;
+          return;
+        }
+      }
+
+      // 2º) Enviar a n8n
+      btn.textContent = 'Guardando…';
+      await renovarTokenSiNecesario();
+      const payload = Object.assign({
+        accion: citaModo,
+        accessToken: sesion.access_token,   // n8n comprueba con Google que es una cuenta del equipo
+        creadoPor: sesion.email,
+        fecha, horaInicio: minAHora(ini), horaFin: minAHora(fin),
+      }, citaModo === 'crear'
+        ? Object.assign(datos, { colorId: COLORID_SERVICIO[datos.servicio] })
+        : { eventId: citaMover.ev.id, token: citaMover.token });
+
+      const resp = await fetch(EP_CITA, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const data = await resp.json().catch(() => ({}));
+      if (data.ok) {
+        cerrarModalCita();
+        const p = fecha.split('-');
+        fechaActiva = new Date(p[0], p[1] - 1, p[2]);
+        actualizarCabecera();
+        cargarAgenda();
+        return;
+      }
+      errorEl.textContent = data.error === 'no_autorizado'
+        ? 'Tu cuenta no tiene permiso para esto. Cierra sesión y vuelve a entrar.'
+        : 'No se pudo guardar. Inténtalo de nuevo.';
+    } catch (e) {
+      errorEl.textContent = 'Error de conexión. Inténtalo de nuevo.';
+    }
+    btn.disabled = false;
+    btn.textContent = solapeConfirmado ? (citaModo === 'mover' ? 'Mover igualmente' : 'Guardar igualmente') : textoBoton;
+  }
+
   // ── CANCELAR CITA / QUITAR BLOQUEO ──
-  async function cancelarCita(eventId, token) {
-    if (!confirm('¿Seguro que quieres cancelar esto?')) return;
+  async function cancelarCita(eventId, token, pregunta) {
+    if (!confirm(pregunta || '¿Seguro que quieres cancelar esto?')) return;
     try {
       const resp = await fetch(EP_CANCELAR, {
         method: 'POST',
