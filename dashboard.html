@@ -100,6 +100,8 @@
       border-left: 4px solid #E0E0E0;
     }
     .cita-card.es-repe { border-left-style: dashed; }
+    .cita-card.cita-resaltada { box-shadow: 0 0 0 3px #A7228C, 0 4px 18px rgba(167,34,140,0.25); transition: box-shadow 0.4s; }
+    .aviso-no-encontrada { background: #FFF8E6; border: 1px solid #F6E2A8; color: #5A4A1E; border-radius: 12px; padding: 12px 16px; font-size: 14px; margin-bottom: 14px; }
 
     .cita-top {
       display: flex;
@@ -691,11 +693,15 @@
 
   // ── FECHA ACTIVA ──
   let fechaActiva = new Date();
+  // Si se llega desde la Agenda con ?tel=, se resalta esa cita (solo la primera vez que se pinta)
+  let telBuscado = null;
 
   // Si se llega desde clientas.html con ?fecha=YYYY-MM-DD, activar esa fecha
   (function() {
     const params = new URLSearchParams(window.location.search);
     const fechaParam = params.get('fecha');
+    const telParam = (params.get('tel') || '').replace(/\D/g, '').slice(-9);
+    if (telParam.length === 9) telBuscado = telParam;
     if (fechaParam) {
       const p = fechaParam.split('-');
       if (p.length === 3) {
@@ -706,7 +712,8 @@
   })();
 
   function formatoInput(date) {
-    return date.toISOString().split('T')[0]; // YYYY-MM-DD
+    // YYYY-MM-DD en hora local (toISOString pasaba a UTC y podía marcar el día anterior)
+    return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
   }
 
   function formatoHoja(date) {
@@ -817,6 +824,7 @@
           <div class="empty-title">No hay citas este día</div>
           <div class="empty-text">Disfruta del descanso.</div>
         </div>`;
+      marcarCitaBuscada();
       return;
     }
 
@@ -858,6 +866,7 @@
       const card = document.createElement('div');
       card.className = 'cita-card' + (esRepe ? ' es-repe' : '');
       card.style.borderLeftColor = svcColor.borde;
+      card.dataset.tel = telefono.replace(/\D/g, '').slice(-9);
 
       card.innerHTML = `
         <div class="cita-top">
@@ -931,6 +940,26 @@
 
     document.getElementById('contenido').innerHTML = '';
     document.getElementById('contenido').appendChild(lista);
+    marcarCitaBuscada();
+  }
+
+  // Viene de la Agenda: resaltar la cita de esa mami y bajar hasta ella.
+  // Si todavía no ha rellenado el formulario, no está en la hoja: se avisa arriba.
+  function marcarCitaBuscada() {
+    if (!telBuscado) return;
+    const tel = telBuscado;
+    telBuscado = null; // solo una vez
+    const card = document.querySelector(`.cita-card[data-tel="${tel}"]`);
+    if (card) {
+      card.classList.add('cita-resaltada');
+      setTimeout(() => card.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+      setTimeout(() => card.classList.remove('cita-resaltada'), 6000);
+    } else {
+      const aviso = document.createElement('div');
+      aviso.className = 'aviso-no-encontrada';
+      aviso.innerHTML = '🌸 Esta mami todavía <strong>no ha rellenado el formulario</strong>, por eso su cita no aparece aquí todavía.';
+      document.getElementById('contenido').prepend(aviso);
+    }
   }
 
   // ── BOTÓN TICKET DE VENTA ──

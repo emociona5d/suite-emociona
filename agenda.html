@@ -147,6 +147,9 @@
   .evm-punto { width: 16px; height: 16px; border-radius: 4px; flex-shrink: 0; margin-top: 5px; }
   .evm-titulo { font-size: 18px; color: #2C3E40; font-weight: 500; word-break: break-word; }
   .evm-cuando { font-size: 13px; color: #7A8A8E; margin-top: 3px; }
+  .evm-nombre-link { color: #A7228C; text-decoration: none; border-bottom: 1.5px dotted #E0C2DA; }
+  .evm-nombre-link:hover { border-bottom-color: #A7228C; }
+  .evm-flecha { font-size: 20px; line-height: 1; }
   .evm-cerrar { margin-left: auto; border: none; background: none; font-size: 18px; color: #9BB5BC; cursor: pointer; padding: 0 4px; }
   .evm-detalle { font-size: 14px; color: #3C4A50; margin: 7px 0 7px 28px; }
   .evm-detalle a { color: #A7228C; }
@@ -839,7 +842,14 @@
     }
 
     document.getElementById('evm-punto').style.background = colorDe(ev);
-    document.getElementById('evm-titulo').textContent = nombreVisible(ev);
+    const tituloEl = document.getElementById('evm-titulo');
+    if (esCita) {
+      // Pulsar el nombre lleva a "Citas de hoy" de ese día, con la cita de esta mami resaltada
+      const destino = `dashboard.html?fecha=${fmtISO(t.ini)}${telefono ? '&tel=' + telefono : ''}`;
+      tituloEl.innerHTML = `<a class="evm-nombre-link" href="${destino}" title="Ver en Citas de hoy">${esc(nombreVisible(ev))} <span class="evm-flecha">›</span></a>`;
+    } else {
+      tituloEl.textContent = nombreVisible(ev);
+    }
     document.getElementById('evm-cuando').textContent = formatoLargo(t.ini) + (t.todoDia ? ' · Todo el día' : ` · ${hm(t.ini)} – ${hm(t.fin)}`);
 
     let det = '';
