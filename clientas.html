@@ -866,7 +866,9 @@
         item.style.cursor = 'pointer';
         item.title = 'Ver cita en el dashboard';
         item.addEventListener('click', () => {
-          window.location.href = `dashboard.html?fecha=${urlFecha}`;
+          // Con el teléfono, "Citas de hoy" baja hasta esta cita y la resalta
+          const telSesion = (sf[16] || '').toString().replace(/\D/g, '').slice(-9);
+          window.location.href = `dashboard.html?fecha=${urlFecha}${telSesion.length === 9 ? '&tel=' + telSesion : ''}`;
         });
       }
       item.innerHTML = `
