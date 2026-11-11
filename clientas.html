@@ -1340,12 +1340,13 @@
     ventana.document.close();
   }
 
-  function escribirVentanaSobres(ventana, sobres) {
+  function escribirVentanaSobres(ventana, sobres, logoUrl) {
+    const logoSrc = logoUrl || LOGO_SOBRE_B64;
     const paginas = sobres.map(s => `
       <div class="sobre">
         <div class="remite">
           <div class="remite-texto">${s.remite.replace(/\n/g, '<br>')}</div>
-          <img src="${LOGO_SOBRE_B64}" class="remite-logo" alt="">
+          <img src="${logoSrc}" class="remite-logo" alt="">
         </div>
         <div class="destinatario">${s.destinatario.replace(/\n/g, '<br>')}</div>
       </div>`).join('');
@@ -1425,7 +1426,16 @@
         remite: REMITENTE_SOBRE,
         destinatario: `${nombre}\n${direccion}\n${cp} ${municipio}${provincia ? '\n' + provincia : ''}`
       };
-      escribirVentanaSobres(ventana, [sobre]);
+
+      // Cargar logo en color (igual que en sesiones.html)
+      const logoDataUrl = await (async () => {
+        try {
+          const r = await fetch('./logo-sobre.png');
+          if (r.ok) { const b = await r.blob(); return await new Promise(res => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(b); }); }
+        } catch(e) {}
+        return LOGO_SOBRE_B64;
+      })();
+      escribirVentanaSobres(ventana, [sobre], logoDataUrl);
 
       // Solo marca "Sobre" si todavía no lo estaba, para no perder el rastro
       // de que ya se había enviado si esto es una reimpresión.
