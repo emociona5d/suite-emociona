@@ -507,9 +507,9 @@
   const EMAIL_NEGOCIO = 'emocionaecografia5d@gmail.com';
 
   // ── BONO CONSUME MÉRIDA (columna AI) ──
-  // Campaña del Ayuntamiento: bono de 20 € en compras desde 40 €. En "Importe" (L) se apunta lo que
-  // paga la mami (precio habitual − 20 €); la columna AI guarda el importe del bono para que el ticket
-  // muestre el precio habitual y la línea del bono descontado.
+  // Campaña del Ayuntamiento: bono de 20 € en compras desde 40 €. En "Importe" (L) se apunta el precio
+  // habitual, como siempre; al marcar la casilla del bono en el ticket, la Suite resta los 20 € del
+  // Importe (queda lo que paga la mami) y guarda el bono en la columna AI. Al desmarcarla, lo deshace.
   const COL_BONO = 34, LETRA_BONO = 'AI', CAB_BONO = 'Bono';
   const BONO_NOMBRE = 'Bono Consume Mérida', BONO_IMPORTE = 20, BONO_MINIMO = 40, BONO_TOTAL = 100;
   let _bonoDisponible = true;   // false si la columna AI no existe o tiene otra cosa
@@ -1734,10 +1734,11 @@
     const { fila } = filasRender[_ticketIdx];
     const chk  = document.getElementById('ticket-bono-chk');
     const info = document.getElementById('ticket-bono-info');
-    const cobrado  = numEuros(fila[11]);
-    const habitual = cobrado + BONO_IMPORTE;
-    const usados   = todasLasFilas.filter(e => bonoDeFila(e.fila) > 0).length;
     const yaTenia  = bonoDeFila(fila) > 0;
+    // Con el bono ya guardado, "Importe" es lo que paga la mami; si no, es el precio habitual
+    const habitual = numEuros(fila[11]) + bonoDeFila(fila);
+    const cobrado  = habitual - BONO_IMPORTE;
+    const usados   = todasLasFilas.filter(e => bonoDeFila(e.fila) > 0).length;
     const contador = `Bonos usados: ${usados} de ${BONO_TOTAL}.`;
     chk.disabled = false;
     if (!_bonoDisponible) {
@@ -1745,14 +1746,15 @@
       info.textContent = 'Falta la columna AI "Bono" en la hoja. Avisa para crearla.';
     } else if (!yaTenia && habitual < BONO_MINIMO) {
       chk.checked = false; chk.disabled = true;
-      info.textContent = `El bono solo vale en compras desde ${BONO_MINIMO} €. Importe apuntado: ${eur(cobrado)}.`;
+      info.textContent = `El bono solo vale en compras desde ${BONO_MINIMO} €. Importe apuntado: ${eur(habitual)}.`;
     } else if (!yaTenia && usados >= BONO_TOTAL) {
       chk.checked = false; chk.disabled = true;
       info.textContent = `Ya se han usado los ${BONO_TOTAL} bonos de la campaña.`;
     } else if (chk.checked) {
-      info.textContent = `Precio habitual ${eur(habitual)} − bono ${eur(BONO_IMPORTE)} = paga ${eur(cobrado)}. ${contador}`;
+      info.textContent = `Precio habitual ${eur(habitual)} − bono ${eur(BONO_IMPORTE)} = paga ${eur(cobrado)}. `
+        + (yaTenia ? '' : `El importe de la hoja pasará a ${eur(cobrado)}. `) + contador;
     } else {
-      info.textContent = `Marca solo si en "Importe" ya está apuntado lo que paga la mami (precio − 20 €). ${contador}`;
+      info.textContent = (yaTenia ? `Al desmarcar, el importe de la hoja volverá a ${eur(habitual)}. ` : `Precio apuntado: ${eur(habitual)}. `) + contador;
     }
   }
 
@@ -1779,9 +1781,14 @@
       const bonoAntes = bonoDeFila(fila);
       const bonoAhora = conBono ? (bonoAntes || BONO_IMPORTE) : 0;
       if (_bonoDisponible && bonoAhora !== bonoAntes) {
+        // Importe = precio habitual − bono (al desmarcar, vuelve al precio habitual)
+        const importeNuevo = String(numEuros(fila[11]) + bonoAntes - bonoAhora).replace('.', ',');
         await actualizarCelda(LETRA_BONO, sheetRow, bonoAhora ? String(bonoAhora) : '');
+        await actualizarCelda('L', sheetRow, importeNuevo);
         while (fila.length <= COL_BONO) fila.push('');
         fila[COL_BONO] = bonoAhora ? String(bonoAhora) : '';
+        fila[11] = importeNuevo;
+        aplicarFiltros();   // refrescar la tabla con el importe nuevo
       }
       const logo = await cargarLogo();
       const nf = await obtenerSiguienteNumeroTicket();
@@ -1810,28 +1817,28 @@
   }
 
   async function obtenerSiguienteNumeroTicket() {
-    let maxN = 149; // mínimo: el primer ticket generado será A-0150
+    const MINIMO = 168; // el siguiente ticket será como mínimo el A-0169
 
-    // 1. Consultar localStorage (contador local persistente)
-    const stored = parseInt(localStorage.getItem('emociona_ultimo_ticket') || '0');
-    if (stored > maxN) maxN = stored;
-
-    // 2. Consultar hoja de facturación como respaldo (best-effort)
+    // 1. La hoja "Ticket" de FACTURACIÓN manda: se busca el número más alto en TODAS las columnas
+    //    (las líneas no siempre caen en la columna B), así todos los ordenadores siguen la misma cuenta.
     try {
-      const range = encodeURIComponent(`'${TICKET_NAME}'!B:B`);
+      await renovarTokenSiNecesario();
+      const range = encodeURIComponent(`'${TICKET_NAME}'!A:Z`);
       const url = `https://sheets.googleapis.com/v4/spreadsheets/${FACTURACION_ID}/values/${range}`;
       const resp = await fetch(url, { headers: { Authorization: 'Bearer ' + sesion.access_token } });
       if (resp.ok) {
         const data = await resp.json();
-        const valores = (data.values || []).flat().filter(v => v && /^A-\d+$/.test((v||'').trim()));
-        if (valores.length > 0) {
-          const sheetMax = Math.max(...valores.map(v => parseInt(v.replace('A-', ''))));
-          if (sheetMax > maxN) maxN = sheetMax;
-        }
+        const nums = (data.values || []).flat()
+          .map(v => /^A-(\d+)$/.exec((v || '').toString().trim()))
+          .filter(Boolean)
+          .map(m => parseInt(m[1], 10));
+        return Math.max(MINIMO, ...nums) + 1;
       }
-    } catch(e) { /* ignorar — usamos localStorage */ }
+    } catch(e) { /* sin conexión con la hoja: se usa el contador de este ordenador */ }
 
-    return maxN + 1;
+    // 2. Respaldo: contador guardado en este ordenador (solo si no se ha podido leer la hoja)
+    const stored = parseInt(localStorage.getItem('emociona_ultimo_ticket') || '0');
+    return Math.max(MINIMO, stored) + 1;
   }
 
   function formatNumero(n) {
