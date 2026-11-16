@@ -388,6 +388,13 @@
   <div class="modal-box">
     <div class="modal-titulo">🧾 Ticket de venta</div>
     <div class="modal-sub" id="ticket-para"></div>
+    <label id="ticket-bono-box" style="display:flex;gap:10px;align-items:flex-start;text-align:left;background:#FBF1F8;border:1px solid #E7C3DD;border-radius:10px;padding:10px 12px;margin-bottom:16px;cursor:pointer;">
+      <input type="checkbox" id="ticket-bono-chk" onchange="pintarBonoTicket()" style="margin-top:3px;">
+      <span>
+        <span style="display:block;font-weight:600;color:#A7228C;font-size:14px;">🎟️ Pagado con Bono Consume Mérida (−20 €)</span>
+        <span id="ticket-bono-info" style="display:block;font-size:12px;color:#6B7F86;margin-top:3px;"></span>
+      </span>
+    </label>
     <div class="send-method-label">¿Cómo quieres enviarlo?</div>
     <div class="send-method-grid">
       <button class="btn-send-method" id="ticket-btn-email" onclick="confirmarTicket('email')">
@@ -498,6 +505,17 @@
   // (marca en la columna AH + email a la cuenta del negocio). Al generarlo, la marca se borra sola.
   const COL_ENVIO = 33, LETRA_ENVIO = 'AH', CAB_ENVIO = 'Envío pendiente';
   const EMAIL_NEGOCIO = 'emocionaecografia5d@gmail.com';
+
+  // ── BONO CONSUME MÉRIDA (columna AI) ──
+  // Campaña del Ayuntamiento: bono de 20 € en compras desde 40 €. En "Importe" (L) se apunta lo que
+  // paga la mami (precio habitual − 20 €); la columna AI guarda el importe del bono para que el ticket
+  // muestre el precio habitual y la línea del bono descontado.
+  const COL_BONO = 34, LETRA_BONO = 'AI', CAB_BONO = 'Bono';
+  const BONO_NOMBRE = 'Bono Consume Mérida', BONO_IMPORTE = 20, BONO_MINIMO = 40, BONO_TOTAL = 100;
+  let _bonoDisponible = true;   // false si la columna AI no existe o tiene otra cosa
+  function numEuros(v) { return parseFloat((v || '0').toString().replace(',', '.').replace('€', '').trim()) || 0; }
+  function bonoDeFila(fila) { return numEuros(fila[COL_BONO]); }
+  function eur(n) { return n.toFixed(2).replace('.', ',') + ' €'; }
   let _envioDisponible = true;  // false si la columna AH no existe o tiene otra cosa
   let _soloEnvios = false;      // filtro "ver solo envíos pendientes"
   function tiposPendientes(fila) {
@@ -519,9 +537,17 @@
       // A:AC en vez de A:Y para incluir la columna "Sobre" (AC, índice 28)
       // A:AH = packs (AD:AG) + "Envío pendiente" (AH). Si AH no existe todavía, se lee A:AG.
       const urlDe = r => `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(`'${SHEET_NAME}'!${r}`)}`;
-      let resp = await fetch(urlDe('A:AH'), {
+      let resp = await fetch(urlDe('A:' + LETRA_BONO), {
         headers: { Authorization: 'Bearer ' + sesion.access_token }
       });
+      _bonoDisponible = true;
+      if (resp.status === 400) {
+        _bonoDisponible = false;
+        console.warn('La columna AI no existe: no se pueden apuntar bonos Consume Mérida.');
+        resp = await fetch(urlDe('A:AH'), {
+          headers: { Authorization: 'Bearer ' + sesion.access_token }
+        });
+      }
       _envioDisponible = true;
       if (resp.status === 400) {
         _envioDisponible = false;
@@ -545,6 +571,13 @@
         const cabAH = (cabecera[COL_ENVIO] || '').trim();
         if (!cabAH) actualizarCelda(LETRA_ENVIO, 1, CAB_ENVIO).catch(() => {});
         else if (cabAH !== CAB_ENVIO) { _envioDisponible = false; console.warn('AH1 tiene "' + cabAH + '": no se usan marcas de envío.'); }
+      }
+
+      // Cabecera AI "Bono": crearla si está vacía; si hay otra cosa, no tocar
+      if (_bonoDisponible) {
+        const cabAI = (cabecera[COL_BONO] || '').trim();
+        if (!cabAI) actualizarCelda(LETRA_BONO, 1, CAB_BONO).catch(() => {});
+        else if (cabAI !== CAB_BONO) { _bonoDisponible = false; console.warn('AI1 tiene "' + cabAI + '": no se apuntan bonos.'); }
       }
 
       todasLasFilas = filas
@@ -1681,6 +1714,10 @@
 
     document.getElementById('ticket-para').textContent = 'Para: ' + nombre;
 
+    const chkBono = document.getElementById('ticket-bono-chk');
+    chkBono.checked = bonoDeFila(fila) > 0;
+    pintarBonoTicket();
+
     const btnEmail = document.getElementById('ticket-btn-email');
     const btnWa    = document.getElementById('ticket-btn-wa');
     btnEmail.disabled = !email;
@@ -1691,6 +1728,34 @@
     document.getElementById('modal-ticket').classList.add('visible');
   }
 
+  // Texto de ayuda del bono en el modal del ticket (y si se puede marcar o no)
+  function pintarBonoTicket() {
+    if (_ticketIdx === null) return;
+    const { fila } = filasRender[_ticketIdx];
+    const chk  = document.getElementById('ticket-bono-chk');
+    const info = document.getElementById('ticket-bono-info');
+    const cobrado  = numEuros(fila[11]);
+    const habitual = cobrado + BONO_IMPORTE;
+    const usados   = todasLasFilas.filter(e => bonoDeFila(e.fila) > 0).length;
+    const yaTenia  = bonoDeFila(fila) > 0;
+    const contador = `Bonos usados: ${usados} de ${BONO_TOTAL}.`;
+    chk.disabled = false;
+    if (!_bonoDisponible) {
+      chk.checked = false; chk.disabled = true;
+      info.textContent = 'Falta la columna AI "Bono" en la hoja. Avisa para crearla.';
+    } else if (!yaTenia && habitual < BONO_MINIMO) {
+      chk.checked = false; chk.disabled = true;
+      info.textContent = `El bono solo vale en compras desde ${BONO_MINIMO} €. Importe apuntado: ${eur(cobrado)}.`;
+    } else if (!yaTenia && usados >= BONO_TOTAL) {
+      chk.checked = false; chk.disabled = true;
+      info.textContent = `Ya se han usado los ${BONO_TOTAL} bonos de la campaña.`;
+    } else if (chk.checked) {
+      info.textContent = `Precio habitual ${eur(habitual)} − bono ${eur(BONO_IMPORTE)} = paga ${eur(cobrado)}. ${contador}`;
+    } else {
+      info.textContent = `Marca solo si en "Importe" ya está apuntado lo que paga la mami (precio − 20 €). ${contador}`;
+    }
+  }
+
   function cerrarModalTicket() {
     document.getElementById('modal-ticket').classList.remove('visible');
     _ticketIdx = null;
@@ -1699,22 +1764,33 @@
   async function confirmarTicket(metodo) {
     if (_ticketIdx === null) return;
     const idx = _ticketIdx;
+    const chkBono = document.getElementById('ticket-bono-chk');
+    const conBono = chkBono.checked && !chkBono.disabled;
     cerrarModalTicket();
-    await generarTicket(idx, metodo);
+    await generarTicket(idx, metodo, conBono);
   }
 
-  async function generarTicket(idx, metodo = 'email') {
-    const { fila } = filasRender[idx];
+  async function generarTicket(idx, metodo = 'email', conBono = false) {
+    const { fila, sheetRow } = filasRender[idx];
     const nombre = ((fila[0]||'') + ' ' + (fila[1]||'')).trim();
     const dni    = (fila[2]||'').trim();
     try {
+      // Bono Consume Mérida: guardar (o quitar) la marca en la columna AI antes de hacer el ticket
+      const bonoAntes = bonoDeFila(fila);
+      const bonoAhora = conBono ? (bonoAntes || BONO_IMPORTE) : 0;
+      if (_bonoDisponible && bonoAhora !== bonoAntes) {
+        await actualizarCelda(LETRA_BONO, sheetRow, bonoAhora ? String(bonoAhora) : '');
+        while (fila.length <= COL_BONO) fila.push('');
+        fila[COL_BONO] = bonoAhora ? String(bonoAhora) : '';
+      }
       const logo = await cargarLogo();
       const nf = await obtenerSiguienteNumeroTicket();
       const nfStr = formatNumero(nf);
       localStorage.setItem('emociona_ultimo_ticket', String(nf)); // guardar para siguiente ticket
       const doc = construirTicket({ fila, nombre, dni }, nfStr, logo);
       const fecha    = (fila[3]||'').trim();
-      const svc      = conceptoTicket(fila).lineaHoja;
+      const bono     = bonoDeFila(fila);
+      const svc      = conceptoTicket(fila).lineaHoja + (bono ? ` (${BONO_NOMBRE} −${bono} €)` : '');
       const cobrado  = parseFloat((fila[11]||'0').toString().replace(',','.').replace('€','').trim()) || 0;
       const pago     = (fila[12]||'').trim();
       const filename = `Ticket_${nfStr}_${nombre}.pdf`;
@@ -1872,27 +1948,41 @@
     const cobrado = parseFloat((fila[11]||'0').toString().replace(',','.').replace('€','').trim()) || 0;
     const baseConcepto = cobrado / 1.21;
     const concepto = conceptoTicket(fila);
+    const bono  = bonoDeFila(fila);       // Bono Consume Mérida (0 si no hay)
+    const extra = bono ? 12 : 0;          // alto extra de la caja para la línea del bono
 
     doc.setFillColor(...BLUE_LT);
-    doc.rect(ML, cy, W - ML - MR, 38, 'F');
+    doc.rect(ML, cy, W - ML - MR, 38 + extra, 'F');
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
     doc.setTextColor(...GRAY);
     doc.text('CONCEPTO', W / 2, cy + 7, { align: 'center' });
     doc.setFontSize(10);
     doc.text(doc.splitTextToSize(concepto.titulo, 130)[0], ML + 20, cy + 16);
-    doc.text(baseConcepto.toFixed(2) + ' €', W - MR - 5, cy + 16, { align: 'right' });
+    // Con bono: precio habitual (IVA incluido) y debajo el bono descontado. Sin bono: base sin IVA, como siempre.
+    doc.text((bono ? (cobrado + bono) : baseConcepto).toFixed(2) + ' €', W - MR - 5, cy + 16, { align: 'right' });
     if (concepto.detalle) {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8);
       doc.setTextColor(...GRAY_LT);
       doc.text(doc.splitTextToSize(concepto.detalle, 150).slice(0, 2), ML + 20, cy + 22);
     }
+    if (bono) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.setTextColor(...MORADO);
+      doc.text(BONO_NOMBRE, ML + 20, cy + 33);
+      doc.text('-' + bono.toFixed(2) + ' €', W - MR - 5, cy + 33, { align: 'right' });
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(...GRAY_LT);
+      doc.text('Precio habitual y bono con IVA incluido. Bono descontado del total de la compra.', ML + 20, cy + 38);
+    }
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
     doc.setTextColor(...GRAY_LT);
-    doc.text('Dto.', ML + 40, cy + 33);
-    doc.text(concepto.dto, W / 2, cy + 33, { align: 'center' });
+    doc.text('Dto.', ML + 40, cy + 33 + extra);
+    doc.text(concepto.dto, W / 2, cy + 33 + extra, { align: 'center' });
 
     // ── TABLA IVA ──
     const baseStr  = baseConcepto.toFixed(2);
@@ -1902,7 +1992,7 @@
     doc.autoTable({
       head: [['TIPO', 'BASE IMPONIBLE', 'IVA']],
       body: [['21%', baseStr + ' €', ivaStr + ' €']],
-      startY: cy + 44,
+      startY: cy + 44 + extra,
       margin: { left: W / 2 - 10, right: MR },
       theme: 'plain',
       headStyles: { fillColor: DARK_H, textColor: [255,255,255], fontSize: 9, fontStyle: 'bold', halign: 'center', cellPadding: { top:4,bottom:4,left:3,right:3 } },
