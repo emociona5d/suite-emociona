@@ -395,6 +395,14 @@
         <span id="ticket-bono-info" style="display:block;font-size:12px;color:#6B7F86;margin-top:3px;"></span>
       </span>
     </label>
+    <!-- BLACK WEEK (nov 2026): quitar este bloque cuando acabe la campaña -->
+    <label id="ticket-bw-box" style="display:flex;gap:10px;align-items:flex-start;text-align:left;background:#F2F2F4;border:1px solid #C9C9D1;border-radius:10px;padding:10px 12px;margin-bottom:16px;cursor:pointer;">
+      <input type="checkbox" id="ticket-bw-chk" onchange="pintarBonoTicket()" style="margin-top:3px;">
+      <span>
+        <span style="display:block;font-weight:600;color:#28282F;font-size:14px;">🖤 Descuento Black Week −10 % (L-V mañana)</span>
+        <span id="ticket-bw-info" style="display:block;font-size:12px;color:#6B7F86;margin-top:3px;"></span>
+      </span>
+    </label>
     <div class="send-method-label">¿Cómo quieres enviarlo?</div>
     <div class="send-method-grid">
       <button class="btn-send-method" id="ticket-btn-email" onclick="confirmarTicket('email')">
@@ -516,6 +524,19 @@
   function numEuros(v) { return parseFloat((v || '0').toString().replace(',', '.').replace('€', '').trim()) || 0; }
   function bonoDeFila(fila) { return numEuros(fila[COL_BONO]); }
   function eur(n) { return n.toFixed(2).replace('.', ',') + ' €'; }
+
+  // ── BLACK WEEK (columna AJ) — campaña del 23 al 29 nov 2026 ──
+  // 10 % de descuento para sesiones/packs de lunes a viernes de 9:30 a 13:30. Igual que el bono:
+  // en "Importe" (L) se apunta el precio habitual; al marcar la casilla del ticket, la Suite resta el 10 %
+  // (si hay bono, primero el bono y después el 10 % sobre lo que queda), deja en L lo que paga la mami
+  // y guarda los euros descontados en la columna AJ. Al desmarcarla, lo deshace.
+  const COL_BW = 35, LETRA_BW = 'AJ', CAB_BW = 'Black Week';
+  const BW_PCT = 10, BW_TEXTO = 'Descuento Black Week -10 % (L-V mañana)';
+  let _bwDisponible = true;     // false si la columna AJ no existe o tiene otra cosa
+  function bwDeFila(fila) { return numEuros(fila[COL_BW]); }
+  function cent(n) { return Math.round(n * 100) / 100; }
+  function calcBw(base) { return cent(base * BW_PCT / 100); }
+  function numHoja(n) { n = cent(n); return (Number.isInteger(n) ? String(n) : n.toFixed(2)).replace('.', ','); }
   let _envioDisponible = true;  // false si la columna AH no existe o tiene otra cosa
   let _soloEnvios = false;      // filtro "ver solo envíos pendientes"
   function tiposPendientes(fila) {
@@ -537,9 +558,17 @@
       // A:AC en vez de A:Y para incluir la columna "Sobre" (AC, índice 28)
       // A:AH = packs (AD:AG) + "Envío pendiente" (AH). Si AH no existe todavía, se lee A:AG.
       const urlDe = r => `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(`'${SHEET_NAME}'!${r}`)}`;
-      let resp = await fetch(urlDe('A:' + LETRA_BONO), {
+      let resp = await fetch(urlDe('A:' + LETRA_BW), {
         headers: { Authorization: 'Bearer ' + sesion.access_token }
       });
+      _bwDisponible = true;
+      if (resp.status === 400) {
+        _bwDisponible = false;
+        console.warn('La columna AJ no existe: no se puede apuntar el descuento Black Week.');
+        resp = await fetch(urlDe('A:' + LETRA_BONO), {
+          headers: { Authorization: 'Bearer ' + sesion.access_token }
+        });
+      }
       _bonoDisponible = true;
       if (resp.status === 400) {
         _bonoDisponible = false;
@@ -578,6 +607,13 @@
         const cabAI = (cabecera[COL_BONO] || '').trim();
         if (!cabAI) actualizarCelda(LETRA_BONO, 1, CAB_BONO).catch(() => {});
         else if (cabAI !== CAB_BONO) { _bonoDisponible = false; console.warn('AI1 tiene "' + cabAI + '": no se apuntan bonos.'); }
+      }
+      // Cabecera AJ "Black Week": crearla si está vacía; si hay otra cosa, no tocar
+      if (!_bonoDisponible) _bwDisponible = false;   // sin AI no se lee AJ
+      if (_bwDisponible) {
+        const cabAJ = (cabecera[COL_BW] || '').trim();
+        if (!cabAJ) actualizarCelda(LETRA_BW, 1, CAB_BW).catch(() => {});
+        else if (cabAJ !== CAB_BW) { _bwDisponible = false; console.warn('AJ1 tiene "' + cabAJ + '": no se apunta Black Week.'); }
       }
 
       todasLasFilas = filas
@@ -1716,6 +1752,7 @@
 
     const chkBono = document.getElementById('ticket-bono-chk');
     chkBono.checked = bonoDeFila(fila) > 0;
+    document.getElementById('ticket-bw-chk').checked = bwDeFila(fila) > 0;
     pintarBonoTicket();
 
     const btnEmail = document.getElementById('ticket-btn-email');
@@ -1736,7 +1773,7 @@
     const info = document.getElementById('ticket-bono-info');
     const yaTenia  = bonoDeFila(fila) > 0;
     // Con el bono ya guardado, "Importe" es lo que paga la mami; si no, es el precio habitual
-    const habitual = numEuros(fila[11]) + bonoDeFila(fila);
+    const habitual = cent(numEuros(fila[11]) + bonoDeFila(fila) + bwDeFila(fila));
     const cobrado  = habitual - BONO_IMPORTE;
     const usados   = todasLasFilas.filter(e => bonoDeFila(e.fila) > 0).length;
     const contador = `Bonos usados: ${usados} de ${BONO_TOTAL}.`;
@@ -1751,10 +1788,41 @@
       chk.checked = false; chk.disabled = true;
       info.textContent = `Ya se han usado los ${BONO_TOTAL} bonos de la campaña.`;
     } else if (chk.checked) {
-      info.textContent = `Precio habitual ${eur(habitual)} − bono ${eur(BONO_IMPORTE)} = paga ${eur(cobrado)}. `
-        + (yaTenia ? '' : `El importe de la hoja pasará a ${eur(cobrado)}. `) + contador;
+      info.textContent = `Precio habitual ${eur(habitual)} − bono ${eur(BONO_IMPORTE)} = ${eur(cobrado)}. ` + contador;
     } else {
-      info.textContent = (yaTenia ? `Al desmarcar, el importe de la hoja volverá a ${eur(habitual)}. ` : `Precio apuntado: ${eur(habitual)}. `) + contador;
+      info.textContent = `Precio habitual: ${eur(habitual)}. ` + contador;
+    }
+    pintarBlackWeek(fila, habitual, chk.checked && !chk.disabled);
+  }
+
+  // Texto de ayuda de la casilla Black Week (y si se puede marcar o no)
+  function pintarBlackWeek(fila, habitual, conBono) {
+    const chk  = document.getElementById('ticket-bw-chk');
+    const info = document.getElementById('ticket-bw-info');
+    const yaTenia = bwDeFila(fila) > 0;
+    const ventas  = todasLasFilas.filter(e => bwDeFila(e.fila) > 0).length;
+    const contador = `Ventas Black Week: ${ventas}.`;
+    const base  = cent(habitual - (conBono ? BONO_IMPORTE : 0));
+    const dto   = calcBw(base);
+    const paga  = cent(base - (chk.checked ? dto : 0));
+    const actual = numEuros(fila[11]);
+    const cambio = paga !== cent(actual) ? ` El importe de la hoja pasará de ${eur(actual)} a ${eur(paga)}.` : '';
+    chk.disabled = false;
+    if (!_bwDisponible) {
+      chk.checked = false; chk.disabled = true;
+      info.textContent = 'Falta la columna AJ "Black Week" en la hoja. Avisa para crearla.';
+    } else if (!yaTenia && habitual <= 0) {
+      chk.checked = false; chk.disabled = true;
+      info.textContent = 'Esta sesión no tiene importe (ya pagada en un pack, regalo…).';
+    } else if (!yaTenia && Packs.tieneSabado(fila[26])) {
+      chk.checked = false; chk.disabled = true;
+      info.textContent = 'Lleva suplemento de sábado: los sábados no entran en Black Week.';
+    } else if (chk.checked) {
+      info.textContent = `${conBono ? 'Tras el bono' : 'Precio habitual'} ${eur(base)} − 10 % (${eur(dto)}) = paga ${eur(paga)}.`
+        + cambio + ' ' + contador;
+    } else {
+      info.textContent = 'Solo si la sesión (o todas las del pack) es de lunes a viernes de 9:30 a 13:30.'
+        + cambio + ' ' + contador;
     }
   }
 
@@ -1768,25 +1836,33 @@
     const idx = _ticketIdx;
     const chkBono = document.getElementById('ticket-bono-chk');
     const conBono = chkBono.checked && !chkBono.disabled;
+    const chkBw = document.getElementById('ticket-bw-chk');
+    const conBw = chkBw.checked && !chkBw.disabled;
     cerrarModalTicket();
-    await generarTicket(idx, metodo, conBono);
+    await generarTicket(idx, metodo, conBono, conBw);
   }
 
-  async function generarTicket(idx, metodo = 'email', conBono = false) {
+  async function generarTicket(idx, metodo = 'email', conBono = false, conBw = false) {
     const { fila, sheetRow } = filasRender[idx];
     const nombre = ((fila[0]||'') + ' ' + (fila[1]||'')).trim();
     const dni    = (fila[2]||'').trim();
     try {
       // Bono Consume Mérida: guardar (o quitar) la marca en la columna AI antes de hacer el ticket
+      // y del descuento Black Week en la columna AJ (primero el bono, después el 10 % sobre lo que queda)
       const bonoAntes = bonoDeFila(fila);
-      const bonoAhora = conBono ? (bonoAntes || BONO_IMPORTE) : 0;
-      if (_bonoDisponible && bonoAhora !== bonoAntes) {
-        // Importe = precio habitual − bono (al desmarcar, vuelve al precio habitual)
-        const importeNuevo = String(numEuros(fila[11]) + bonoAntes - bonoAhora).replace('.', ',');
-        await actualizarCelda(LETRA_BONO, sheetRow, bonoAhora ? String(bonoAhora) : '');
+      const bwAntes   = bwDeFila(fila);
+      const habitual  = cent(numEuros(fila[11]) + bonoAntes + bwAntes);
+      const bonoAhora = _bonoDisponible ? (conBono ? (bonoAntes || BONO_IMPORTE) : 0) : bonoAntes;
+      const bwAhora   = _bwDisponible ? (conBw ? calcBw(habitual - bonoAhora) : 0) : bwAntes;
+      if (bonoAhora !== bonoAntes || bwAhora !== bwAntes) {
+        // Importe = precio habitual − bono − Black Week (al desmarcar, vuelve al precio habitual)
+        const importeNuevo = numHoja(habitual - bonoAhora - bwAhora);
+        if (bonoAhora !== bonoAntes) await actualizarCelda(LETRA_BONO, sheetRow, bonoAhora ? String(bonoAhora) : '');
+        if (bwAhora !== bwAntes)     await actualizarCelda(LETRA_BW, sheetRow, bwAhora ? numHoja(bwAhora) : '');
         await actualizarCelda('L', sheetRow, importeNuevo);
-        while (fila.length <= COL_BONO) fila.push('');
+        while (fila.length <= COL_BW) fila.push('');
         fila[COL_BONO] = bonoAhora ? String(bonoAhora) : '';
+        fila[COL_BW]   = bwAhora ? numHoja(bwAhora) : '';
         fila[11] = importeNuevo;
         aplicarFiltros();   // refrescar la tabla con el importe nuevo
       }
@@ -1797,7 +1873,8 @@
       const doc = construirTicket({ fila, nombre, dni }, nfStr, logo);
       const fecha    = (fila[3]||'').trim();
       const bono     = bonoDeFila(fila);
-      const svc      = conceptoTicket(fila).lineaHoja + (bono ? ` (${BONO_NOMBRE} −${bono} €)` : '');
+      const svc      = conceptoTicket(fila).lineaHoja + (bono ? ` (${BONO_NOMBRE} −${bono} €)` : '')
+                     + (bwDeFila(fila) ? ' (Black Week −10 %)' : '');
       const cobrado  = parseFloat((fila[11]||'0').toString().replace(',','.').replace('€','').trim()) || 0;
       const pago     = (fila[12]||'').trim();
       const filename = `Ticket_${nfStr}_${nombre}.pdf`;
@@ -1956,7 +2033,14 @@
     const baseConcepto = cobrado / 1.21;
     const concepto = conceptoTicket(fila);
     const bono  = bonoDeFila(fila);       // Bono Consume Mérida (0 si no hay)
-    const extra = bono ? 12 : 0;          // alto extra de la caja para la línea del bono
+    const bw    = bwDeFila(fila);         // Descuento Black Week en euros (0 si no hay)
+    const habitualT = cobrado + bono + bw;
+    // Líneas debajo del concepto: bono, subtotal (si hay los dos) y Black Week
+    const lineasDto = [];
+    if (bono) lineasDto.push([BONO_NOMBRE, '-' + bono.toFixed(2) + ' €', MORADO]);
+    if (bono && bw) lineasDto.push(['Subtotal', (habitualT - bono).toFixed(2) + ' €', GRAY]);
+    if (bw) lineasDto.push([BW_TEXTO, '-' + bw.toFixed(2) + ' €', DARK_BAR]);
+    const extra = lineasDto.length ? 6 * lineasDto.length + 6 : 0;   // alto extra de la caja
 
     doc.setFillColor(...BLUE_LT);
     doc.rect(ML, cy, W - ML - MR, 38 + extra, 'F');
@@ -1967,29 +2051,36 @@
     doc.setFontSize(10);
     doc.text(doc.splitTextToSize(concepto.titulo, 130)[0], ML + 20, cy + 16);
     // Con bono: precio habitual (IVA incluido) y debajo el bono descontado. Sin bono: base sin IVA, como siempre.
-    doc.text((bono ? (cobrado + bono) : baseConcepto).toFixed(2) + ' €', W - MR - 5, cy + 16, { align: 'right' });
+    doc.text((lineasDto.length ? habitualT : baseConcepto).toFixed(2) + ' €', W - MR - 5, cy + 16, { align: 'right' });
     if (concepto.detalle) {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8);
       doc.setTextColor(...GRAY_LT);
       doc.text(doc.splitTextToSize(concepto.detalle, 150).slice(0, 2), ML + 20, cy + 22);
     }
-    if (bono) {
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10);
-      doc.setTextColor(...MORADO);
-      doc.text(BONO_NOMBRE, ML + 20, cy + 33);
-      doc.text('-' + bono.toFixed(2) + ' €', W - MR - 5, cy + 33, { align: 'right' });
+    if (lineasDto.length) {
+      let ly = cy + 33;
+      lineasDto.forEach(([txt, imp, color]) => {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.setTextColor(...color);
+        doc.text(txt, ML + 20, ly);
+        doc.text(imp, W - MR - 5, ly, { align: 'right' });
+        ly += 6;
+      });
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8);
       doc.setTextColor(...GRAY_LT);
-      doc.text('Precio habitual y bono con IVA incluido. Bono descontado del total de la compra.', ML + 20, cy + 38);
+      const nota = bono && bw ? 'Importes con IVA incluido. Primero se descuenta el bono y después el 10 % Black Week.'
+                 : bono ? 'Precio habitual y bono con IVA incluido. Bono descontado del total de la compra.'
+                 : 'Precio habitual y descuento con IVA incluido. Sesiones de lunes a viernes de 9:30 a 13:30.';
+      doc.text(nota, ML + 20, ly - 1);
     }
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
     doc.setTextColor(...GRAY_LT);
     doc.text('Dto.', ML + 40, cy + 33 + extra);
-    doc.text(concepto.dto, W / 2, cy + 33 + extra, { align: 'center' });
+    doc.text(bw ? (concepto.dto === 'Pack' ? 'Pack · 10 % Black Week' : '10 % Black Week') : concepto.dto, W / 2, cy + 33 + extra, { align: 'center' });
 
     // ── TABLA IVA ──
     const baseStr  = baseConcepto.toFixed(2);
