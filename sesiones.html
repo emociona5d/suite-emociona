@@ -920,6 +920,27 @@
     if (!resp.ok) throw new Error('Error ' + resp.status);
   }
 
+  // Escribe varias celdas de una misma fila en UNA sola petición: o se guardan todas o ninguna
+  // (así la fila nunca queda a medias, p. ej. con el bono apuntado pero el importe sin rebajar).
+  async function actualizarCeldas(row, cambios) {
+    await renovarTokenSiNecesario();
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values:batchUpdate`;
+    const body = JSON.stringify({
+      valueInputOption: 'USER_ENTERED',
+      data: Object.entries(cambios).map(([col, valor]) => ({ range: `'${SHEET_NAME}'!${col}${row}`, values: [[valor]] }))
+    });
+    const enviar = () => fetch(url, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + sesion.access_token, 'Content-Type': 'application/json' },
+      body
+    });
+    let resp = await enviar();
+    if (resp.status === 401) { await renovarToken(); resp = await enviar(); }
+    if (resp.status === 400 && cambios[LETRA_BW] !== undefined)
+      throw new Error('falta la columna AJ "Black Week" en la hoja (no se ha cambiado nada).');
+    if (!resp.ok) throw new Error('Error ' + resp.status + ' (no se ha cambiado nada).');
+  }
+
   function logout() {
     localStorage.removeItem('emociona_session');
     window.location.href = 'index.html';
@@ -1857,9 +1878,10 @@
       if (bonoAhora !== bonoAntes || bwAhora !== bwAntes) {
         // Importe = precio habitual − bono − Black Week (al desmarcar, vuelve al precio habitual)
         const importeNuevo = numHoja(habitual - bonoAhora - bwAhora);
-        if (bonoAhora !== bonoAntes) await actualizarCelda(LETRA_BONO, sheetRow, bonoAhora ? String(bonoAhora) : '');
-        if (bwAhora !== bwAntes)     await actualizarCelda(LETRA_BW, sheetRow, bwAhora ? numHoja(bwAhora) : '');
-        await actualizarCelda('L', sheetRow, importeNuevo);
+        const cambios = { L: importeNuevo };
+        if (bonoAhora !== bonoAntes) cambios[LETRA_BONO] = bonoAhora ? String(bonoAhora) : '';
+        if (bwAhora !== bwAntes)     cambios[LETRA_BW]   = bwAhora ? numHoja(bwAhora) : '';
+        await actualizarCeldas(sheetRow, cambios);
         while (fila.length <= COL_BW) fila.push('');
         fila[COL_BONO] = bonoAhora ? String(bonoAhora) : '';
         fila[COL_BW]   = bwAhora ? numHoja(bwAhora) : '';
