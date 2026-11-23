@@ -1446,6 +1446,15 @@
     ventana.document.close();
   }
 
+  // Ecoconfirmación y Ecosexo no llevan foto impresa, así que nunca necesitan sobre
+  // (aunque tengan la casilla Carta marcada para el repaso visual).
+  // Ecosexo Emociona SÍ sigue llevando sobre.
+  const SERVICIOS_SIN_SOBRE = ['ecoconfirmacion', 'ecosexo'];
+  function servicioLlevaSobre(servicio) {
+    const s = (servicio || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return !SERVICIOS_SIN_SOBRE.includes(s);
+  }
+
   async function abrirRevisionSobres() {
     const modal = document.getElementById('modal-sobres');
     const estado = document.getElementById('sobres-estado');
@@ -1465,7 +1474,7 @@
         const carta = (fila[9] || '').trim() === 'Sí';
         const sinSobre = !(fila[28] || '').trim();
         const esReciente = parseFecha(fila[3]) >= fechaCorte;
-        return carta && sinSobre && esReciente;
+        return carta && sinSobre && esReciente && servicioLlevaSobre(fila[10]);
       })
       .map(({ fila, sheetRow }) => ({
         nombre: ((fila[0] || '') + ' ' + (fila[1] || '')).trim(),
