@@ -272,7 +272,7 @@
         </div>
         <div class="modal-campo">
           <label class="modal-label">Semanas</label>
-          <input class="modal-input" id="mc-semanas" type="number" min="4" max="42" inputmode="numeric">
+          <input class="modal-input" id="mc-semanas" type="text" inputmode="decimal" maxlength="10" placeholder="Ej. 20">
         </div>
       </div>
       <div class="modal-campo">
@@ -283,7 +283,7 @@
         </div>
       </div>
     </div>
-    <div class="modal-fila">
+    <div class="modal-fila" id="mc-fila-fecha">
       <div class="modal-campo">
         <label class="modal-label">Día *</label>
         <input class="modal-input" id="mc-fecha" type="date" onchange="cambioEnCita()">
@@ -868,6 +868,7 @@
     const boton = (texto, fn, clase) => { const b = document.createElement('button'); b.className = clase || 'btn-cancelar-cita'; b.textContent = texto; b.onclick = fn; acc.appendChild(b); };
     const cuandoTxt = t.todoDia ? formatoLargo(t.ini) : `${formatoLargo(t.ini)} a las ${hm(t.ini)}`;
     if (esCita) {
+      boton('✏️ Editar datos', () => abrirEditarCita(i), 'btn-mover');
       boton('🕒 Cambiar día/hora', () => abrirMoverCita(i), 'btn-mover');
       boton('Cancelar cita', () => cancelarCita(ev.id, token,
         `¿Seguro que quieres CANCELAR la cita de ${nombreVisible(ev)}?\n\n${cuandoTxt}\n\nSe borrará del calendario.`));
@@ -894,9 +895,12 @@
   function minAHora(m) { return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); }
   function horaAMin(h) { const p = h.split(':').map(Number); return p[0] * 60 + p[1]; }
 
-  let citaModo = 'crear';     // 'crear' o 'mover'
-  let citaMover = null;       // la cita que se está moviendo
+  let citaModo = 'crear';     // 'crear', 'mover' o 'editar'
+  let citaMover = null;       // la cita que se está moviendo o editando
   let solapeConfirmado = false;
+
+  const TEXTO_BOTON = { crear: 'Guardar cita', mover: 'Mover cita', editar: 'Guardar cambios' };
+  const TEXTO_BOTON_IGUAL = { crear: 'Guardar igualmente', mover: 'Mover igualmente', editar: 'Guardar igualmente' };
 
   // Rellenar el desplegable de servicios una sola vez
   document.getElementById('mc-servicio').innerHTML = '<option value="">Elige el servicio…</option>' +
@@ -907,7 +911,7 @@
   function abrirNuevaCita(fechaISO, hora) {
     citaModo = 'crear'; citaMover = null;
     document.getElementById('mc-titulo').textContent = '＋ Nueva cita';
-    mostrar('mc-mover-info', false); mostrar('mc-campos-crear', true); mostrar('mc-campo-notas', true);
+    mostrar('mc-mover-info', false); mostrar('mc-campos-crear', true); mostrar('mc-campo-notas', true); mostrar('mc-fila-fecha', true);
     ['mc-nombre', 'mc-telefono', 'mc-semanas', 'mc-notas'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('mc-servicio').value = '';
     document.getElementById('mc-fecha').value = fechaISO || fmtISO(fechaActiva);
@@ -929,7 +933,7 @@
     document.getElementById('mc-titulo').textContent = '🕒 Cambiar día y hora';
     const info = document.getElementById('mc-mover-info');
     info.innerHTML = `<strong>${esc(nombreVisible(ev))}</strong><br>Ahora: ${esc(formatoLargo(t.ini))} a las ${hm(t.ini)}`;
-    mostrar('mc-mover-info', true); mostrar('mc-campos-crear', false); mostrar('mc-campo-notas', false);
+    mostrar('mc-mover-info', true); mostrar('mc-campos-crear', false); mostrar('mc-campo-notas', false); mostrar('mc-fila-fecha', true);
     document.getElementById('mc-fecha').value = fmtISO(t.ini);
     document.getElementById('mc-hora').value = minAHora(t.ini.getHours() * 60 + t.ini.getMinutes());
     document.getElementById('mc-btn').textContent = 'Mover cita';
@@ -938,11 +942,75 @@
     document.getElementById('modal-cita').classList.add('visible');
   }
 
+  // ✏️ EDITAR DATOS: nombre, teléfono, servicio, semanas y notas (el día y la hora no cambian)
+  function abrirEditarCita(i) {
+    const ev = eventosCargados[i];
+    if (!ev) return;
+    const t = tiempos(ev);
+    const info = leerDescripcion(ev.description);
+    // Servicio actual: el escrito en la descripción; si no hay, el que corresponde a su color
+    const servicioActual = info.servicio || SERVICIO_POR_COLOR[ev.colorId || ''] || '';
+    citaModo = 'editar';
+    citaMover = {
+      ev, dur: Math.round((t.fin - t.ini) / 60000), token: extraerToken(ev.description),
+      ini: t.ini, servicioActual, servicioEscrito: !!info.servicio,
+    };
+    cerrarModalEvento();
+    document.getElementById('mc-titulo').textContent = '✏️ Editar datos de la cita';
+    document.getElementById('mc-mover-info').innerHTML =
+      `${esc(formatoLargo(t.ini))} · ${hm(t.ini)} – ${hm(t.fin)}<br><span style="font-size:12px">Para cambiar el día o la hora, usa "Cambiar día/hora".</span>`;
+    mostrar('mc-mover-info', true); mostrar('mc-campos-crear', true); mostrar('mc-campo-notas', true); mostrar('mc-fila-fecha', false);
+    document.getElementById('mc-nombre').value = nombreVisible(ev) === 'Sin título' ? '' : nombreVisible(ev);
+    document.getElementById('mc-telefono').value = info.telefono || extraerTelefono(ev.description) || '';
+    document.getElementById('mc-servicio').value = servicioActual;
+    document.getElementById('mc-semanas').value = (info.semanas || '').replace(',', '.');
+    document.getElementById('mc-notas').value = info.notas.join('\n');
+    document.getElementById('mc-fecha').value = fmtISO(t.ini);
+    document.getElementById('mc-hora').value = minAHora(t.ini.getHours() * 60 + t.ini.getMinutes());
+    document.getElementById('mc-btn').disabled = false;
+    cambioEnCita();
+    document.getElementById('modal-cita').classList.add('visible');
+  }
+
+  // Rehace la descripción del evento con los datos nuevos, respetando el estilo original
+  // (con etiquetas "Servicio:"/"Semanas:" si las tenía, como las reservas online) y sin perder
+  // las líneas internas que usan otros flujos (Email:, Token:).
+  function reconstruirDescripcion(desc, d) {
+    const lineas = textoPlano(desc).split(/\r?\n/).map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
+    let tel = false, servLinea = null, semEtiqueta = false, semVista = false;
+    const internas = [];
+    lineas.forEach(l => {
+      const n = normalizar(l);
+      if (/^token:/i.test(l) || /^e-?mail:/i.test(l) || /^\S+@\S+\.\S+$/.test(l)) { internas.push(l); return; }
+      if (!tel && /^[+\d][\d\s\-\.]{8,}$/.test(l)) { tel = true; return; }
+      if (!semVista && /\d/.test(l) && /semana/i.test(l) && l.length <= 25) { semVista = true; semEtiqueta = /^semanas?:/i.test(l); return; }
+      if (servLinea === null) {
+        const sin = n.replace(/^servicio:\s*/, '');
+        if (SERVICIO_TEXTO.find(([k]) => sin.startsWith(k))) { servLinea = l; return; }
+      }
+      // el resto eran notas: se sustituyen por las nuevas
+    });
+    const out = [d.telefono];                                    // 1ª línea SIEMPRE el teléfono
+    const conEtiqueta = servLinea ? /^servicio:/i.test(servLinea) : internas.some(l => /^token:/i.test(l));
+    if (!d.servicioCambiado && servLinea) out.push(servLinea);  // sin cambios: la línea tal cual (con su precio, si lo tenía)
+    else if (d.servicioCambiado || d.servicio) {
+      if (d.servicioCambiado || citaMover.servicioEscrito) out.push((conEtiqueta ? 'Servicio: ' : '') + d.servicio);
+    }
+    if (d.semanas) out.push(semEtiqueta || (!semVista && conEtiqueta) ? `Semanas: ${d.semanas}` : `${d.semanas} semanas`);
+    d.notas.split(/\r?\n/).map(l => l.trim()).filter(Boolean).forEach(l => out.push(l));
+    internas.forEach(l => out.push(l));
+    return out.join('\n');
+  }
+
   function cerrarModalCita() { document.getElementById('modal-cita').classList.remove('visible'); }
   document.getElementById('modal-cita').addEventListener('click', function(e) { if (e.target === this) cerrarModalCita(); });
 
   function duracionCita() {
-    return citaModo === 'mover' ? citaMover.dur : (DURACION_SLOT[document.getElementById('mc-servicio').value] || 0);
+    if (citaModo === 'mover') return citaMover.dur;
+    const serv = document.getElementById('mc-servicio').value;
+    // Al editar: si no se cambia el servicio, la cita conserva su duración de siempre
+    if (citaModo === 'editar' && serv === citaMover.servicioActual) return citaMover.dur;
+    return DURACION_SLOT[serv] || (citaModo === 'editar' ? citaMover.dur : 0);
   }
 
   // Cada vez que cambia el servicio, el día o la hora: recalcular la hora de fin y olvidar avisos anteriores
@@ -950,14 +1018,18 @@
     solapeConfirmado = false;
     mostrar('mc-solape', false);
     document.getElementById('mc-error').textContent = '';
-    document.getElementById('mc-btn').textContent = citaModo === 'mover' ? 'Mover cita' : 'Guardar cita';
+    document.getElementById('mc-btn').textContent = TEXTO_BOTON[citaModo];
     const serv = document.getElementById('mc-servicio').value;
     const s = SERVICIOS.find(x => x.nombre === serv);
     document.getElementById('mc-punto').style.background = s ? s.color : '#E0E8EA';
     const h = document.getElementById('mc-hora').value, d = duracionCita();
-    document.getElementById('mc-fin').textContent = (h && d)
-      ? `Termina a las ${minAHora(horaAMin(h) + d)} (${d} min, con el margen entre sesiones incluido)`
-      : '';
+    let txt = '';
+    if (citaModo === 'editar') {
+      if (d !== citaMover.dur) txt = `⏱️ Con este servicio la cita pasará a terminar a las ${minAHora(horaAMin(h) + d)} (${d} min).`;
+    } else if (h && d) {
+      txt = `Termina a las ${minAHora(horaAMin(h) + d)} (${d} min, con el margen entre sesiones incluido)`;
+    }
+    document.getElementById('mc-fin').textContent = txt;
   }
 
   // Busca en el Calendar (en directo) qué hay ya apuntado en ese rato
@@ -981,7 +1053,7 @@
     errorEl.textContent = '';
 
     let datos = {};
-    if (citaModo === 'crear') {
+    if (citaModo === 'crear' || citaModo === 'editar') {
       datos = {
         nombre: document.getElementById('mc-nombre').value.replace(/\s+/g, ' ').trim(),
         telefono: document.getElementById('mc-telefono').value.trim(),
@@ -997,11 +1069,14 @@
     const ini = horaAMin(hora), fin = ini + duracionCita();
     if (fin > 24 * 60) { errorEl.textContent = 'La cita no puede pasar de medianoche.'; return; }
 
+    // Al editar sin cambiar la duración, la cita ocupa el mismo rato: no hace falta mirar solapes
+    const mirarSolapes = !(citaModo === 'editar' && duracionCita() <= citaMover.dur);
+
     const textoBoton = btn.textContent;
     btn.disabled = true;
     try {
       // 1º) ¿Se pisa con algo? Avisar una vez; si vuelve a pulsar, se guarda igualmente
-      if (!solapeConfirmado) {
+      if (!solapeConfirmado && mirarSolapes) {
         btn.textContent = 'Comprobando…';
         const choques = await buscarSolapes(fecha, ini, fin, citaMover ? citaMover.ev.id : null);
         if (choques.length) {
@@ -1011,7 +1086,7 @@
             '</ul>Si quieres guardarla igualmente, pulsa el botón otra vez.';
           mostrar('mc-solape', true);
           solapeConfirmado = true;
-          btn.textContent = citaModo === 'mover' ? 'Mover igualmente' : 'Guardar igualmente';
+          btn.textContent = TEXTO_BOTON_IGUAL[citaModo];
           btn.disabled = false;
           return;
         }
@@ -1027,7 +1102,9 @@
         fecha, horaInicio: minAHora(ini), horaFin: minAHora(fin),
       }, citaModo === 'crear'
         ? Object.assign(datos, { colorId: COLORID_SERVICIO[datos.servicio] })
-        : { eventId: citaMover.ev.id, token: citaMover.token });
+        : citaModo === 'mover'
+          ? { eventId: citaMover.ev.id, token: citaMover.token }
+          : datosEdicion(datos));
 
       const resp = await fetch(EP_CITA, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const data = await resp.json().catch(() => ({}));
@@ -1046,7 +1123,24 @@
       errorEl.textContent = 'Error de conexión. Inténtalo de nuevo.';
     }
     btn.disabled = false;
-    btn.textContent = solapeConfirmado ? (citaModo === 'mover' ? 'Mover igualmente' : 'Guardar igualmente') : textoBoton;
+    btn.textContent = solapeConfirmado ? TEXTO_BOTON_IGUAL[citaModo] : textoBoton;
+  }
+
+  // Lo que se manda a n8n al editar: título, descripción completa ya rehecha y, si cambia el servicio, su color
+  function datosEdicion(datos) {
+    const servicioCambiado = datos.servicio !== citaMover.servicioActual;
+    const ev = citaMover.ev;
+    const r = {
+      eventId: ev.id, token: citaMover.token,
+      nombre: datos.nombre, telefono: datos.telefono,
+      descripcion: reconstruirDescripcion(ev.description, Object.assign({ servicioCambiado }, datos)),
+    };
+    // Color: solo se cambia si cambia el servicio y la cita tenía el color de un servicio (o ninguno).
+    // Si tenía otro color a propósito (rojo, morado…), se respeta.
+    const colorActual = ev.colorId || '';
+    const eraColorDeServicio = !colorActual || Object.values(COLORID_SERVICIO).includes(colorActual);
+    if (servicioCambiado && eraColorDeServicio && COLORID_SERVICIO[datos.servicio]) r.colorId = COLORID_SERVICIO[datos.servicio];
+    return r;
   }
 
   // ── CANCELAR CITA / QUITAR BLOQUEO ──
